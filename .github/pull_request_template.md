@@ -21,7 +21,8 @@
 ## Review
 - [ ] Code PR: Codex review requested (or owner review)
 - [ ] `TASKS.md`: only this task's row changed (→ `in-review` + PR link)
-- [ ] `PROJECT_STATUS.md` **not** marked done here — updated after merge
+- [ ] `PROJECT_STATUS.md` **not** marked done here — I will open my own status-update PR after merge
+      (status-update PRs: title `<TASK-ID>: status update [no-handoff]`, link the merged work PR)
 
 ## Next steps / owner questions
 -

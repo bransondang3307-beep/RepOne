@@ -30,7 +30,7 @@ Code and test results beat any document about what is *implemented*. Report conf
 | **Claude Code** | Main software developer | Implements tasks, integrates modules, writes tests for its changes, opens PRs, writes handoffs | Merge its own PR without review; change contracts without an ADR |
 | **OpenAI Codex** | Testing, debugging, code review | Reviews every code PR, adds/strengthens tests, reproduces and fixes bugs on its own branch | Rewrite features under review; change behaviour without a task |
 | **Gemini** | Research, architecture, design | Sensor/hardware research, architecture and UX critique, proposes ADRs (status *Proposed*) and design docs | Edit `packages/` or `apps/` code unless a task assigns it |
-| **ChatGPT** | Project management, coordination | Maintains task priorities and assignments, drafts `TASKS.md` / `PROJECT_STATUS.md` updates, resolves sequencing, prepares agent prompts | Push code (it proposes edits; the owner or Claude Code commits them) |
+| **ChatGPT** | Project management, roadmap coordination | Sets priorities and sequencing, proposes new tasks and assignments (committed by the owner in a roadmap PR), prepares agent prompts, checks that status PRs match merged work | Push code; edit another agent's task status or `PROJECT_STATUS.md` entries |
 | **Owner** (human) | Final authority | Approves scope/architecture, merges PRs, physical hardware and device testing | — |
 
 Ownership of paths is assigned per task in `TASKS.md` ("Files" column). One agent per file at a time.
@@ -57,10 +57,17 @@ Ownership of paths is assigned per task in `TASKS.md` ("Files" column). One agen
    set only *your* task row to `in-review` with the PR link. Code PRs need a Codex review
    (or the owner's) before merge; CI must be green.
 8. **Merge.** The owner merges (or explicitly delegates merging).
-9. **Update status after merge only.** Once merged and CI on `main` is green, a follow-up PR
-   (by the task's agent, or ChatGPT's drafted text committed by the owner/Claude Code) sets the task
-   to `done` with the merge commit and updates `PROJECT_STATUS.md`. Unmerged work is listed only under
-   "Open branches / PRs", never as completed.
+9. **Status-update PR — by the agent that did the task, after merge only.** Once the work PR is merged
+   and CI on `main` is green, **the same agent** opens its own small status PR:
+   - Branch `<agent>/<TASK-ID>-status`, title `<TASK-ID>: status update [no-handoff]`
+     (the work PR's handoff already covers it).
+   - Changes only: its own `TASKS.md` row → `done` with the merge commit and work-PR link, and the
+     matching `PROJECT_STATUS.md` entries (move from "Open branches / PRs" to "Verified on `main`" with
+     the evidence, add a change-log row).
+   - Rebase on the latest `origin/main` first; if another status PR touched the same section, merge
+     both entries — never delete another agent's row.
+   Unmerged work is listed only under "Open branches / PRs", never as completed. ChatGPT coordinates
+   the roadmap but does not write other agents' status updates (owner decision 2026-10-15, ADR 0004).
 
 ## 4. Status vocabulary
 
@@ -75,4 +82,5 @@ Describe software as **implemented** (code exists), **verified** (tests/checks e
 - ADR numbers are global across branches: check open branches (`git branch -r`) before picking the next number.
 - Never commit secrets, API keys, `.env` files, personal health data, or identifying gym photos.
 - Do not edit files another agent's open PR is changing; coordinate via `TASKS.md` / the owner.
-- Keep `TASKS.md` edits to your own task row(s); new tasks are added by ChatGPT/owner (or proposed in your handoff).
+- Keep `TASKS.md` edits to your own task row(s). New tasks, priorities and assignments come from ChatGPT's
+  roadmap proposals, committed by the owner in a roadmap PR (agents may propose tasks in their handoffs).

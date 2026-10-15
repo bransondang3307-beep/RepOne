@@ -1,7 +1,7 @@
 # ADR 0004 — Multi-agent synchronization workflow
 
 - **Date:** 2026-10-15
-- **Status:** Proposed (accepted when the RO-004 PR is merged by the owner)
+- **Status:** Accepted 2026-10-15 (owner merged [PR #1](https://github.com/bransondang3307-beep/RepOne/pull/1); status-update ownership amended the same day — see Decision 4)
 - **Numbering note:** ADR 0003 is used on the unmerged `sprint-1-alignment` branch, so this ADR takes 0004.
 
 ## Context
@@ -21,7 +21,11 @@ ownership drift. GitHub branch protection is unavailable on this private repo's 
 3. **Roles:** Claude Code = main developer; Codex = testing, debugging, review; Gemini = research,
    architecture, design; ChatGPT = project management; owner = approvals, merges, hardware/device tests.
 4. **Workflow:** sync from `origin/main` → work on `<agent>/<TASK-ID>-<slug>` → run tests → handoff
-   file → PR to `main` → review + green CI → owner merges → status/task updates in a follow-up after merge.
+   file → PR to `main` → review + green CI → owner merges → **the same agent** opens its own
+   status-update PR (`TASKS.md` row → `done`, `PROJECT_STATUS.md` entry) after merge.
+   *Owner decision 2026-10-15:* each agent owns its status updates for traceability and to avoid
+   conflicting direct edits; ChatGPT coordinates the roadmap (priorities, sequencing, new tasks and
+   assignments, committed by the owner) but does not write other agents' status.
 5. **Automation:** GitHub Actions CI (`npm ci`, boundary check when present, typecheck, tests) on every
    PR and on `main`, plus a check that each PR adds a handoff file. A PR template mirrors the handoff.
 
@@ -29,5 +33,7 @@ ownership drift. GitHub branch protection is unavailable on this private repo's 
 
 - Any agent can start cold from `main` and reach the same context in a fixed reading order.
 - "PR + review before merge" is a convention, not an enforced rule, until branch protection is available.
-- Status updates lag merges by one small PR; this keeps `PROJECT_STATUS.md` truthful.
+- Status updates lag merges by one small PR per task; this keeps `PROJECT_STATUS.md` truthful and every
+  status change traceable to the agent and merged PR behind it. Concurrent status PRs may touch the same
+  section of `PROJECT_STATUS.md`; agents rebase and keep both entries.
 - CI uses GitHub Actions minutes on a private repo (Free plan includes a monthly allowance).

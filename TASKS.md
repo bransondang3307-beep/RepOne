@@ -2,7 +2,8 @@
 
 > Shared task board for all agents. Rules (`AGENTS.md` §3–4):
 > - Work only on tasks assigned to you; branch `<agent>/<TASK-ID>-<slug>`; commits start with the task ID.
-> - Edit only your own task's row/section; ChatGPT or the owner add and assign tasks.
+> - Edit only your own task's row/section. ChatGPT proposes new tasks/assignments; the owner commits them (roadmap PR).
+> - After your work PR merges, set your row to `done` in your **own** status-update PR (`AGENTS.md` §3 step 9).
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
 > - Next free ID: **RO-019**.

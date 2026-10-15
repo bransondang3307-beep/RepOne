@@ -16,3 +16,4 @@ All shared project rules, context order, roles and the synchronization workflow 
   does not exist) and paste the summary lines into the handoff and PR.
 - **Request review:** every code PR asks for a Codex review in its description.
 - **Never** mark a task `done` or edit `PROJECT_STATUS.md` "Verified on main" before the PR is merged.
+  After merge + green CI on `main`, open your own status-update PR (`AGENTS.md` §3 step 9).

@@ -1,8 +1,8 @@
 # RepOne — Project Status
 
 > **Rule:** "Verified on `main`" lists only work that is **merged into `main` and verified**, with the
-> evidence. Unmerged work goes under "Open branches / PRs". Update this file in a PR only after the
-> change it describes has merged (`AGENTS.md` §3 step 9). Status words: see `AGENTS.md` §4.
+> evidence. Unmerged work goes under "Open branches / PRs". Each agent updates its own entries in a
+> status-update PR after its work has merged (`AGENTS.md` §3 step 9). Status words: see `AGENTS.md` §4.
 
 | | |
 |---|---|

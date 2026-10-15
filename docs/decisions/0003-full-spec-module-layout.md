@@ -43,7 +43,12 @@ and the dependency direction UI → Application Services → Domain + Rep Engine
 
 ## Consequences
 
-- No behaviour change in Milestone 1: same 46 tests, redistributed across workspaces.
+- No change to rep counting, sensor units or data contracts in Milestone 1 (Codex RO-006 confirmed the
+  transpiled implementation bodies are identical). One UI-mechanics change: the History screen reloads
+  on screen focus (`useWorkoutHistory`, `useFocusEffect`) instead of the store refreshing history on
+  mount and when a set finishes.
+- Tests: the original 46 were redistributed across workspaces; RO-006 review fixes added the restored
+  controller × SQLite integration test (plus one ordering test) and checker regression tests.
 - Ownership can be split per package (see `docs/architecture.md` §6).
 - Module G (device connectivity) and multi-channel contracts are added in Milestone 2.
 - `REPONE_SOURCE_OF_TRUTH.md` §6 still shows its own suggested layout; updating it needs owner approval.

@@ -52,7 +52,9 @@ track empty folders.
 | routes (`app/`) | features, shared, application — via their `index.ts` | infrastructure |
 
 Additional rules: no deep imports into packages (`@repone/x/src/...`); `@repone/x/testing` only
-from tests; no relative imports across packages; **no circular imports**. Tests may import the
+from tests; no relative imports across packages; **no circular imports** — cycle detection follows relative
+imports *and* `@repone/*` imports (resolved through each package's `exports`), so cycles through a package
+barrel are caught. The checker has its own regression tests (`npm run test:scripts`). Tests may import the
 internals of the unit they exercise. No global event bus or module-level singletons — the
 container is created once at boot and passed through React context.
 

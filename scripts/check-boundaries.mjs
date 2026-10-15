@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 // Enforces RepOne module boundaries (docs/architecture.md §3) and detects
-// circular imports. Zero dependencies; run with `npm run check:boundaries`.
+// circular imports — including cycles that pass through a workspace package's
+// public entry (`@repone/*`). Zero dependencies; run with `npm run check:boundaries`.
+// Usage: node scripts/check-boundaries.mjs [repoRoot]   (root defaults to this repo;
+// the argument lets scripts/check-boundaries.test.mjs run it against fixtures)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '..');
+const ROOT = resolve(process.argv[2] ?? join(dirname(fileURLToPath(import.meta.url)), '..'));
 const SOURCE_DIRS = [
   'packages/sensor-contracts/src',
   'packages/sensor-contracts/test',
@@ -42,6 +46,35 @@ const resolveRelative = (from, spec) => {
     if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
   }
   return null;
+};
+
+/** Workspace packages by name (`@repone/x`) → directory + manifest, read from packages/*\/package.json. */
+const WORKSPACE = new Map(
+  (existsSync(join(ROOT, 'packages')) ? readdirSync(join(ROOT, 'packages')) : [])
+    .map((dir) => join(ROOT, 'packages', dir))
+    .filter((dir) => existsSync(join(dir, 'package.json')))
+    .map((dir) => {
+      const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
+      return [manifest.name, { dir, manifest }];
+    }),
+);
+
+/**
+ * Resolve `@repone/x` or `@repone/x/sub` to the source file its package.json `exports`
+ * (or `main`) points at, so workspace imports become real edges in the cycle graph.
+ */
+const resolveWorkspace = (spec) => {
+  const m = spec.match(/^(@repone\/[^/]+)(\/.*)?$/);
+  const pkg = m && WORKSPACE.get(m[1]);
+  if (!pkg) return null;
+  const subpath = m[2] ? `.${m[2]}` : '.';
+  const { exports, main } = pkg.manifest;
+  let target = typeof exports === 'string' ? (subpath === '.' ? exports : undefined) : exports?.[subpath];
+  if (target && typeof target === 'object') target = target.default ?? target.import ?? target.require;
+  if (!target && subpath === '.' && !exports) target = main;
+  if (typeof target !== 'string') return null;
+  const file = resolve(pkg.dir, target);
+  return existsSync(file) && statSync(file).isFile() ? file : null;
 };
 
 const isTest = (rel) => /(__tests__|\/test\/|\.test\.tsx?$)/.test(rel);
@@ -85,6 +118,11 @@ for (const file of files) {
       if (from.kind === 'package' && !(PACKAGE_DEPS[from.name] ?? []).includes(name) && name !== from.name) {
         fail(spec, `@repone/${from.name} may only depend on: ${PACKAGE_DEPS[from.name]?.join(', ') || 'nothing'}`);
       }
+      // Permitted workspace imports are still graph edges: a cycle through a package's
+      // own barrel (or across packages) must not be hidden from the cycle check.
+      const target = resolveWorkspace(spec);
+      if (target) edges.push(target);
+      else if (!sub || sub === '/testing') fail(spec, 'cannot resolve workspace package entry (check its package.json "exports")');
       continue;
     }
 

@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "verify": "npm run check:boundaries && npm run typecheck && npm test"
   }
 }

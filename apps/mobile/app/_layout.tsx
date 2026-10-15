@@ -1,9 +1,8 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { useAppContainer } from '../src/di/useAppContainer';
-import { WorkoutStoreProvider } from '../src/state/WorkoutStoreProvider';
-import { colors, spacing } from '../src/ui/theme/tokens';
+import { AppServicesProvider, useAppContainer } from '../src/application';
+import { colors, spacing } from '../src/shared';
 
 export default function RootLayout() {
   const boot = useAppContainer();
@@ -21,13 +20,13 @@ export default function RootLayout() {
   }
 
   return (
-    <WorkoutStoreProvider container={boot.container}>
+    <AppServicesProvider container={boot.container}>
       <StatusBar style="dark" />
       <Stack screenOptions={{ contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="index" options={{ title: 'RepOne' }} />
         <Stack.Screen name="history" options={{ title: 'History' }} />
       </Stack>
-    </WorkoutStoreProvider>
+    </AppServicesProvider>
   );
 }
 

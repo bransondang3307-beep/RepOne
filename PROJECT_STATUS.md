@@ -36,7 +36,7 @@ not exercised on a device.
 | Branch | Task | State | Evidence so far |
 |---|---|---|---|
 | `sprint-1-alignment` @ `6e79ee3` | RO-003 Milestone 1: split into `sensor-contracts` / `rep-engine` / `workout-domain`, app `features/ shared/ infrastructure/ application/`, boundary checker, `docs/architecture.md`, `docs/hardware-protocol.md`, ADR 0003 | Pushed; **no PR yet** | In-session 2026-10-15: `npm run verify` → boundaries OK, typecheck clean, 46/46 tests; Android + iOS export OK; dev server served bundle. Expo Go not yet tested. |
-| `claude/RO-004-agent-sync` | RO-004 multi-agent sync setup (this file, `TASKS.md`, `CLAUDE.md`, `GEMINI.md`, handoff system, CI) | PR open (see `TASKS.md`) | See its handoff |
+| `claude/RO-004-agent-sync` | RO-004 multi-agent sync setup (this file, `TASKS.md`, `CLAUDE.md`, `GEMINI.md`, handoff system, CI) | [PR #1](https://github.com/bransondang3307-beep/RepOne/pull/1) open | CI run 38806919138 green on `f380be5`; see `docs/handoffs/2026-10-15-claude-RO-004.md` |
 
 ## Active milestone
 

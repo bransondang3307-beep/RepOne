@@ -13,9 +13,9 @@
 |---|---|---|---|---|---|---|
 | RO-001 | Sprint 1 foundation (core + Expo app) | Claude Code | — | done | — | `main` @ `1b7e5b9` (pushed directly; pre-workflow) |
 | RO-002 | Publish repository to private GitHub | Claude Code | — | done | RO-001 | `main` @ `d9a7274` |
-| RO-003 | Milestone 1: align module layout with full Sprint 1 brief | Claude Code | P1 | in-progress | — | `sprint-1-alignment` (no PR yet → RO-005) |
+| RO-003 | Milestone 1: align module layout with full Sprint 1 brief | Claude Code | P1 | in-review | — | `sprint-1-alignment` — PR via RO-005 |
 | RO-004 | Multi-agent synchronization setup | Claude Code | P1 | in-review | — | `claude/RO-004-agent-sync` — [PR #1](https://github.com/bransondang3307-beep/RepOne/pull/1) |
-| RO-005 | Open PR for `sprint-1-alignment` → `main` | Claude Code | P1 | todo | RO-004 | — |
+| RO-005 | Open PR for `sprint-1-alignment` → `main` | Claude Code | P1 | in-review | RO-004 | `sprint-1-alignment` — PR link in handoff |
 | RO-006 | Review Milestone 1 PR | Codex | P1 | todo | RO-005 | — |
 | RO-007 | Run Milestone 1 app in Expo Go | Owner | P1 | todo | — | — |
 | RO-008 | Update `docs/architecture.md` §6 ownership to `AGENTS.md` roles | Claude Code | P2 | todo | RO-003 merged | — |

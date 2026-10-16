@@ -1,6 +1,6 @@
 # RO-021 (temporary — removed again before review): reproduce RO-011 finding 1 (path separators in
 # scripts/check-boundaries.mjs) on native Windows. Runs only on pushes to this branch and compares
-# PR #3 before the fix (40d4a22, the commit Antigravity reviewed) with the fix (30e2dd3).
+# PR #3 before the fix (40d4a22, the commit Antigravity reviewed) with the fix (now 6f48f1d).
 name: RO-021 Windows path reproduction (temporary)
 
 on:
@@ -19,9 +19,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { label: before-fix, short: 40d4a22, sha: 40d4a223dc117f36baa567ee9211db8d64daa2c5, node: 22 }
-          - { label: after-fix, short: 30e2dd3, sha: 30e2dd3b53e71b1e97e6f7bf1dbaa9216c9bf5bb, node: 22 }
-          - { label: after-fix, short: 30e2dd3, sha: 30e2dd3b53e71b1e97e6f7bf1dbaa9216c9bf5bb, node: 24 }
+          # Round 1 (run 38933126592) covered 40d4a22 (before) and 30e2dd3 (test preload broke on Windows).
+          - { label: after-fix, short: 6f48f1d, sha: 6f48f1da461842d00405103a991fe14394e00e75, node: 22 }
+          - { label: after-fix, short: 6f48f1d, sha: 6f48f1da461842d00405103a991fe14394e00e75, node: 24 }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,4 +38,4 @@ jobs:
         working-directory: target
         run: npm ci
       - name: Reproduce and report (annotations)
-        run: node harness/.github/ro-021/windows-repro.mjs ${{ matrix.label }} target 30e2dd3b53e71b1e97e6f7bf1dbaa9216c9bf5bb
+        run: node harness/.github/ro-021/windows-repro.mjs ${{ matrix.label }} target 6f48f1da461842d00405103a991fe14394e00e75

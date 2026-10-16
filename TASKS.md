@@ -5,7 +5,7 @@
 > - Edit only your own task's row/section; ChatGPT or the owner add and assign tasks.
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-019**.
+> - Next free ID: **RO-023** (RO-019: PRs #4/#5 · RO-020: PR #6 · RO-021: PR #9 · RO-022: this row).
 
 ## Board
 
@@ -29,6 +29,7 @@
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
+| RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | in-review | RO-021 | `claude/RO-022-windows-ci` — PR_LINK |
 
 ## Task details
 
@@ -97,3 +98,13 @@
 ### RO-018 — H0 hardware bring-up (Owner)
 - Source of truth §11: locate Uno R3 + GY-521, verify markings/voltage, I²C scan, stream timestamped raw samples.
   Criteria: values change appropriately with movement (source of truth H0-A exit gate).
+
+### RO-022 — Windows CI job for the boundary checker (owner-approved, 2026-10-16)
+- **Why:** RepOne is developed on Windows machines, and RO-021's bugs (the checker's path separators, then its own
+  Windows-simulation test) passed Linux CI but failed on native Windows.
+- **Files:** `.github/workflows/ci.yml` only — adds a `windows` job. The Linux `verify` and `handoff` jobs are unchanged.
+- **Scope:** small: `windows-latest`, Node 24, default line endings; `npm run test:scripts` + `npm run check:boundaries`
+  (both `--if-present`, so branches without the checker pass). No `npm ci`. Not in scope without a further decision:
+  running the full `npm run verify` (typecheck + Jest) on Windows.
+- **Completion criteria:** the job fails on the RO-021 bugs (`40d4a22`, `30e2dd3`) and passes on the fix (`6f48f1d`);
+  the Linux job still runs unchanged; Codex review; PR merged by the owner.

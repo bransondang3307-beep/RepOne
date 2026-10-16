@@ -5,7 +5,7 @@
 > - Edit only your own task's row/section; ChatGPT or the owner add and assign tasks.
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-019**.
+> - Next free ID: **RO-020**.
 
 ## Board
 
@@ -29,6 +29,7 @@
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
+| RO-019 | Automated Claude Code ↔ Codex review loop (GitHub Actions) | Claude Code | P1 | in-review | RO-004 | `claude/RO-019-claude-codex-loop` (PR link in its handoff) |
 
 ## Task details
 
@@ -97,3 +98,15 @@
 ### RO-018 — H0 hardware bring-up (Owner)
 - Source of truth §11: locate Uno R3 + GY-521, verify markings/voltage, I²C scan, stream timestamped raw samples.
   Criteria: values change appropriately with movement (source of truth H0-A exit gate).
+
+### RO-019 — Automated Claude Code ↔ Codex review loop (assigned by the owner, 2026-10-16)
+- **Files:** `.github/workflows/ai-codex-review.yml`, `.github/workflows/ai-claude-fix.yml`, `.github/ai-loop/**`,
+  `.github/workflows/ci.yml` (dispatch trigger + loop tests), `docs/automation/claude-codex-loop.md`, ADR 0005,
+  `AGENTS.md` §1 item 7 + §5 (new; former §5 → §6), `CLAUDE.md`, this row.
+- **Description:** Codex reviews Claude feature PRs; blocking findings trigger Claude fixes on the same branch;
+  re-review after each fix; stop on approval or after two fix rounds. Official `openai/codex-action` and
+  `anthropics/claude-code-action`; least privilege; secrets only in Actions secrets; off by default with a
+  dry-run testing mode; never merges. No application code or rep-counting changes.
+- **Completion criteria:** PR merged; CI green; owner completes the staged test plan in
+  `docs/automation/claude-codex-loop.md` §5 (dry run → manual real review → manual real fix → chained run)
+  before setting `AI_LOOP_MODE=auto`.

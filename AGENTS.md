@@ -18,6 +18,8 @@ After every task, report: objective, files changed, tests executed/results, rema
 4. [`TASKS.md`](TASKS.md) — task IDs, owners, priorities, completion criteria. **Only work on a task assigned to you.**
 5. The newest files in [`docs/handoffs/`](docs/handoffs/) — what the last agent did and recommends.
 6. Architecture docs on your base branch: `docs/architecture.md` (if present), `docs/decisions/` (ADRs), `README.md`.
+7. If you work on a `claude/*` branch or review its PRs: [`docs/automation/claude-codex-loop.md`](docs/automation/claude-codex-loop.md)
+   — the automated Claude ↔ Codex review loop (RO-019) may add bot review comments and fix commits.
 
 Precedence when sources disagree: **owner's explicit decision** > `REPONE_SOURCE_OF_TRUTH.md` >
 accepted ADRs > `docs/architecture.md` > `PROJECT_STATUS.md` / `TASKS.md` > handoffs.
@@ -68,7 +70,23 @@ Use exactly: `todo` · `in-progress` · `in-review` · `done` · `blocked`.
 Describe software as **implemented** (code exists), **verified** (tests/checks executed and passing, say which),
 **planned**, or **speculative**. Simulated/synthetic results must be labelled as such.
 
-## 5. Rules that protect the project
+## 5. Automated Claude ↔ Codex review loop (RO-019)
+
+When enabled by the owner (repository variable `AI_LOOP_MODE`, off by default), GitHub Actions run an
+independent Codex review on Claude PRs (`claude/*` branches) and let Claude fix **blocking** findings on
+the same branch, at most **two** automatic rounds per PR. Full rules: `docs/automation/claude-codex-loop.md`.
+
+- The loop **never merges or approves**. `ai-loop:approved` means "Codex found no blocking issues on this
+  commit", not merge approval; the owner merges (§3 step 8).
+- Bot fix commits (`github-actions[bot]`, trailer `RepOne-AI-Loop: claude-fix round=N`) are pushed only after
+  `npm ci && npm run verify` passes, and add a round record to the PR's handoff. Agents on that branch must
+  `git pull` before pushing.
+- Automated fixes cannot change workflows, agent instruction files, `TASKS.md`, `PROJECT_STATUS.md`, ADRs,
+  lockfiles, the rep-counting detector or data contracts — those need a human/agent PR as usual.
+- Status updates still follow §3 step 9 (by the responsible agent, after merge), never by the loop.
+- Stop the loop on a PR with the label `ai-loop:stop`; `ai-loop:needs-human` means a person must take over.
+
+## 6. Rules that protect the project
 
 - Do not change the rep-counting algorithm, sensor units, or data contracts without an assigned task and an ADR.
 - Breaking interface changes: ADR in `docs/decisions/` + note in the PR + review by every affected owner.

@@ -1,0 +1,239 @@
+# RO-019 · Automated Claude Code ↔ Codex loop — step 1: independent Codex review.
+#
+# OFF BY DEFAULT. Behaviour is controlled by the repository variable AI_LOOP_MODE:
+#   off / unset — no automatic runs; manual dispatch allowed only as a dry run (no API calls)
+#   manual      — manual dispatch may call Codex (paid); no automatic triggers
+#   auto        — Claude PRs (branch prefix `claude/`) are reviewed automatically on open/push
+# Setup, credentials, costs and the test plan: docs/automation/claude-codex-loop.md
+#
+# Security model (see ADR 0005): no pull_request_target, no comment triggers, fork PRs rejected,
+# per-job least-privilege permissions, the job that runs PR code has no secrets, the Codex job is
+# read-only with drop-sudo, the job that writes to the PR runs no PR code. The automation never merges.
+name: AI loop · Codex review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to review
+        required: true
+        type: string
+      dry_run:
+        description: Dry run — no API call; posts synthetic findings to test the plumbing
+        type: boolean
+        default: true
+      chain:
+        description: If there are blocking findings, dispatch the Claude fix workflow
+        type: boolean
+        default: false
+      force:
+        description: Review even if this head commit was already reviewed
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: ai-loop-review-pr-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Gate (eligibility; read-only, no secrets)
+    # Cheap pre-filter so no runner starts on PR pushes while the loop is not in auto mode.
+    # The gate script re-checks everything.
+    if: github.event_name == 'workflow_dispatch' || vars.AI_LOOP_MODE == 'auto'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+      reason: ${{ steps.gate.outputs.reason }}
+      pr_number: ${{ steps.gate.outputs.pr_number }}
+      head_sha: ${{ steps.gate.outputs.head_sha }}
+      base_sha: ${{ steps.gate.outputs.base_sha }}
+      head_ref: ${{ steps.gate.outputs.head_ref }}
+      dry_run: ${{ steps.gate.outputs.dry_run }}
+      chain: ${{ steps.gate.outputs.chain }}
+      fix_rounds_done: ${{ steps.gate.outputs.fix_rounds_done }}
+      review_round: ${{ steps.gate.outputs.review_round }}
+      branch_prefix: ${{ steps.gate.outputs.branch_prefix }}
+    steps:
+      - name: Check out loop scripts (same commit as this workflow)
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          path: trusted
+          sparse-checkout: .github/ai-loop
+          persist-credentials: false
+      - name: Evaluate eligibility
+        id: gate
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          AI_LOOP_MODE: ${{ vars.AI_LOOP_MODE }}
+          AI_LOOP_ALLOWED_ACTORS: ${{ vars.AI_LOOP_ALLOWED_ACTORS }}
+          AI_LOOP_BRANCH_PREFIX: ${{ vars.AI_LOOP_BRANCH_PREFIX }}
+          INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_CHAIN: ${{ inputs.chain }}
+          INPUT_FORCE: ${{ inputs.force }}
+          AI_LOOP_OUT_DIR: ${{ runner.temp }}/ai-loop-gate
+        with:
+          script: |
+            const { reviewGate } = require(`${process.env.GITHUB_WORKSPACE}/trusted/.github/ai-loop/gate.cjs`);
+            await reviewGate({ github, context, core });
+      - name: Upload review context
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ai-loop-gate-context
+          path: ${{ runner.temp }}/ai-loop-gate
+          retention-days: 7
+
+  verify:
+    name: Verify PR head (runs PR code; read-only, no secrets)
+    needs: gate
+    if: needs.gate.outputs.run == 'true' && needs.gate.outputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          ref: ${{ needs.gate.outputs.head_sha }}
+          path: pr
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: npm ci && npm run verify (result recorded for the reviewer)
+        working-directory: pr
+        run: |
+          set +e
+          { npm ci && npm run verify; } > "$RUNNER_TEMP/verify.log" 2>&1
+          code=$?
+          mkdir -p "$RUNNER_TEMP/verify-out"
+          { echo "exit_code=$code"; echo "--- last 15000 bytes of log ---"; tail -c 15000 "$RUNNER_TEMP/verify.log"; } > "$RUNNER_TEMP/verify-out/verify.txt"
+          echo "npm ci && npm run verify exit code: $code"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ai-loop-verify
+          path: ${{ runner.temp }}/verify-out
+          retention-days: 7
+
+  codex:
+    name: Codex review (OPENAI_API_KEY; read-only sandbox)
+    needs: [gate, verify]
+    if: needs.gate.outputs.run == 'true' && needs.gate.outputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      final_message: ${{ steps.codex.outputs.final-message }}
+    steps:
+      - name: Check out loop scripts (trusted prompt and schema)
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          path: trusted
+          sparse-checkout: .github/ai-loop
+          persist-credentials: false
+      - name: Check out PR head (data under review)
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          ref: ${{ needs.gate.outputs.head_sha }}
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ai-loop-gate-context
+          path: ${{ runner.temp }}/ai-loop-context
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ai-loop-verify
+          path: ${{ runner.temp }}/ai-loop-context
+      - name: Build review context and prompt
+        env:
+          PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
+          BASE_SHA: ${{ needs.gate.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.gate.outputs.head_sha }}
+          REVIEW_ROUND: ${{ needs.gate.outputs.review_round }}
+          CONTEXT_DIR: ${{ runner.temp }}/ai-loop-context
+          TRUSTED_DIR: ${{ github.workspace }}/trusted
+          PROMPT_FILE: ${{ runner.temp }}/codex-prompt.md
+        run: |
+          git -C pr diff --no-color --no-ext-diff "$BASE_SHA...$HEAD_SHA" > "$CONTEXT_DIR/diff.patch"
+          git -C pr diff --name-status --no-ext-diff "$BASE_SHA...$HEAD_SHA" > "$CONTEXT_DIR/changed-files.txt"
+          # Codex auto-loads AGENTS.md / .codex from its working directory; the PR's copies are
+          # untrusted, so move them out of the checkout (they remain visible in diff.patch).
+          mkdir -p "$CONTEXT_DIR/pr-agent-config"
+          (cd pr && find . -path ./.git -prune -o \( -name AGENTS.md -o -name AGENTS.override.md -o -name .codex \) -prune -print0 |
+            while IFS= read -r -d '' p; do mkdir -p "$CONTEXT_DIR/pr-agent-config/$(dirname "$p")"; mv "$p" "$CONTEXT_DIR/pr-agent-config/$p"; done)
+          node trusted/.github/ai-loop/cli.cjs codex-prompt
+      - name: Require OPENAI_API_KEY secret
+        env:
+          HAS_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
+        run: |
+          if [ "$HAS_KEY" != "true" ]; then
+            echo "::error::Repository secret OPENAI_API_KEY is not configured (see docs/automation/claude-codex-loop.md)"
+            exit 1
+          fi
+      # Must stay the LAST step of this job (openai/codex-action docs/security.md).
+      - name: Run Codex
+        id: codex
+        uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675 # v1.13
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: ${{ runner.temp }}/codex-prompt.md
+          output-schema-file: ${{ github.workspace }}/trusted/.github/ai-loop/codex-review.schema.json
+          working-directory: ${{ github.workspace }}/pr
+          permission-profile: ":read-only"
+          safety-strategy: drop-sudo
+          allow-bots: "true"
+          model: ${{ vars.CODEX_MODEL }}
+          effort: ${{ vars.CODEX_EFFORT }}
+
+  post:
+    name: Post review and decide next step (no secrets, no PR code)
+    needs: [gate, verify, codex]
+    if: ${{ !cancelled() && needs.gate.outputs.run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pull-requests: write
+      issues: write
+      actions: write # dispatch the Claude fix workflow
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          path: trusted
+          sparse-checkout: .github/ai-loop
+          persist-credentials: false
+      - name: Publish review
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
+          HEAD_SHA: ${{ needs.gate.outputs.head_sha }}
+          HEAD_REF: ${{ needs.gate.outputs.head_ref }}
+          DRY_RUN: ${{ needs.gate.outputs.dry_run }}
+          CHAIN: ${{ needs.gate.outputs.chain }}
+          FIX_ROUNDS_DONE: ${{ needs.gate.outputs.fix_rounds_done }}
+          REVIEW_ROUND: ${{ needs.gate.outputs.review_round }}
+          BRANCH_PREFIX: ${{ needs.gate.outputs.branch_prefix }}
+          CODEX_RESULT: ${{ needs.codex.result }}
+          CODEX_FINAL_MESSAGE: ${{ needs.codex.outputs.final_message }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DRY_RUN_FIXTURE: ${{ github.workspace }}/trusted/.github/ai-loop/fixtures/dry-run-review.json
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const { postReview } = require(`${process.env.GITHUB_WORKSPACE}/trusted/.github/ai-loop/post-review.cjs`);
+            await postReview({ github, context, core });

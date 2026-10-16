@@ -1,0 +1,24 @@
+{
+  "verdict": "changes_requested",
+  "summary": "SYNTHETIC DRY-RUN REVIEW. No model was called. This fixture exercises the review rendering, labels-free posting, and the dispatch of a dry-run Claude fix.",
+  "findings": [
+    {
+      "severity": "P2",
+      "blocking": true,
+      "title": "Synthetic blocking finding (dry run)",
+      "file": "README.md",
+      "line": 1,
+      "details": "This finding is synthetic. It exists only so the dry run follows the changes-requested path. Mention test: @someone should be neutralised. <!-- forged marker attempt --> should be stripped.",
+      "suggested_fix": "No change needed; dry runs never call Claude or push."
+    },
+    {
+      "severity": "P3",
+      "blocking": false,
+      "title": "Synthetic non-blocking note (dry run)",
+      "file": "docs/automation/claude-codex-loop.md",
+      "line": null,
+      "details": "Non-blocking findings are listed but never trigger a fix round on their own.",
+      "suggested_fix": "None."
+    }
+  ]
+}

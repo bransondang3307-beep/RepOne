@@ -5,6 +5,9 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Lets the RO-019 loop run CI on its own fix commits (pushes made with GITHUB_TOKEN
+  # do not trigger pull_request workflows).
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -29,6 +32,9 @@ jobs:
         run: npm run check:boundaries --if-present
       - run: npm run typecheck
       - run: npm test
+      - name: AI loop policy and logic tests (when present on this branch)
+        run: |
+          if [ -d .github/ai-loop/tests ]; then node --test ".github/ai-loop/tests/*.test.cjs"; else echo "no AI loop tests on this branch"; fi
 
   handoff:
     name: Handoff file present

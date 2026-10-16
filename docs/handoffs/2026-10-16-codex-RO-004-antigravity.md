@@ -6,8 +6,8 @@
 | **Date** | 2026-10-16 |
 | **Task** | RO-004 documentation follow-up, explicitly requested by owner in this chat |
 | **Branch** | `codex/RO-004-antigravity-onboarding` (base: `main` @ `75e2814a6edbd4bfa58f1c7032edc0245d9dd4e9`) |
-| **Commits** | Initial documentation commit is the parent of the PR-link follow-up; see this PR's commit list for exact SHAs. |
-| **Pull request** | Pending creation; link added in a follow-up commit. |
+| **Commits** | `d9abb5f3e65ff35679f070d0557c09367f7f4bab` — initial documentation; PR-link follow-up is the current PR head (see commit list). |
+| **Pull request** | [PR #7](https://github.com/bransondang3307-beep/RepOne/pull/7) to `main`; open, not merged |
 | **Status** | proposed; not merged, laptop setup not verified |
 
 ## Objective
@@ -40,7 +40,8 @@ onboarding while preserving architecture, roles, milestone gates, review and Exp
 ## Tests and checks (exact results)
 
 Docs only — no code tests required. No runtime or agent configuration is changed.
-Markdown validation results are recorded in the PR after execution. npm tests,
+Markdown validation executed: 4 files, 7 relative links resolved against the base
+tree plus additions, balanced code fences and no trailing whitespace. npm tests,
 typecheck, Antigravity rule loading, local dependency installation, and phone tests
 were not executed; historical test results are not attributed to this session.
 

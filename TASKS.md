@@ -5,7 +5,7 @@
 > - Edit only your own task's row/section; ChatGPT or the owner add and assign tasks.
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-019**.
+> - Next free ID: **RO-022** (RO-019 is used by PRs #4/#5, RO-020 by PR #6).
 
 ## Board
 
@@ -29,6 +29,7 @@
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
+| RO-021 | Reproduce + fix RO-011 finding 1: Windows path separators in the boundary checker | Claude Code | P1 | in-review | RO-011 ([PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8)) | fix: `sprint-1-alignment` @ `30e2dd3` ([PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3)); record: `claude/RO-021-windows-path-repro` — PR_LINK |
 
 ## Task details
 
@@ -97,3 +98,13 @@
 ### RO-018 — H0 hardware bring-up (Owner)
 - Source of truth §11: locate Uno R3 + GY-521, verify markings/voltage, I²C scan, stream timestamped raw samples.
   Criteria: values change appropriately with movement (source of truth H0-A exit gate).
+
+### RO-021 — Windows path separators in the boundary checker (owner-authorized follow-up to RO-011)
+- **Assigned:** owner, 2026-10-16 — narrow follow-up to RO-011 finding 1 ([PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8)):
+  `scripts/check-boundaries.mjs` classified layers with `/` but `path.relative()` returns `\` on Windows.
+- **Files:** `scripts/check-boundaries.mjs`, `scripts/check-boundaries.test.mjs`,
+  `scripts/test-support/simulate-windows-paths.mjs` (all on `sprint-1-alignment`, PR #3). Separate from RO-008 (docs only).
+- **Scope:** normalize repo-relative paths to `/`; no change to the dependency rules; regression test. Not in scope:
+  infrastructure-adapter isolation, sensor-contract expansion, naming (RO-011 findings 2–5 → separately approved tasks).
+- **Completion criteria:** finding reproduced on native Windows before the fix and passing after it; regression test
+  fails on the old checker; Codex review of the PR #3 revision that contains the fix; CI green on that revision.

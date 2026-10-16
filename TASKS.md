@@ -29,7 +29,7 @@
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
-| RO-021 | Reproduce + fix RO-011 finding 1: Windows path separators in the boundary checker | Claude Code | P1 | in-review | RO-011 ([PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8)) | fix: `sprint-1-alignment` @ `30e2dd3` ([PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3)); record: `claude/RO-021-windows-path-repro` — PR_LINK |
+| RO-021 | Reproduce + fix RO-011 finding 1: Windows path separators in the boundary checker | Claude Code | P1 | in-review | RO-011 ([PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8)) | fix: `sprint-1-alignment` @ `30e2dd3` ([PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3)); record: `claude/RO-021-windows-path-repro` — [PR #9](https://github.com/bransondang3307-beep/RepOne/pull/9) |
 
 ## Task details
 

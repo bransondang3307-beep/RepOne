@@ -4,6 +4,9 @@
 import path from 'node:path';
 import { syncBuiltinESMExports } from 'node:module';
 
-path.relative = (from, to) => path.win32.relative(from, to);
-path.sep = path.win32.sep;
+// Capture before patching: on Windows node:path *is* path.win32, so a wrapper calling
+// path.win32.relative() would call itself (RO-021: stack overflow on native Windows).
+const { relative, sep } = path.win32;
+path.relative = relative;
+path.sep = sep;
 syncBuiltinESMExports();

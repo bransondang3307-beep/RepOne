@@ -29,7 +29,7 @@
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
-| RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | in-review | RO-021 | `claude/RO-022-windows-ci` — PR_LINK |
+| RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | in-review | RO-021 | `claude/RO-022-windows-ci` — [PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10) |
 
 ## Task details
 

@@ -29,7 +29,7 @@
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
-| RO-019 | Automated Claude Code ↔ Codex review loop (GitHub Actions) | Claude Code | P1 | in-review | RO-004 | `claude/RO-019-claude-codex-loop` (PR link in its handoff) |
+| RO-019 | Automated Claude Code ↔ Codex review loop (GitHub Actions) | Claude Code | P1 | in-review | RO-004 | `claude/RO-019-claude-codex-loop` — [PR #4](https://github.com/bransondang3307-beep/RepOne/pull/4) |
 
 ## Task details
 

@@ -7,10 +7,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'check-boundaries.mjs');
 const REPO_ROOT = resolve(dirname(SCRIPT), '..');
+const SIMULATE_WINDOWS = join(dirname(SCRIPT), 'test-support', 'simulate-windows-paths.mjs');
 
 /** Minimal valid workspace: contracts at the bottom, rep-engine depending on it. */
 const BASE_FILES = {
@@ -30,7 +31,7 @@ const BASE_FILES = {
     "import { contract } from '@repone/sensor-contracts';\nexport const engine: number = contract + 1;\n",
 };
 
-function runChecker(files) {
+function runChecker(files, nodeArgs = []) {
   const root = mkdtempSync(join(tmpdir(), 'repone-boundaries-'));
   try {
     for (const [path, content] of Object.entries({ ...BASE_FILES, ...files })) {
@@ -38,14 +39,14 @@ function runChecker(files) {
       mkdirSync(dirname(join(root, path)), { recursive: true });
       writeFileSync(join(root, path), content);
     }
-    return check(root);
+    return check(root, nodeArgs);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 }
 
-function check(root) {
-  const result = spawnSync(process.execPath, [SCRIPT, root], { encoding: 'utf8' });
+function check(root, nodeArgs = []) {
+  const result = spawnSync(process.execPath, [...nodeArgs, SCRIPT, root], { encoding: 'utf8' });
   return { code: result.status, output: `${result.stdout}${result.stderr}` };
 }
 
@@ -118,4 +119,24 @@ test('the real repository passes', () => {
   const { code, output } = check(REPO_ROOT);
   assert.equal(code, 0, output);
   assert.match(output, /module boundaries OK/);
+});
+
+// Owner runs `npm run verify` on Windows: relative() there returns '\\'-separated paths, which made
+// every layer rule silently miss and the diagnostics above fail to match. Simulated here on any OS.
+test('Windows-style path separators: rules still apply and diagnostics use forward slashes', () => {
+  const { code, output } = runChecker(
+    {
+      'packages/sensor-contracts/src/index.ts':
+        "import { engine } from '@repone/rep-engine';\nexport const contract: number = 1;\nexport const e: number = engine;\n",
+      'apps/mobile/src/features/rep-tracking/index.ts': 'export const tracking: number = 1;\n',
+      'apps/mobile/src/features/workouts/history.ts':
+        "import { tracking } from '../rep-tracking';\nexport const h: number = tracking;\n",
+    },
+    ['--import', pathToFileURL(SIMULATE_WINDOWS).href],
+  );
+  assert.equal(code, 1, output);
+  assert.match(output, /packages\/sensor-contracts\/src\/index\.ts: import '@repone\/rep-engine' — @repone\/sensor-contracts may only depend on: nothing/);
+  assert.match(output, /apps\/mobile\/src\/features\/workouts\/history\.ts: import '\.\.\/rep-tracking' — features must not depend on other features/);
+  assert.match(output, /circular import: packages\/sensor-contracts\/src\/index\.ts → packages\/rep-engine\/src\/index\.ts → packages\/sensor-contracts\/src\/index\.ts/);
+  assert.ok(!output.includes('\\'), `diagnostics must not contain backslashes:\n${output}`);
 });

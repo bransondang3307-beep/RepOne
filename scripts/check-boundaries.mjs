@@ -5,10 +5,13 @@
 // Usage: node scripts/check-boundaries.mjs [repoRoot]   (root defaults to this repo;
 // the argument lets scripts/check-boundaries.test.mjs run it against fixtures)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(process.argv[2] ?? join(dirname(fileURLToPath(import.meta.url)), '..'));
+
+/** Repo-relative path with '/' on every OS — layer rules and diagnostics are written with '/' (Windows uses '\\'). */
+const repoPath = (absolute) => relative(ROOT, absolute).split(sep).join('/');
 const SOURCE_DIRS = [
   'packages/sensor-contracts/src',
   'packages/sensor-contracts/test',
@@ -102,7 +105,7 @@ const graph = new Map();
 const files = SOURCE_DIRS.map((d) => join(ROOT, d)).filter(existsSync).flatMap(walk);
 
 for (const file of files) {
-  const rel = relative(ROOT, file);
+  const rel = repoPath(file);
   const from = layerOf(rel);
   const test = isTest(rel);
   const edges = [];
@@ -141,7 +144,7 @@ for (const file of files) {
       continue;
     }
     edges.push(target);
-    const trel = relative(ROOT, target);
+    const trel = repoPath(target);
     const to = layerOf(trel);
 
     if (from.kind === 'package' || to.kind === 'package') {
@@ -190,7 +193,7 @@ const visit = (node) => {
   state.set(node, 1);
   stack.push(node);
   for (const next of graph.get(node) ?? []) {
-    if (state.get(next) === 1) cycles.push([...stack.slice(stack.indexOf(next)), next].map((f) => relative(ROOT, f)));
+    if (state.get(next) === 1) cycles.push([...stack.slice(stack.indexOf(next)), next].map((f) => repoPath(f)));
     else if (!state.has(next)) visit(next);
   }
   stack.pop();

@@ -37,12 +37,21 @@ not exercised on a device.
 |---|---|---|---|
 | `sprint-1-alignment` @ `6e79ee3` | RO-003 Milestone 1: split into `sensor-contracts` / `rep-engine` / `workout-domain`, app `features/ shared/ infrastructure/ application/`, boundary checker, `docs/architecture.md`, `docs/hardware-protocol.md`, ADR 0003 | Pushed; **no PR yet** | In-session 2026-10-15: `npm run verify` → boundaries OK, typecheck clean, 46/46 tests; Android + iOS export OK; dev server served bundle. Expo Go not yet tested. |
 | `claude/RO-004-agent-sync` | RO-004 multi-agent sync setup (this file, `TASKS.md`, `CLAUDE.md`, `GEMINI.md`, handoff system, CI) | [PR #1](https://github.com/bransondang3307-beep/RepOne/pull/1) open | CI run 38806919138 green on `f380be5`; see `docs/handoffs/2026-10-15-claude-RO-004.md` |
+| `claude/RO-019-claude-codex-loop` @ `af8acd9` | RO-019 automated Claude ↔ Codex review loop | **PAUSED** — [PR #4](https://github.com/bransondang3307-beep/RepOne/pull/4) open, do not merge; `AI_LOOP_MODE` off, no API secrets | 62 loop tests and CI run 38828654961 green; the loop has never run on GitHub; 3 review concerns outstanding (see `TASKS.md` RO-019) |
 
 ## Active milestone
 
 **Sprint 1 alignment — Milestone 1** (RO-003): implemented on branch, awaiting PR (RO-005),
 Codex review (RO-006) and Expo Go check by the owner (RO-007). Milestones 2–5 (RO-012…RO-015)
 wait for RO-003 to merge and the owner's go-ahead.
+
+## Paused work
+
+**RO-019 — automated Claude ↔ Codex review loop: PAUSED — awaiting core prototype milestone** (owner decision,
+2026-10-16). Preserved in [PR #4](https://github.com/bransondang3307-beep/RepOne/pull/4) (open, not merged, nothing enabled). **Resume when RepOne's hardware sensor
+successfully sends real movement data to the mobile app and the app demonstrates working repetition counting.**
+The agent whose merged work meets that condition flags RO-019 "READY TO RESUME" in `TASKS.md` and in its handoff.
+Outstanding review concerns and the resume procedure: `TASKS.md` → RO-019.
 
 ## Blockers
 
@@ -70,3 +79,4 @@ wait for RO-003 to merge and the owner's go-ahead.
 | Date | Change | By |
 |---|---|---|
 | 2026-10-15 | File created; reflects `main` @ `d9a7274` | Claude Code (RO-004) |
+| 2026-10-16 | RO-019 recorded as PAUSED (open PR #4, not merged); resume condition added. Other rows not refreshed — that is the pending RO-004 status-update PR | Claude Code (RO-019) |

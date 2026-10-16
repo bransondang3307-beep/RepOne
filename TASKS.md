@@ -5,7 +5,7 @@
 > - Edit only your own task's row/section; ChatGPT or the owner add and assign tasks.
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-019**.
+> - Next free ID: **RO-020**.
 
 ## Board
 
@@ -29,6 +29,7 @@
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
+| RO-019 | Automated Claude Code ↔ Codex review loop — **PAUSED** (awaiting core prototype milestone) | Claude Code | P3 | blocked | Core prototype milestone (see details) | `claude/RO-019-claude-codex-loop` — [PR #4](https://github.com/bransondang3307-beep/RepOne/pull/4) open, **do not merge** |
 
 ## Task details
 
@@ -97,3 +98,29 @@
 ### RO-018 — H0 hardware bring-up (Owner)
 - Source of truth §11: locate Uno R3 + GY-521, verify markings/voltage, I²C scan, stream timestamped raw samples.
   Criteria: values change appropriately with movement (source of truth H0-A exit gate).
+
+### RO-019 — Automated Claude Code ↔ Codex review loop — **PAUSED** (owner decision, 2026-10-16)
+- **State:** PAUSED — awaiting core prototype milestone. Preserved, not abandoned (future engineering
+  portfolio component). All work lives in [PR #4](https://github.com/bransondang3307-beep/RepOne/pull/4) — open, **not merged** — on branch
+  `claude/RO-019-claude-codex-loop` @ `af8acd9`: two workflows, `.github/ai-loop/` (62 tests),
+  `docs/automation/claude-codex-loop.md`, ADR 0005 and handoff `docs/handoffs/2026-10-16-claude-RO-019.md`.
+- **While paused:** keep `AI_LOOP_MODE` unset/off; do not add `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`;
+  do not merge PR #4; no further automation features.
+- **Outstanding review concerns** (independent review of PR #4; must be resolved before it can merge):
+  1. **CI on the exact head SHA.** Treat the loop as complete only with a passing Codex review *and* passing CI
+     for the same commit. A failed CI dispatch, a missing/skipped/delayed run or a failed result must never count
+     as success; keep review approval and CI verification as separate statuses; stop and request a human when CI
+     cannot be established. Needs tests for failed, skipped, missing, delayed and successful CI runs.
+  2. **Manual override and API cost safeguards.** `force=true` manual dispatch bypasses duplicate-review
+     prevention and the automatic review cap. Confirm overrides are limited to authorised actors, make automatic
+     vs manual limits explicit, evaluate an extra guard against accidental repeated paid calls; regression tests.
+  3. **Comment-based state robustness.** Loop state is stored in `github-actions[bot]` comment markers. Evaluate
+     edited, malformed, duplicated and reordered comments; show the two-fix-round cap cannot be bypassed through
+     inconsistent state; regression tests; document remaining trust limits.
+- **Resume condition:** Resume RO-019 when RepOne's hardware sensor successfully sends real movement data to the
+  mobile app and the app demonstrates working repetition counting. Evidence: a merged task's handoff documenting
+  that demonstration with real (not simulated or replayed) sensor data.
+- **When the condition is met:** the agent whose merged work completes the milestone sets this row to `todo` with
+  "READY TO RESUME" in its own status-update PR and lists RO-019 under "Next steps" in that handoff. Resuming
+  starts with updating PR #4 from `main` (expect a `TASKS.md` conflict on this row), then fixing concerns 1–3 and a
+  new independent review. Secrets and `AI_LOOP_MODE` remain the owner's decision.

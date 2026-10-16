@@ -18,7 +18,7 @@
 | RO-005 | Open PR for `sprint-1-alignment` → `main` | Claude Code | P1 | todo | RO-004 | — |
 | RO-006 | Review Milestone 1 PR | Codex | P1 | todo | RO-005 | — |
 | RO-007 | Run Milestone 1 app in Expo Go | Owner | P1 | todo | — | — |
-| RO-008 | Update `docs/architecture.md` §6 ownership to `AGENTS.md` roles | Claude Code | P2 | todo | RO-003 merged | — |
+| RO-008 | Update `docs/architecture.md` §6 ownership to `AGENTS.md` roles; correct the routes location note | Claude Code | P2 | todo | RO-003 merged | — |
 | RO-009 | Choose a project license | Owner | P3 | todo | — | — |
 | RO-010 | Decide whether to record the app layout in source of truth §6 | Owner (ChatGPT prepares) | P3 | todo | RO-003 merged | — |
 | RO-011 | Architecture review of Milestone 1 layout (ADR 0003) | Gemini | P2 | todo | RO-005 | — |
@@ -60,11 +60,14 @@
 - **Steps:** `git checkout sprint-1-alignment && npm install && cd apps/mobile && npx expo start`, scan QR code.
 - **Completion criteria:** start a simulated set, reps count up, stop, set appears in History; result noted on the RO-005 PR.
 
-### RO-008 — Update ownership table
-- **Files:** `docs/architecture.md` §6.
+### RO-008 — Update ownership table (docs only)
+- **Files:** `docs/architecture.md` §6; `apps/mobile/AGENTS.md` (routes line) — both on `sprint-1-alignment` until PR #3 merges.
 - **Description:** Milestone 1's table follows the original brief (Codex owning `rep-engine`); `AGENTS.md` §2 now
   defines roles (Codex = testing/debugging/review). Align the table; per-task ownership lives in `TASKS.md`.
-- **Completion criteria:** table matches `AGENTS.md` §2; PR merged.
+  Owner, 2026-10-16 (from RO-011 finding 4): also state that the actual Expo Router routes live in `apps/mobile/app/`
+  (`apps/mobile/AGENTS.md` currently says `src/app/`). Not in scope: infrastructure isolation, expanded sensor
+  contracts, naming changes (separately approved tasks); the Windows path fix is RO-021.
+- **Completion criteria:** table matches `AGENTS.md` §2; routes location stated as `apps/mobile/app/`; PR merged.
 
 ### RO-009 / RO-010 — Owner decisions
 - RO-009: choose a license (none committed; Expo template license was removed). Criteria: `LICENSE` file merged.

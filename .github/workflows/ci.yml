@@ -33,6 +33,23 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+  # RO-021 showed that path-separator bugs in scripts/ pass on Linux and fail on the owner's Windows
+  # laptop. Kept small: these scripts use only Node built-ins, so no `npm ci` is needed. Default git
+  # line endings (autocrlf) and Node 24 match the Lenovo; the Linux job above stays the full check.
+  windows:
+    name: Windows — boundary checker and its tests
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Boundary-checker tests (when present on this branch)
+        run: npm run test:scripts --if-present
+      - name: Module boundaries (when the checker exists on this branch)
+        run: npm run check:boundaries --if-present
+
   handoff:
     name: Handoff file present
     if: github.event_name == 'pull_request'

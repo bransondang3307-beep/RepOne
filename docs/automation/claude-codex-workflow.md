@@ -112,21 +112,27 @@ findings with file:line and a suggested fix. Do not edit files.
 ## 7. Keeping it at $0
 
 **Enforced in the repository (every CI run):** `npm run check:workflows` (`scripts/check-workflow-policy.mjs`,
-regression tests in `scripts/check-workflow-policy.test.mjs`) fails on:
+regression tests in `scripts/check-workflow-policy.test.mjs`) fails on the rules below.
+The checker is line-based and **fail-closed**: YAML it cannot read reliably is rejected, never assumed safe.
 
 | Rule | Detects |
 |---|---|
 | `ai-action` | Actions from AI vendors (`openai/*`, `anthropics/*`, `google-gemini/*`) or named after an AI product (claude, codex, gemini, gpt…) |
 | `ai-credential` | AI API keys or tokens by name — `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `GEMINI_API_KEY`, … — from secrets, variables or literals |
 | `ai-endpoint` | Direct calls to AI API hosts (api.openai.com, api.anthropic.com, generativelanguage.googleapis.com, …) |
-| `ai-cli` | Installing or running AI CLIs/SDKs (`@openai/codex`, `@anthropic-ai/*`, `@google/gemini-cli`, `pip install openai`, `codex exec`, `claude -p`, …) |
-| `ai-dependency` | AI SDKs in any workspace `package.json` (`openai`, `@anthropic-ai/sdk`, `@google/genai`, `ai`, `langchain`, …) |
+| `ai-cli` | Installing or running AI CLIs/SDKs (`@openai/codex`, `@anthropic-ai/*`, `@google/gemini-cli`, `npm:openai` aliases, `pip install openai`, `codex exec`, `claude -p`, …) |
+| `ai-dependency` | AI SDKs (`openai`, `@anthropic-ai/sdk`, `@google/genai`, `ai`, `langchain`, …) under any name: direct dependencies, `npm:` aliases (`"helper": "npm:openai@5"`), `overrides`/`resolutions`, and **anything installed in `package-lock.json`**, including transitively |
+| `dependency-source` | Dependencies or overrides from non-registry sources (git, GitHub shorthand, tarball URLs, `file:`). The policy cannot see which package those are |
 | `secret` | Any secret other than `secrets.GITHUB_TOKEN`, `secrets: inherit`, or the whole secrets context |
-| `permissions` | Missing or non-read-only workflow-level `permissions`, `write-all`, and job-level write scopes without a `# least-privilege: <reason>` comment |
+| `permissions` | Missing or non-read-only workflow-level `permissions`, `write-all`, and job-level write scopes without a `# least-privilege: <reason>` comment. Quoted values (`'write'`), flow mappings (`{ contents: "write" }`, also over several lines or inside flow-style jobs) are normalised. Anything other than `read`/`write`/`none` (anchors, aliases, merge keys) is rejected |
 | `trigger` | `pull_request_target` and `workflow_run` (privileged runs on untrusted PR input) |
-| `merge-or-approve` | `gh pr merge`, `--approve`, auto-merge, force-push |
-| `script-injection` | `${{ github.event… }}` / `github.head_ref` / `inputs.` inside `run:` (must go through `env:`) |
-| `unpinned-action` | Third-party actions not pinned to a full commit SHA (GitHub-owned `actions/*` may use tags) |
+| `merge-or-approve` | Actions that merge or approve (`*automerge*`, `*auto-approve*`, `mergify`, …, even if allowlisted), `gh pr merge`, `gh pr review --approve`/`-a`, `event=APPROVE`, REST `…/pulls/N/merge`, GraphQL `mergePullRequest`/auto-merge, force-push, pushes to `main`/`master` |
+| `script-injection` | `${{ }}` inside `run:`/`script:` that is not a fixed-format value. Expressions are parsed: dotted, bracket (`github['event']`) and mixed forms are judged alike. `github.*` is allowed only for identifiers such as `sha`, `event_name`, `run_id`; `inputs`, `env`, `steps`, `needs`, whole contexts (`toJSON(github)`) and dynamic indexes are rejected. Covers block, plain multi-line, quoted and flow-style script values |
+| `third-party-action` | Actions outside `actions/*` and `github/*` that are not in the owner-reviewed allowlist `.github/workflow-policy.json`, or not pinned to a full commit SHA; Docker-image actions (`docker://`) |
+| `policy-config` | An invalid allowlist, or an allowlist entry that is an AI or merge/approve action |
+| `yaml-feature` | YAML anchors, aliases and merge keys outside literal text. They could rebuild mappings the checker does not see |
+
+Local actions (`uses: ./path`) are scanned wherever they live, including actions nested inside them.
 
 Least privilege does **not** mean "never write". A job may get, for example, `pull-requests: write` if the line says
 why: `pull-requests: write # least-privilege: posts the coverage comment`.
@@ -162,7 +168,8 @@ why: `pull-requests: write # least-privilege: posts the coverage comment`.
   enable extra usage.
 - **Review is about an older commit.** Comment `@codex review`. The merge gate needs a review of the head SHA.
 - **`check:workflows` fails.** Read the rule ID in the output. If a write scope is really needed, add a
-  `# least-privilege:` reason. AI integrations need the owner and a new ADR, not a policy edit.
+  `# least-privilege:` reason. A third-party action needs the owner's review, an entry in `.github/workflow-policy.json`
+  and a SHA pin. AI integrations and merge/approve automation need the owner and a new ADR, not a policy edit.
 
 ## 10. Options that are *not* enabled (each needs the owner's approval)
 

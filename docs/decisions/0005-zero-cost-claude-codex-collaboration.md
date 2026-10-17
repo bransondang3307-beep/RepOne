@@ -52,10 +52,15 @@ Facts checked on 2026-10-17 against vendor documentation:
    - script injection, judged by parsing each expression;
    - third-party actions outside the owner-reviewed allowlist `.github/workflow-policy.json` (SHA-pinned).
    It applies **least privilege rather than banning writes**: workflow-level permissions are read-only, and a job may
-   hold a write scope only with an inline `# least-privilege: <reason>`. Being line-based, it is **fail-closed**:
-   YAML it cannot read reliably (anchors, aliases, unrecognised permission values) is rejected. The first Codex review
-   found four parser bypasses (quoted/inline permissions, npm aliases, bracket expressions, merge-capable actions);
-   each is a regression test now.
+   hold a write scope only with an inline `# least-privilege: <reason>` comment.
+   - **It parses YAML** with the `yaml` package (2.9.1, pinned root devDependency, ISC licence, no dependencies of its
+     own; it was already installed through Expo). Keys and values are checked after quoting and escapes are decoded.
+   - **It is fail-closed:** anchors, aliases, tags, directives, multiple documents, duplicate or non-string keys and
+     unknown top-level keys are rejected.
+   - **History:** the first version was line-based. Codex's two review rounds on PR #11 found seven parser bypasses or
+     false positives: quoted/inline permissions, npm aliases, bracket expressions and merge-capable actions, then
+     escaped keys, event-derived matrices and trigger names in plain text. Each is a regression test now. Switching to
+     a real parser in round 2 removes the whole class instead of patching cases.
 6. **PR #4 stays as an archive.** It is preserved, unmerged, with its branch and the archive tag
    `archive/RO-019-api-loop-v1`. PRs #4 and #5 stay open until this replacement is verified and merged; then the
    owner closes them.

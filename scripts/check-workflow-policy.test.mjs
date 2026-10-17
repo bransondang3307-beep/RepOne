@@ -277,7 +277,8 @@ test('P1 #1: permissions the checker cannot read reliably are rejected (fail-clo
   expectViolation({ '.github/workflows/x.yml': 'on: pull_request\nx: &perms\n  contents: write\npermissions: *perms\njobs: {}\n' }, /x\.yml:4: \[permissions\] unreadable permissions value '\*perms'/);
   expectViolation({ '.github/workflows/x.yml': withPermissions('permissions:\n  <<: *perms') }, /x\.yml:3: \[permissions\] unreadable permissions value '<<: \*perms'/);
   expectViolation({ '.github/workflows/x.yml': withPermissions('permissions:\n  contents: admin') }, /'contents: admin' — a permission level must be read, write or none/);
-  expectViolation({ '.github/workflows/x.yml': 'on: pull_request\npermissions: {\n  contents: read\n' }, /x\.yml:2: \[permissions\] unreadable permissions value/);
+  // An unclosed flow mapping is invalid YAML: rejected by the parser before any rule runs.
+  expectViolation({ '.github/workflows/x.yml': 'on: pull_request\npermissions: {\n  contents: read\n' }, /x\.yml:\d+: \[yaml-parse\]/);
 });
 
 test('P1 #1 positive control: quoted read/none values and read-all still pass', () => {
@@ -443,7 +444,7 @@ test('P1 #4: merging or approving through the API, short flags and default-branc
     ['gh api -X PUT repos/o/r/pulls/1/merge', 'merges a pull request through the REST API'],
     ['gh pr review 1 -a', 'approves a pull request'],
     ['gh api repos/o/r/pulls/1/reviews -f event=APPROVE', 'approves a pull request'],
-    ["gh api graphql -f query='mutation { mergePullRequest(input: {}) { clientMutationId } }'", 'merges a pull request'],
+    ["|\n          gh api graphql -f query='mutation { mergePullRequest(input: {}) { clientMutationId } }'", 'merges a pull request'],
     ['git push origin HEAD:main', 'pushes to the default branch'],
     ['git push origin +HEAD:claude/x', 'force-pushes'],
   ]) {
@@ -466,6 +467,117 @@ test('local actions are scanned wherever they live, including nested ones', () =
 test('YAML anchors and aliases are rejected outside literal text', () => {
   expectViolation({ '.github/workflows/x.yml': workflow('      - &step\n        run: echo hi\n      - *step') }, /\[yaml-feature\]/);
   expectPass({ '.github/workflows/x.yml': workflow('      - run: |\n          ls *.md && echo done\n      - uses: actions/github-script@v7\n        with:\n          script: |\n            * not an alias in a literal block') });
+});
+
+// ---- Codex review round 2 — P1: escaped or encoded YAML keys ----------------------------------------
+
+test('R2 P1 #1 negative control: escaped keys are decoded before any rule runs', () => {
+  // The original bypass: "u\u0073es" is `uses` to YAML (and GitHub) but not to a text matcher.
+  expectViolation({ '.github/workflows/x.yml': workflow(`      - "u\\u0073es": pascalgn/automerge-action@${SHA}`) }, /x\.yml:9: \[merge-or-approve\] 'pascalgn\/automerge-action'/);
+  expectViolation({ '.github/workflows/x.yml': workflow('      - "r\\x75n": echo "${{ github.event.issue.title }}"') }, /x\.yml:9: \[script-injection\] 'github\.event\.issue\.title'/);
+  expectViolation({ '.github/workflows/x.yml': withPermissions('"perm\\u0069ssions": { contents: write }') }, /x\.yml:2: \[permissions\] workflow-level 'contents: write'/);
+  expectViolation(
+    { '.github/workflows/x.yml': workflow('      - run: gh pr comment "$PR" --body ok', '\n    "permissions": { "pull-requests": "wr\\x69te" }') },
+    /\[permissions\] 'pull-requests: write' needs an inline '# least-privilege: <reason>' comment/,
+  );
+  expectViolation({ '.github/workflows/x.yml': 'on: { "pull_request\\u005ftarget": {} }\npermissions: {}\njobs: {}\n' }, /x\.yml:1: \[trigger\] 'pull_request_target'/);
+});
+
+test('R2 P1 #1: escaped values, explicit keys and upper-case keys are decoded too', () => {
+  expectViolation({ '.github/workflows/x.yml': workflow(`      - uses: "pascalgn/auto\\u006derge-action@${SHA}"`) }, /\[merge-or-approve\] 'pascalgn\/automerge-action'/);
+  expectViolation({ '.github/workflows/x.yml': workflow('      - run: echo hi\n        env:\n          "OPENAI\\u005fAPI_KEY": x') }, /\[ai-credential\] 'OPENAI_API_KEY'/);
+  expectViolation({ '.github/workflows/x.yml': workflow('      - run: "echo \\x24{{ github.event.issue.title }}"') }, /\[script-injection\] 'github\.event\.issue\.title'/);
+  expectViolation({ '.github/workflows/x.yml': workflow(`      - ? uses\n        : pascalgn/automerge-action@${SHA}`) }, /\[merge-or-approve\] 'pascalgn\/automerge-action'/);
+  expectViolation({ '.github/workflows/x.yml': workflow(`      - USES: pascalgn/automerge-action@${SHA}`) }, /\[merge-or-approve\]/);
+});
+
+test('R2 P1 #1: tags, directives, documents, duplicate, non-string and unknown top-level keys are rejected', () => {
+  expectViolation({ '.github/workflows/x.yml': workflow('      - !!str run: echo hi') }, /\[yaml-feature\] explicit tag 'tag:yaml\.org,2002:str'/);
+  expectViolation({ '.github/workflows/x.yml': `%YAML 1.1\n---\n${CLEAN_WORKFLOW}` }, /x\.yml:1: \[yaml-feature\] YAML directives are not allowed/);
+  expectViolation({ '.github/workflows/x.yml': `${CLEAN_WORKFLOW}---\non: push\n` }, /\[yaml-parse\] 2 YAML documents/);
+  expectViolation({ '.github/workflows/x.yml': 'on: pull_request\npermissions: {}\npermissions:\n  contents: write\njobs: {}\n' }, /\[yaml-parse\]/);
+  expectViolation({ '.github/workflows/x.yml': 'on: pull_request\npermissions: {}\ntrue: workflow_run\njobs: {}\n' }, /x\.yml:3: \[yaml-feature\] mapping key 'true' is not a plain string/);
+  expectViolation({ '.github/workflows/x.yml': 'on: pull_request\npermissions: {}\n"true": workflow_run\njobs: {}\n' }, /x\.yml:3: \[workflow-schema\] unknown top-level key 'true'/);
+});
+
+test('R2 P1 #1 positive control: ordinary quoting and casing of a valid workflow still pass', () => {
+  expectPass({
+    '.github/workflows/x.yml':
+      '"name": "CI"\n"on": [push, "pull_request"]\n"permissions": { "contents": "read" }\njobs:\n  "verify":\n    "runs-on": ubuntu-latest\n    steps:\n' +
+      '      - "uses": actions/checkout@v4\n      - \'run\': echo ok\n',
+  });
+});
+
+// ---- round 2 — P1: matrix values built from expressions -------------------------------------------
+
+const matrixJob = (strategy, steps) => workflow(steps, `\n    strategy:\n${strategy}`);
+
+test('R2 P1 #2 negative control: a matrix built from event data is untrusted in scripts', () => {
+  // The original bypass: the matrix comes from PR text, and `matrix.command` was trusted in run:.
+  expectViolation(
+    { '.github/workflows/x.yml': matrixJob('      matrix: ${{ fromJSON(github.event.pull_request.body) }}', '      - run: echo "${{ matrix.command }}"') },
+    /x\.yml:11: \[script-injection\] 'matrix\.command \(the matrix is built from an expression\)' interpolated into 'run:'/,
+  );
+});
+
+test('R2 P1 #2: any expression under strategy makes every matrix value untrusted', () => {
+  for (const strategy of [
+    '      matrix:\n        os: ${{ fromJSON(needs.setup.outputs.list) }}',
+    '      matrix:\n        os: [ubuntu-latest]\n        include:\n          - command: ${{ github.event.comment.body }}',
+    '      matrix: ${{ fromJSON(vars.MATRIX) }}', // fail-closed: even trusted sources cannot be proven static
+  ]) {
+    expectViolation({ '.github/workflows/x.yml': matrixJob(strategy, '      - run: echo "${{ matrix[\'command\'] }}"') }, /\[script-injection\] 'matrix\.command \(the matrix is built from an expression\)'/);
+  }
+  expectViolation(
+    { '.github/workflows/x.yml': workflow('      - run: echo "${{ matrix.os }}"', '\n    strategy: ${{ fromJSON(inputs.strategy) }}') },
+    /\[script-injection\] 'matrix\.os \(the matrix is built from an expression\)'/,
+  );
+});
+
+test('R2 P1 #2 positive control: static matrices and env-routed matrix values still pass', () => {
+  expectPass({
+    '.github/workflows/x.yml': matrixJob(
+      '      matrix:\n        os: [ubuntu-latest, windows-latest]\n        include:\n          - node: 22',
+      '      - run: echo "${{ matrix.os }} ${{ matrix.node }}"',
+    ),
+  });
+  expectPass({
+    '.github/workflows/x.yml': matrixJob(
+      '      matrix: ${{ fromJSON(github.event.pull_request.body) }}',
+      '      - name: Build ${{ matrix.command }}\n        run: echo "$COMMAND"\n        env:\n          COMMAND: ${{ matrix.command }}',
+    ),
+  });
+});
+
+// ---- round 2 — P2: privileged triggers only from the on: declaration --------------------------------
+
+test('R2 P2 negative control: trigger names in ordinary text no longer fail the check', () => {
+  // The original false positive: an otherwise read-only workflow failed because its name mentioned workflow_run.
+  expectPass({
+    '.github/workflows/x.yml':
+      'name: Test workflow_run parsing\non: pull_request\npermissions:\n  contents: read\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n' +
+      '      - run: echo "docs about pull_request_target"\n        env:\n          NOTE: workflow_run is not used here\n',
+  });
+});
+
+test('R2 P2: privileged triggers are found in every form of the on: declaration', () => {
+  for (const on of [
+    'on: pull_request_target',
+    'on: [push, pull_request_target]',
+    'on: { workflow_run: { workflows: [CI] } }',
+    'on:\n  push:\n  workflow_run:\n    workflows: [CI]',
+    '"on": "workflow_run"',
+  ]) {
+    expectViolation({ '.github/workflows/x.yml': `${on}\npermissions: {}\njobs: {}\n` }, /\[trigger\] '(pull_request_target|workflow_run)' runs with elevated privileges/);
+  }
+});
+
+test('structural rules: secrets: inherit and event: APPROVE inputs are rejected', () => {
+  expectViolation(
+    { '.github/workflows/x.yml': 'on: pull_request\npermissions:\n  contents: read\njobs:\n  a:\n    uses: ./.github/workflows/shared.yml\n    secrets: inherit\n' },
+    /x\.yml:7: \[secret\] 'secrets: inherit' passes every secret/,
+  );
+  expectViolation({ '.github/workflows/x.yml': workflow('      - uses: actions/github-script@v7\n        with:\n          event: APPROVE') }, /x\.yml:11: \[merge-or-approve\] approves a pull request/);
 });
 
 // ---- portability (RO-021 lessons) -----------------------------------------------------------

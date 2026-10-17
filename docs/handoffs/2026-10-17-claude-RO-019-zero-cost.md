@@ -6,9 +6,9 @@
 | **Date** | 2026-10-17 |
 | **Task** | RO-019 (owner-approved redesign, 2026-10-17) |
 | **Branch** | `claude/RO-019-zero-cost-workflow` (base: `main` @ `cd884fc`) |
-| **Commits** | `127d6d5` RO-019: zero-additional-API-cost Claude Code <-> Codex workflow · handoff + PR link (see the PR's commit list) |
+| **Commits** | `127d6d5` RO-019: zero-additional-API-cost Claude Code <-> Codex workflow · handoff + PR link · `b261ee3` RO-019: fix Codex's four P1 policy-checker bypasses (fail-closed) · review-round record (see the PR's commit list) |
 | **Pull request** | [PR #11](https://github.com/bransondang3307-beep/RepOne/pull/11) → `main` (replacement PR; open, **not merged**) |
-| **Status** | implemented; verified (local Linux + GitHub Actions Linux and native Windows); awaiting Codex review and owner merge |
+| **Status** | implemented; verified (local Linux + GitHub Actions Linux and native Windows); **review round 1/2 done** (Codex: 4 × P1, all fixed in `b261ee3`); awaiting Codex re-review of the head and owner merge |
 
 ## Objective
 Redesign RO-019 so Claude Code and Codex collaborate with **$0 separately billed AI API usage**:
@@ -87,13 +87,54 @@ Environment notes:
 - I cannot read repository secrets, variables or billing (those API endpoints are blocked here). The owner checks
   them using `claude-codex-workflow.md` §7.
 
+## Review round 1 — Codex review 5555220548 on `4afba32` (4 × P1, all fixed in `b261ee3`)
+
+| # | Codex finding (P1) | Reproduced before the fix? | Fix | Regression tests |
+|---|---|---|---|---|
+| 1 | Quoted / inline write permissions pass (`contents: 'write'`, `{ contents: "write" }`) | yes — exit 0 | Values are unquoted. Flow mappings are parsed, including multi-line ones and those inside flow-style jobs. **Fail-closed:** any value other than `read`/`write`/`none` (anchors, aliases, merge keys, unclosed maps) is rejected | 4 tests: negative control, flow variants, fail-closed cases, positive control |
+| 2 | npm alias hides an AI SDK (`"internal-review": "npm:openai@^5.0.0"`) | yes — exit 0 | Resolves `npm:` alias targets in dependencies, `overrides`, `resolutions` and `pnpm.overrides`. Checks **every package in `package-lock.json` by its real name** (any depth, v1 and v3). Rejects non-registry sources (git, GitHub shorthand, tarball URL, `file:`) and `npm:` aliases in workflow commands | 4 tests: negative control, overrides/sources, lockfile, positive control |
+| 3 | Bracket / mixed expressions (`github['event']['pull_request']['title']`) | yes — exit 0 | Every `${{ }}` in `run:`/`script:` is **parsed**, with bracket access normalised. Only fixed-format `github.*` identifiers, `matrix`, `runner`, `vars` and the like may appear. `inputs`, `env`, `steps`, `needs`, whole contexts (`toJSON(github)`) and dynamic indexes are rejected. Block, plain multi-line, quoted-key and flow-style script values, and text after `#`, are all scanned | 4 tests: negative control, contexts/indexes, YAML shapes, positive control |
+| 4 | Merge-capable actions pass when pinned (`pascalgn/automerge-action@<sha>`) | yes — exit 0 | Merge/approve actions are rejected even if pinned or allowlisted. **Third-party actions need the owner-reviewed allowlist** `.github/workflow-policy.json` (empty) **plus** a SHA pin. Also rejected: `docker://` actions, third-party reusable workflows, REST `…/pulls/N/merge`, GraphQL `mergePullRequest`, `gh pr review -a`, `event=APPROVE` and pushes to `main`/`master` | 4 tests: negative control, allowlist/pin/Docker/reusable, allowlist validation, API/short-flag/push |
+
+**Related variants found while fixing, also covered:**
+- `toJSON(github.event)`
+- `${{ env.X }}` and step outputs in scripts
+- plain-scalar continuation lines
+- YAML anchors/aliases
+- multi-line flow maps
+- override aliases
+- git dependency sources
+- nested local actions
+
+All 12 passed the old checker (exit 0) and are rejected now.
+
+| Check (round 1) | Result |
+|---|---|
+| Linux, Node 22.22.0: `npm ci` | exit 0 |
+| `npm run verify` | exit 0. Boundaries OK (58 files); `✓ workflow policy OK (1 workflow, 0 action, 5 package, 1 lock files …)`; typecheck clean; script tests **44/44** (8 boundaries + **36 policy**, was 19); Jest **48/48** |
+| `npm run test:scripts` / `npm run check:workflows` | exit 0 (44/44) / exit 0 |
+| New test file against the **old** checker (`ca73191`) | **17 of 36 fail**, including all four negative controls. The rest are positive controls or unchanged tests; 2 differ only in message wording |
+| Rule coverage: each of the 14 rules disabled in turn | every mutation fails 1–5 tests |
+| Codex's bypasses plus 12 related variants (19 probes) | all exit 0 before the fix; all exit 1 after, with the expected rule IDs |
+| Bypass forms injected into copies of the real `ci.yml` / `package.json` | all rejected (`merge-or-approve`, `script-injection`, `permissions`, `ai-dependency`) |
+| PR #4's real tree (`af8acd9`) | exit 1, **25** violations: the 23 before, plus 2 `script-injection` (step outputs interpolated into `run:`) |
+| **Native Windows + Linux**, preview run [38990496042](https://github.com/bransondang3307-beep/RepOne/actions/runs/38990496042) (`438dac1` = `b261ee3` + PR #10's Windows job) | Windows, Node 24, CRLF checkout: `test:scripts` (44) ✅, boundaries ✅. Linux: npm ci, boundaries, **Workflow policy**, typecheck, tests ✅ |
+| PR #11 CI on `b261ee3`, run [38990504614](https://github.com/bransondang3307-beep/RepOne/actions/runs/38990504614) | success (incl. the Workflow policy step and the handoff check) |
+
 ## Decisions / ADRs
 - ADR 0005 (Accepted on merge): subscription-only AI collaboration, AI-free CI, a policy enforced in CI, least
   privilege, and PR #4 archived.
 
 ## Known limitations / risks
-- The checker is line-based, not a YAML parser. It covers the patterns used in this repository and is conservative;
-  exotic YAML (anchors, multi-document files) could evade or false-trigger it. Codex review is the second line.
+- The checker is line-based, not a YAML parser. Since review round 1 it is **fail-closed**: YAML it cannot read
+  reliably (anchors, aliases, merge keys, unrecognised permission values, unreviewed actions, non-registry
+  dependencies) is rejected, so the main risk is a false positive, not a silent pass. Codex review remains the second
+  line. Known residual risks:
+  - Multi-document YAML files.
+  - Very unusual quoting inside flow mappings.
+  - Code inside a *local* JavaScript/Docker action, where only its `action.yml` is scanned (none exist here).
+- The lockfile check also fails on an AI SDK pulled in **transitively** by a legitimate dependency. That is
+  intentional (fail-closed); the owner would then decide.
 - Credential detection is name-based. A key under a neutral name (e.g. `MY_KEY`) is still caught by the `secret`
   rule if it comes from secrets. A hard-coded literal key would only be caught by secret scanning or review.
 - The round cap and the merge gate are process rules (no branch protection on GitHub Free private repositories).

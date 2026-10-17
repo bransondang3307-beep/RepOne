@@ -113,7 +113,10 @@ findings with file:line and a suggested fix. Do not edit files.
 
 **Enforced in the repository (every CI run):** `npm run check:workflows` (`scripts/check-workflow-policy.mjs`,
 regression tests in `scripts/check-workflow-policy.test.mjs`) fails on the rules below.
-The checker is line-based and **fail-closed**: YAML it cannot read reliably is rejected, never assumed safe.
+Workflows and actions are **parsed as YAML** with the `yaml` package (YAML 1.2; a pinned root devDependency, so run
+`npm ci` first). Every key and value is checked **after** quoting and escapes are decoded, so `"u\u0073es"` is
+`uses`. Keys are matched case-insensitively. The checker is **fail-closed**: YAML features it does not model are
+rejected, never assumed safe.
 
 | Rule | Detects |
 |---|---|
@@ -124,13 +127,15 @@ The checker is line-based and **fail-closed**: YAML it cannot read reliably is r
 | `ai-dependency` | AI SDKs (`openai`, `@anthropic-ai/sdk`, `@google/genai`, `ai`, `langchain`, …) under any name: direct dependencies, `npm:` aliases (`"helper": "npm:openai@5"`), `overrides`/`resolutions`, and **anything installed in `package-lock.json`**, including transitively |
 | `dependency-source` | Dependencies or overrides from non-registry sources (git, GitHub shorthand, tarball URLs, `file:`). The policy cannot see which package those are |
 | `secret` | Any secret other than `secrets.GITHUB_TOKEN`, `secrets: inherit`, or the whole secrets context |
-| `permissions` | Missing or non-read-only workflow-level `permissions`, `write-all`, and job-level write scopes without a `# least-privilege: <reason>` comment. Quoted values (`'write'`), flow mappings (`{ contents: "write" }`, also over several lines or inside flow-style jobs) are normalised. Anything other than `read`/`write`/`none` (anchors, aliases, merge keys) is rejected |
-| `trigger` | `pull_request_target` and `workflow_run` (privileged runs on untrusted PR input) |
+| `permissions` | Missing or non-read-only workflow-level `permissions`, `write-all`, and job-level write scopes without a `# least-privilege: <reason>` comment. The reason must be a real YAML comment on that value (or on its inline `{ … }` map); a string that only looks like one does not count. Values must be exactly `read`, `write` or `none` after decoding |
+| `trigger` | `pull_request_target` and `workflow_run` **declared under `on:`**, in any form: a string, a list or a mapping. Ordinary text that mentions them (a name, a script, an env value) is fine |
 | `merge-or-approve` | Actions that merge or approve (`*automerge*`, `*auto-approve*`, `mergify`, …, even if allowlisted), `gh pr merge`, `gh pr review --approve`/`-a`, `event=APPROVE`, REST `…/pulls/N/merge`, GraphQL `mergePullRequest`/auto-merge, force-push, pushes to `main`/`master` |
-| `script-injection` | `${{ }}` inside `run:`/`script:` that is not a fixed-format value. Expressions are parsed: dotted, bracket (`github['event']`) and mixed forms are judged alike. `github.*` is allowed only for identifiers such as `sha`, `event_name`, `run_id`; `inputs`, `env`, `steps`, `needs`, whole contexts (`toJSON(github)`) and dynamic indexes are rejected. Covers block, plain multi-line, quoted and flow-style script values |
+| `script-injection` | `${{ }}` inside `run:`/`script:` that is not a fixed-format value. Expressions are parsed: dotted, bracket (`github['event']`) and mixed forms are judged alike. `github.*` is allowed only for identifiers such as `sha`, `event_name`, `run_id`. `inputs`, `env`, `steps`, `needs`, whole contexts (`toJSON(github)`) and dynamic indexes are rejected. **`matrix.*` is trusted only when the job's `strategy:` contains no expression at all**: a matrix built with `fromJSON(…)` or `${{ }}` may carry PR text, so its values must go through `env:` |
 | `third-party-action` | Actions outside `actions/*` and `github/*` that are not in the owner-reviewed allowlist `.github/workflow-policy.json`, or not pinned to a full commit SHA; Docker-image actions (`docker://`) |
 | `policy-config` | An invalid allowlist, or an allowlist entry that is an AI or merge/approve action |
-| `yaml-feature` | YAML anchors, aliases and merge keys outside literal text. They could rebuild mappings the checker does not see |
+| `yaml-feature` | YAML anchors, aliases, merge keys (`<<`), explicit tags (`!!str`), directives (`%YAML`) and keys that are not plain strings (e.g. `true:`). They could change meaning between parsers |
+| `yaml-parse` | Invalid YAML, duplicate keys, an empty file, or more than one document |
+| `workflow-schema` | Unknown top-level workflow keys (only `name`, `run-name`, `on`, `permissions`, `env`, `defaults`, `concurrency`, `jobs`), and jobs, steps or `steps:` that are not mappings or lists |
 
 Local actions (`uses: ./path`) are scanned wherever they live, including actions nested inside them.
 

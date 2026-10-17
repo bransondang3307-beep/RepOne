@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 // Automation policy for RepOne (RO-019, ADR 0005): zero additional AI API cost and least-privilege
 // GitHub Actions. Scans .github/workflows/*, local actions, every workspace package.json and the npm
-// lockfile. Zero dependencies and line-based (no YAML parser), like check-boundaries.mjs — so it is
-// deliberately FAIL-CLOSED: YAML it cannot read reliably (anchors, aliases, unrecognised permission
-// values, unreviewed actions, non-registry dependencies) is rejected, never assumed safe.
+// lockfile. Workflows and actions are parsed with the `yaml` package (YAML 1.2), so keys and values are
+// checked after quoting and escapes are decoded — `"uses"` is `uses`. The checker is FAIL-CLOSED:
+// YAML features it does not reason about (anchors, aliases, tags, merge keys, directives, several
+// documents, non-string or duplicate keys, unknown top-level keys) are rejected, never assumed safe.
 // Usage: node scripts/check-workflow-policy.mjs [repoRoot]   — exit 0 = OK, 1 = violations.
+// Needs `npm ci` first (dependency: yaml).
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { LineCounter, isMap, isScalar, isSeq, parseAllDocuments, visit } from 'yaml';
 
 const ROOT = resolve(process.argv[2] ?? join(dirname(fileURLToPath(import.meta.url)), '..'));
 /** Repo-relative path with '/' on every OS (RO-021: Windows uses '\\'). */
@@ -49,6 +52,7 @@ const AI_PACKAGE =
 // ---- merge and approval paths (AGENTS.md §3: only the owner merges or approves) ---------------
 /** Actions whose purpose is merging or approving pull requests. Rejected even if allowlisted. */
 const MERGE_ACTION_NAME = /(?:^|[/_.-])(?:auto-?merge|merge|auto-?approve|approve|approval|mergify|kodiak)(?:$|[/_.-])/i;
+/** Commands in any string value (scripts, inputs) that merge, approve or force-push. */
 const MERGE_OR_APPROVE = [
   [/\bgh\s+pr\s+merge\b/, 'merges a pull request'],
   [/\bgh\s+pr\s+review\b.*(?:--approve\b|\s-a(?:\s|$))/, 'approves a pull request'],
@@ -59,10 +63,12 @@ const MERGE_OR_APPROVE = [
   [/\bgit\s+push\b.*\s(?:\S+:)?(?:refs\/heads\/)?(?:main|master)(?=\s|$|['"])/, 'pushes to the default branch'],
 ];
 
-// ---- least privilege ----------------------------------------------------------------------------
-const JUSTIFICATION = /#\s*least-privilege:\s*\S/;
+// ---- least privilege and workflow structure ---------------------------------------------------
+const JUSTIFICATION = /^\s*least-privilege:\s*\S/;
 const PERMISSION_LEVELS = new Set(['read', 'write', 'none']);
-const DANGEROUS_TRIGGER = /\b(pull_request_target|workflow_run)\b/;
+const DANGEROUS_TRIGGERS = new Set(['pull_request_target', 'workflow_run']);
+/** Top-level keys GitHub accepts in a workflow; anything else is rejected as unreadable. */
+const WORKFLOW_KEYS = new Set(['name', 'run-name', 'on', 'permissions', 'env', 'defaults', 'concurrency', 'jobs']);
 const FULL_SHA = /^[0-9a-f]{40}$/;
 const GITHUB_OWNED = new Set(['actions', 'github']);
 
@@ -82,60 +88,110 @@ const LITERALS = new Set(['true', 'false', 'null']);
 const violations = [];
 const report = (file, line, rule, message) => violations.push({ file: repoPath(file), line, rule, message });
 
-// ---- YAML-lite helpers ----------------------------------------------------------------------------
+// ---- parsing ----------------------------------------------------------------------------------------
 
-/** Drop a YAML comment (a `#` at line start or after whitespace, outside quotes). */
-function stripComment(line) {
-  let quote = null;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (quote) {
-      if (c === quote) quote = null;
-    } else if (c === '"' || c === "'") {
-      quote = c;
-    } else if (c === '#' && (i === 0 || /\s/.test(line[i - 1]))) {
-      return line.slice(0, i);
-    }
+/** Lower-cased key of a pair, or null when the key is not a plain string (reported by `checkYamlHygiene`). */
+const keyName = (pair) => (isScalar(pair.key) && typeof pair.key.value === 'string' ? pair.key.value.toLowerCase() : null);
+/** Values of every `name:` entry in a mapping, matched case-insensitively after decoding. */
+const valuesOf = (map, name) => (isMap(map) ? map.items.filter((pair) => keyName(pair) === name).map((pair) => pair.value) : []);
+const isString = (node) => isScalar(node) && typeof node.value === 'string';
+
+/** Parse one automation YAML file. Returns null when it cannot be read as exactly one valid document. */
+function parseYamlFile(file) {
+  const text = readFileSync(file, 'utf8');
+  const lineCounter = new LineCounter();
+  const documents = [...parseAllDocuments(text, { lineCounter, uniqueKeys: true, merge: false, version: '1.2' })];
+  const yaml = { file, text, lineAt: (offset) => lineCounter.linePos(offset ?? 0).line };
+  /** Source line of a node, or of `needle` inside it when the needle appears literally in the source. */
+  yaml.lineOf = (node, needle) => {
+    const [start = 0, end = start] = node?.range ?? [];
+    const index = needle ? text.slice(start, end).indexOf(needle) : -1;
+    return yaml.lineAt(index >= 0 ? start + index : start);
+  };
+  yaml.source = (from, to) => text.slice(from?.range?.[0] ?? 0, (to ?? from)?.range?.[1] ?? 0).trim();
+
+  if (documents.length !== 1) {
+    report(file, 1, 'yaml-parse', documents.length === 0 ? 'empty file' : `${documents.length} YAML documents — exactly one is allowed`);
+    return null;
   }
-  return line;
-}
-
-const indentOf = (text) => text.length - text.trimStart().length;
-
-/** Remove one level of YAML scalar quotes: `'write'` / `"write"` → `write`. */
-function unquote(text) {
-  const value = text.trim();
-  if (value.length >= 2 && value[0] === "'" && value.at(-1) === "'") return value.slice(1, -1).replace(/''/g, "'");
-  if (value.length >= 2 && value[0] === '"' && value.at(-1) === '"') return value.slice(1, -1);
-  return value;
-}
-
-/** The non-blank lines after `index` indented deeper than `column` (a block or a continued scalar). */
-function continuation(lines, index, column) {
-  const block = [];
-  for (let j = index + 1; j < lines.length; j++) {
-    if (lines[j].raw.trim() === '') continue;
-    if (indentOf(lines[j].raw) <= column) break;
-    block.push(lines[j]);
+  const [document] = documents;
+  for (const problem of [...document.errors, ...document.warnings]) {
+    report(file, problem.linePos?.[0]?.line ?? 1, 'yaml-parse', problem.message.split('\n')[0]);
   }
-  return block;
+  if (document.errors.length > 0 || document.contents === null) return null;
+  yaml.document = document;
+  yaml.root = document.contents;
+  checkYamlHygiene(yaml);
+  return yaml;
 }
 
-/** Each `key:` on a line in mapping position: line start, after `- `, or inside a flow mapping `{…, key: …}`. Keys may be quoted. */
-function keysOn(code, names) {
-  const pattern = new RegExp(`(^\\s*(?:-\\s+)?|[{,]\\s*)(['"]?)(${names})\\2\\s*:(?=\\s|$|['"{\\[])`, 'g');
-  return [...code.matchAll(pattern)].map((m) => ({
-    name: m[3],
-    column: m.index + m[1].length,
-    valueStart: m.index + m[0].length,
-    inFlow: /[{,]/.test(m[1]),
-  }));
+/** Fail-closed: YAML features whose meaning the policy does not model are rejected. */
+function checkYamlHygiene(yaml) {
+  const { file, text } = yaml;
+  text.split(/\r?\n/).forEach((line, index) => {
+    if (line.startsWith('%')) report(file, index + 1, 'yaml-feature', 'YAML directives are not allowed in automation files');
+  });
+  visit(yaml.document, {
+    Alias(_, node) {
+      report(file, yaml.lineOf(node), 'yaml-feature', `alias '*${node.source}' — write the value out (no anchors or aliases in automation files)`);
+    },
+    Node(_, node) {
+      if (node.anchor) report(file, yaml.lineOf(node), 'yaml-feature', `anchor '&${node.anchor}' — no anchors or aliases in automation files`);
+      if (node.tag) report(file, yaml.lineOf(node), 'yaml-feature', `explicit tag '${node.tag}' — tags are not allowed in automation files`);
+    },
+    Pair(_, pair) {
+      if (!isScalar(pair.key) || typeof pair.key.value !== 'string') {
+        report(file, yaml.lineOf(pair.key), 'yaml-feature', `mapping key '${yaml.source(pair.key)}' is not a plain string`);
+      } else if (pair.key.value === '<<') {
+        report(file, yaml.lineOf(pair.key), 'yaml-feature', 'merge keys (<<) are not allowed in automation files');
+      }
+    },
+  });
 }
 
-function readLines(file) {
-  return readFileSync(file, 'utf8')
-    .split(/\r?\n/)
-    .map((raw, i) => ({ number: i + 1, raw, code: stripComment(raw) }));
+// ---- rules on every decoded string --------------------------------------------------------------
+
+/** AI integrations, secrets, merge/approve commands — in every key and value, after YAML decoding. */
+function checkStrings(yaml, allowed, localActions) {
+  const { file } = yaml;
+  visit(yaml.document, {
+    Pair(_, pair) {
+      const name = keyName(pair);
+      if (name === 'uses') {
+        if (isString(pair.value)) checkAction(file, yaml.lineOf(pair.value), pair.value.value.trim(), allowed, localActions);
+        else report(file, yaml.lineOf(pair.key), 'third-party-action', "unreadable 'uses:' value");
+      }
+      if (name === 'secrets' && isString(pair.value) && pair.value.value.trim().toLowerCase() === 'inherit') {
+        report(file, yaml.lineOf(pair.value), 'secret', "'secrets: inherit' passes every secret — workflows may use only secrets.GITHUB_TOKEN");
+      }
+      if (name === 'event' && isString(pair.value) && pair.value.value.trim().toLowerCase() === 'approve') {
+        report(file, yaml.lineOf(pair.value), 'merge-or-approve', 'approves a pull request — only the owner merges or approves (AGENTS.md §3)');
+      }
+    },
+    Scalar(_, node) {
+      if (typeof node.value !== 'string') return;
+      for (const text of node.value.split('\n')) {
+        if (text.trim() === '') continue;
+        const line = yaml.lineOf(node, text.trim());
+        const credential = text.match(AI_CREDENTIAL);
+        if (credential) report(file, line, 'ai-credential', `'${credential[0]}' looks like an AI API credential — no AI API keys or tokens in automation`);
+        const endpoint = text.match(AI_ENDPOINT);
+        if (endpoint) report(file, line, 'ai-endpoint', `calls the AI API host '${endpoint[0]}'`);
+        if (AI_CLI.some((pattern) => pattern.test(text))) {
+          report(file, line, 'ai-cli', 'installs or runs an AI CLI/SDK — automation must not call AI APIs');
+        }
+        for (const [, name] of text.matchAll(/\bsecrets\s*\.\s*([A-Za-z_][\w-]*)/g)) {
+          if (name !== 'GITHUB_TOKEN') report(file, line, 'secret', `secrets.${name}: workflows may use only secrets.GITHUB_TOKEN`);
+        }
+        if (/\bsecrets\s*\[/.test(text) || /toJSON\(\s*secrets\s*\)/i.test(text)) {
+          report(file, line, 'secret', 'exposes the whole secrets context — workflows may use only secrets.GITHUB_TOKEN');
+        }
+        for (const [pattern, what] of MERGE_OR_APPROVE) {
+          if (pattern.test(text)) report(file, line, 'merge-or-approve', `${what} — only the owner merges or approves (AGENTS.md §3)`);
+        }
+      }
+    },
+  });
 }
 
 // ---- expressions ----------------------------------------------------------------------------------
@@ -144,8 +200,9 @@ function readLines(file) {
  * Context references in a GitHub expression that must not be interpolated into a script. Bracket
  * property access (`github['event']`) is normalised to dots first, so dotted, bracket and mixed forms
  * are judged alike; dynamic indexes (`github[x]`) and whole contexts (`toJSON(github)`) are rejected.
+ * `matrix` is trusted only when the job's matrix is provably static (no expressions).
  */
-function untrustedReferences(expression) {
+function untrustedReferences(expression, matrixIsStatic) {
   const text = expression
     .replace(/\[\s*'((?:[^']|'')*)'\s*\]/g, (_, name) => `.${name.replace(/''/g, "'")}`)
     .replace(/\[\s*"([^"]*)"\s*\]/g, (_, name) => `.${name}`)
@@ -164,6 +221,7 @@ function untrustedReferences(expression) {
     const dynamic = /^\s*\[/.test(after.slice(chain.length));
     const path = [root, ...properties].join('.') + (dynamic ? '[…]' : '');
     if (UNTRUSTED_ROOTS.has(root)) found.push(path);
+    else if (root === 'matrix' && !matrixIsStatic) found.push(`${path} (the matrix is built from an expression)`);
     else if (root === 'github' && (dynamic || properties.length !== 1 || !SAFE_GITHUB_PROPERTIES.has(properties[0]))) {
       found.push(path);
     }
@@ -171,40 +229,59 @@ function untrustedReferences(expression) {
   return found;
 }
 
-/** The text of every run:/script: value, including block scalars and continued plain scalars. */
-function scriptBodies(lines) {
-  const bodies = [];
-  lines.forEach((line, index) => {
-    for (const key of keysOn(line.code, 'run|script')) {
-      const column = key.inFlow ? indentOf(line.raw) : key.column;
-      const parts = [{ number: line.number, text: line.raw.slice(key.valueStart) }];
-      for (const next of continuation(lines, index, column)) parts.push({ number: next.number, text: next.raw });
-      bodies.push({ key: key.name, parts });
-    }
+/** A job's matrix is static when nothing under `strategy:` is an expression. */
+function hasExpression(node) {
+  let found = false;
+  visit(node, {
+    Scalar(_, scalar) {
+      if (typeof scalar.value === 'string' && scalar.value.includes('${{')) {
+        found = true;
+        return visit.BREAK;
+      }
+    },
   });
-  return bodies;
+  return found;
 }
 
-function checkScripts(file, bodies) {
-  for (const { key, parts } of bodies) {
-    let text = '';
-    const starts = [];
-    for (const part of parts) {
-      starts.push({ offset: text.length, number: part.number });
-      text += `${part.text}\n`;
-    }
-    for (const match of text.matchAll(/\$\{\{([\s\S]*?)\}\}/g)) {
-      const references = untrustedReferences(match[1]);
-      if (references.length === 0) continue;
-      const number = starts.filter((s) => s.offset <= match.index).at(-1).number;
-      report(
-        file,
-        number,
-        'script-injection',
-        `'${references.join("', '")}' interpolated into '${key}:' — pass it through env: and use "$VAR" (only trusted github.* identifiers, matrix, runner, vars may appear)`,
-      );
-    }
+function checkScript(yaml, node, key, matrixIsStatic, checked) {
+  if (checked.has(node)) return;
+  checked.add(node);
+  if (!isScalar(node)) {
+    report(yaml.file, yaml.lineOf(node), 'script-injection', `unreadable '${key}:' value`);
+    return;
   }
+  const text = String(node.value ?? '');
+  for (const match of text.matchAll(/\$\{\{([\s\S]*?)\}\}/g)) {
+    const references = untrustedReferences(match[1], matrixIsStatic);
+    if (references.length === 0) continue;
+    report(
+      yaml.file,
+      yaml.lineOf(node, match[0]),
+      'script-injection',
+      `'${references.join("', '")}' interpolated into '${key}:' — pass it through env: and use "$VAR" (only trusted github.* identifiers, a static matrix, runner, vars may appear)`,
+    );
+  }
+}
+
+function checkStep(yaml, step, matrixIsStatic, checked) {
+  if (!isMap(step)) {
+    report(yaml.file, yaml.lineOf(step), 'workflow-schema', 'a step must be a mapping');
+    return;
+  }
+  for (const run of valuesOf(step, 'run')) checkScript(yaml, run, 'run', matrixIsStatic, checked);
+  for (const inputs of valuesOf(step, 'with')) {
+    for (const script of valuesOf(inputs, 'script')) checkScript(yaml, script, 'script', matrixIsStatic, checked);
+  }
+}
+
+/** Any run:/script: value not reached through the expected structure is still checked, with no trusted matrix. */
+function checkRemainingScripts(yaml, checked) {
+  visit(yaml.document, {
+    Pair(_, pair) {
+      const name = keyName(pair);
+      if (name === 'run' || name === 'script') checkScript(yaml, pair.value, name, false, checked);
+    },
+  });
 }
 
 // ---- actions ----------------------------------------------------------------------------------------
@@ -265,128 +342,110 @@ function checkAction(file, number, reference, allowed, localActions) {
   }
 }
 
-// ---- file checks ------------------------------------------------------------------------------------
+// ---- workflow structure -------------------------------------------------------------------------------
 
-/** Rules shared by workflows and actions: AI integrations, secrets, actions, scripts, YAML features. */
-function checkIntegrations(file, lines, allowed, localActions) {
-  const bodies = scriptBodies(lines);
-  const literalLines = new Set(bodies.flatMap((b) => b.parts.slice(1).map((p) => p.number)));
-  lines.forEach((line, index) => {
-    const block = line.code.match(/^(\s*(?:-\s+)?)(['"]?)[^'":]+\2\s*:\s*[|>][-+0-9]*\s*$/);
-    if (block) for (const text of continuation(lines, index, block[1].length)) literalLines.add(text.number);
-  });
-
-  lines.forEach(({ number, code }, index) => {
-    if (code.trim() === '') return;
-
-    for (const key of keysOn(code, 'uses')) {
-      let value = code.slice(key.valueStart);
-      if (key.inFlow) value = value.split(/[,}]/)[0];
-      value = value.trim();
-      if (value === '' || /^[|>]/.test(value)) {
-        value = continuation(lines, index, key.column).map((l) => l.code.trim()).join('');
-      }
-      checkAction(file, number, unquote(value), allowed, localActions);
+/** `permissions:` — read-all, {} or `scope: read|write|none`; writes only on jobs, each with a reason. */
+function checkPermissions(yaml, node, workflowLevel) {
+  const { file } = yaml;
+  if (isString(node)) {
+    const value = node.value.trim();
+    if (value === 'write-all') report(file, yaml.lineOf(node), 'permissions', "'write-all' is never allowed — grant individual scopes");
+    else if (value !== 'read-all') report(file, yaml.lineOf(node), 'permissions', `unreadable permissions value '${yaml.source(node)}'`);
+    return;
+  }
+  if (!isMap(node)) {
+    report(file, yaml.lineOf(node), 'permissions', `unreadable permissions value '${yaml.source(node) || 'empty'}' — use plain 'scope: read|write|none' entries`);
+    return;
+  }
+  for (const pair of node.items) {
+    const scope = keyName(pair);
+    const level = isString(pair.value) ? pair.value.value.trim() : null;
+    if (scope === null || level === null) {
+      report(file, yaml.lineOf(pair.key), 'permissions', `unreadable permissions value '${yaml.source(pair.key, pair.value)}' — use plain 'scope: read|write|none' entries`);
+    } else if (!PERMISSION_LEVELS.has(level)) {
+      report(file, yaml.lineOf(pair.value), 'permissions', `'${scope}: ${level}' — a permission level must be read, write or none`);
+    } else if (level === 'write' && workflowLevel) {
+      report(file, yaml.lineOf(pair.value), 'permissions', `workflow-level '${scope}: write' — grant write scopes only on the job that needs them`);
+    } else if (level === 'write' && !JUSTIFICATION.test(pair.value.comment ?? (node.flow ? node.comment : '') ?? '')) {
+      report(file, yaml.lineOf(pair.value), 'permissions', `'${scope}: write' needs an inline '# least-privilege: <reason>' comment`);
     }
-
-    const credential = code.match(AI_CREDENTIAL);
-    if (credential) {
-      report(file, number, 'ai-credential', `'${credential[0]}' looks like an AI API credential — no AI API keys or tokens in automation`);
-    }
-    const endpoint = code.match(AI_ENDPOINT);
-    if (endpoint) report(file, number, 'ai-endpoint', `calls the AI API host '${endpoint[0]}'`);
-    if (AI_CLI.some((pattern) => pattern.test(code))) {
-      report(file, number, 'ai-cli', 'installs or runs an AI CLI/SDK — automation must not call AI APIs');
-    }
-
-    for (const [, name] of code.matchAll(/\bsecrets\s*\.\s*([A-Za-z_][\w-]*)/g)) {
-      if (name !== 'GITHUB_TOKEN') report(file, number, 'secret', `secrets.${name}: workflows may use only secrets.GITHUB_TOKEN`);
-    }
-    if (/\bsecrets\s*\[/.test(code) || /toJSON\(\s*secrets\s*\)/i.test(code) || /^\s*(['"]?)secrets\1\s*:\s*['"]?inherit\b/.test(code)) {
-      report(file, number, 'secret', 'exposes the whole secrets context — workflows may use only secrets.GITHUB_TOKEN');
-    }
-
-    for (const [pattern, what] of MERGE_OR_APPROVE) {
-      if (pattern.test(code)) report(file, number, 'merge-or-approve', `${what} — only the owner merges or approves (AGENTS.md §3)`);
-    }
-
-    // Anchors, aliases and merge keys can rebuild mappings this line-based checker would not see.
-    if (!literalLines.has(number) && (/(?:^\s*(?:-\s+)?|:\s+|[{,[]\s*)[&*][A-Za-z0-9_-]/.test(code) || /^\s*(?:-\s+)?['"]?<<['"]?\s*:/.test(code))) {
-      report(file, number, 'yaml-feature', 'YAML anchors, aliases and merge keys are not allowed in automation files — write the mapping out');
-    }
-  });
-
-  checkScripts(file, bodies);
+  }
 }
 
-/** One `scope: level` pair, with quotes removed from both. */
-function parsePermission(text) {
-  const match = text.trim().match(/^(['"]?)([\w-]+)\1\s*:\s*(\S.*?)\s*$/);
-  return match ? { scope: match[2], level: unquote(match[3]) } : null;
+/** Privileged triggers, read from the `on:` declaration only (a string, a list, or a mapping of events). */
+function checkTriggers(yaml, on) {
+  const events = isString(on) ? [on] : isSeq(on) ? on.items : isMap(on) ? on.items.map((pair) => pair.key) : null;
+  if (events === null) {
+    report(yaml.file, yaml.lineOf(on), 'trigger', `unreadable 'on:' value '${yaml.source(on)}'`);
+    return;
+  }
+  for (const event of events) {
+    const name = isString(event) ? event.value.trim().toLowerCase() : null;
+    if (name === null) report(yaml.file, yaml.lineOf(event), 'trigger', `unreadable event '${yaml.source(event)}'`);
+    else if (DANGEROUS_TRIGGERS.has(name)) {
+      report(yaml.file, yaml.lineOf(event), 'trigger', `'${name}' runs with elevated privileges on untrusted input — not allowed`);
+    }
+  }
 }
 
-/** Workflow-only rules: explicit least-privilege permissions (fail-closed) and safe triggers. */
-function checkWorkflow(file, lines) {
-  let declared = false;
-  lines.forEach((line, index) => {
-    for (const key of keysOn(line.code, 'permissions')) {
-      const workflowLevel = !key.inFlow && key.column === 0;
-      declared ||= workflowLevel;
-      const inline = line.code.slice(key.valueStart).trim();
-      const entries = [];
-      const unreadable = [];
-
-      if (inline === '') {
-        for (const child of continuation(lines, index, key.column)) {
-          if (child.code.trim() === '') continue; // comment-only line
-          const entry = parsePermission(child.code);
-          if (entry) entries.push({ ...entry, line: child });
-          else unreadable.push({ line: child, text: child.code.trim() });
-        }
-      } else if (inline.startsWith('{')) {
-        // Flow mapping, possibly over several lines: `{ contents: 'read', issues: "write" }`.
-        let closed = false;
-        for (let j = index; j < lines.length && !closed; j++) {
-          let segment = j === index ? inline.slice(1) : lines[j].code;
-          if (segment.includes('}')) {
-            closed = true;
-            segment = segment.slice(0, segment.indexOf('}'));
-          }
-          for (const part of segment.split(',').map((p) => p.trim()).filter(Boolean)) {
-            const entry = parsePermission(part);
-            if (entry) entries.push({ ...entry, line: lines[j] });
-            else unreadable.push({ line: lines[j], text: part });
-          }
-        }
-        if (!closed) unreadable.push({ line, text: inline });
-      } else {
-        const value = unquote(key.inFlow ? inline.split(/[,}]/)[0] : inline);
-        if (value === 'write-all') report(file, line.number, 'permissions', "'write-all' is never allowed — grant individual scopes");
-        else if (value !== 'read-all') unreadable.push({ line, text: value });
-      }
-
-      for (const { line: at, text } of unreadable) {
-        report(file, at.number, 'permissions', `unreadable permissions value '${text}' — use plain 'scope: read|write|none' entries (no anchors, aliases or merge keys)`);
-      }
-      for (const { scope, level, line: at } of entries) {
-        if (!PERMISSION_LEVELS.has(level)) {
-          report(file, at.number, 'permissions', `'${scope}: ${level}' — a permission level must be read, write or none`);
-        } else if (level === 'write' && workflowLevel) {
-          report(file, at.number, 'permissions', `workflow-level '${scope}: write' — grant write scopes only on the job that needs them`);
-        } else if (level === 'write' && !JUSTIFICATION.test(at.raw)) {
-          report(file, at.number, 'permissions', `'${scope}: write' needs an inline '# least-privilege: <reason>' comment`);
-        }
-      }
+function checkWorkflow(yaml, allowed, localActions) {
+  const { file, root } = yaml;
+  checkStrings(yaml, allowed, localActions);
+  if (!isMap(root)) {
+    report(file, yaml.lineOf(root), 'workflow-schema', 'a workflow must be a mapping');
+    return;
+  }
+  for (const pair of root.items) {
+    const name = keyName(pair);
+    if (name !== null && !WORKFLOW_KEYS.has(name)) {
+      report(file, yaml.lineOf(pair.key), 'workflow-schema', `unknown top-level key '${pair.key.value}' — GitHub does not accept it and the policy cannot reason about it`);
     }
-  });
-  if (!declared) {
+  }
+  for (const on of valuesOf(root, 'on')) checkTriggers(yaml, on);
+
+  const workflowPermissions = valuesOf(root, 'permissions');
+  if (workflowPermissions.length === 0) {
     report(file, 1, 'permissions', "missing workflow-level 'permissions:' — declare read-only defaults explicitly");
   }
+  for (const permissions of workflowPermissions) checkPermissions(yaml, permissions, true);
 
-  for (const { code, number } of lines) {
-    const trigger = code.match(DANGEROUS_TRIGGER);
-    if (trigger) report(file, number, 'trigger', `'${trigger[1]}' runs with elevated privileges on untrusted input — not allowed`);
+  const checked = new Set();
+  for (const jobs of valuesOf(root, 'jobs')) {
+    if (!isMap(jobs)) {
+      report(file, yaml.lineOf(jobs), 'workflow-schema', "'jobs:' must be a mapping");
+      continue;
+    }
+    for (const { value: job } of jobs.items) {
+      if (!isMap(job)) {
+        report(file, yaml.lineOf(job), 'workflow-schema', 'a job must be a mapping');
+        continue;
+      }
+      for (const permissions of valuesOf(job, 'permissions')) checkPermissions(yaml, permissions, false);
+      const matrixIsStatic = !valuesOf(job, 'strategy').some(hasExpression);
+      for (const steps of valuesOf(job, 'steps')) {
+        if (isSeq(steps)) steps.items.forEach((step) => checkStep(yaml, step, matrixIsStatic, checked));
+        else report(file, yaml.lineOf(steps), 'workflow-schema', "'steps:' must be a list");
+      }
+    }
   }
+  checkRemainingScripts(yaml, checked);
+}
+
+/** Composite (and other) actions: the same string, action and script rules; no matrix context exists there. */
+function checkActionFile(yaml, allowed, localActions) {
+  checkStrings(yaml, allowed, localActions);
+  const checked = new Set();
+  for (const runs of valuesOf(yaml.root, 'runs')) {
+    for (const steps of valuesOf(runs, 'steps')) {
+      if (isSeq(steps)) steps.items.forEach((step) => checkStep(yaml, step, false, checked));
+    }
+    for (const image of valuesOf(runs, 'image')) {
+      if (isString(image) && /^docker:\/\//i.test(image.value.trim())) {
+        report(yaml.file, yaml.lineOf(image), 'third-party-action', `Docker image '${image.value.trim()}' is not allowed — its code is not reviewable here`);
+      }
+    }
+  }
+  checkRemainingScripts(yaml, checked);
 }
 
 // ---- dependencies -------------------------------------------------------------------------------------
@@ -469,6 +528,7 @@ function checkLockfile(file) {
   walk(lock.dependencies);
 }
 
+
 // ---- discovery ----------------------------------------------------------------------------------------
 
 function listFiles(dir, accept) {
@@ -503,9 +563,8 @@ const allowed = loadAllowedActions();
 const localActions = new Set();
 
 for (const file of workflows) {
-  const lines = readLines(file);
-  checkIntegrations(file, lines, allowed, localActions);
-  checkWorkflow(file, lines);
+  const yaml = parseYamlFile(file);
+  if (yaml) checkWorkflow(yaml, allowed, localActions);
 }
 // Local actions referenced as `uses: ./path` are checked wherever they live, including nested ones.
 const queue = [...actions];
@@ -523,7 +582,8 @@ while (queue.length > 0) {
   const file = queue.shift();
   if (checkedActions.has(file)) continue;
   checkedActions.add(file);
-  checkIntegrations(file, readLines(file), allowed, localActions);
+  const yaml = parseYamlFile(file);
+  if (yaml) checkActionFile(yaml, allowed, localActions);
   enqueueLocalActions();
 }
 for (const file of manifests) checkManifest(file);

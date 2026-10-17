@@ -106,7 +106,8 @@
   and a separate replacement PR is opened. Manual Claude hand-offs; Auto-fix off; Codex GitHub code review, automatic
   on PR creation, with `@codex review` for re-reviews. This PR goes first; then Milestone 2 (RO-012) resumes.
 - **Files:** `docs/automation/{claude-codex-workflow,future-api-loop}.md`, ADR 0005, `scripts/check-workflow-policy{,.test}.mjs`,
-  `.github/workflow-policy.json` (empty third-party action allowlist), `package.json` (scripts), `.github/workflows/ci.yml` (manual trigger + policy step), `AGENTS.md` (Review guidelines,
+  `.github/workflow-policy.json` (empty third-party action allowlist), `package.json` (scripts; devDependency `yaml` 2.9.1 for
+  YAML parsing) + `package-lock.json`, `.github/workflows/ci.yml` (manual trigger + policy step), `AGENTS.md` (Review guidelines,
   step 7, zero-cost rule), `CLAUDE.md`, `.github/pull_request_template.md`, `README.md` and `docs/architecture.md`
   (verify description), this row.
 - **Completion criteria:** `npm run verify` and CI green; the policy tests detect prohibited AI API integrations

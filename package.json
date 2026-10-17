@@ -7,7 +7,10 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "test": "npm run test:scripts && npm run test --workspaces --if-present",
+    "test:scripts": "node --test scripts/check-boundaries.test.mjs",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "verify": "npm run check:boundaries && npm run typecheck && npm test"
   }
 }

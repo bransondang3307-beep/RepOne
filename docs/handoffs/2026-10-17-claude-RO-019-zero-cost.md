@@ -7,7 +7,7 @@
 | **Task** | RO-019 (owner-approved redesign, 2026-10-17) |
 | **Branch** | `claude/RO-019-zero-cost-workflow` (base: `main` @ `cd884fc`) |
 | **Commits** | `127d6d5` RO-019: zero-additional-API-cost Claude Code <-> Codex workflow · handoff + PR link (see the PR's commit list) |
-| **Pull request** | PR_LINK (replacement PR; **not merged**) |
+| **Pull request** | [PR #11](https://github.com/bransondang3307-beep/RepOne/pull/11) → `main` (replacement PR; open, **not merged**) |
 | **Status** | implemented; verified (local Linux + GitHub Actions Linux and native Windows); awaiting Codex review and owner merge |
 
 ## Objective
@@ -80,7 +80,7 @@ On GitHub Actions:
 | Run | Result |
 |---|---|
 | **Native Windows + Linux preview** [38988635946](https://github.com/bransondang3307-beep/RepOne/actions/runs/38988635946): branch `claude/RO-022-preview-ro019` = `127d6d5` + PR #10's Windows job, plus a push trigger (preview only) | Windows (Node 24, autocrlf): `npm run test:scripts` ✅. That includes the 19 policy tests and the real-repo policy check on a CRLF checkout. `check:boundaries` ✅ (38 s). Linux: `npm ci`, boundaries, **Workflow policy step**, typecheck, `npm test` all ✅ (45 s). The combined `ci.yml` passes the policy locally too. |
-| PR CI on the final head | PR_CI |
+| PR #11 CI on `4afba32`, run [38988785355](https://github.com/bransondang3307-beep/RepOne/actions/runs/38988785355) | **success**: npm ci, boundaries, **Workflow policy step**, typecheck, tests, handoff check. The final head's run is reported on the PR. |
 
 Environment notes:
 - `actionlint` was not run (not installed); the YAML parses and CI executed it.

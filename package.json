@@ -8,9 +8,10 @@
   ],
   "scripts": {
     "test": "npm run test:scripts && npm run test --workspaces --if-present",
-    "test:scripts": "node --test scripts/check-boundaries.test.mjs",
+    "test:scripts": "node --test scripts/check-boundaries.test.mjs scripts/check-workflow-policy.test.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "check:boundaries": "node scripts/check-boundaries.mjs",
-    "verify": "npm run check:boundaries && npm run typecheck && npm test"
+    "check:workflows": "node scripts/check-workflow-policy.mjs",
+    "verify": "npm run check:boundaries && npm run check:workflows && npm run typecheck && npm test"
   }
 }

@@ -78,7 +78,8 @@ container is created once at boot and passed through React context.
   `describeRepositoriesContract` (`@repone/workout-domain/testing`).
 - Packages test with ts-jest under Node; the app tests with jest-expo. SQLite repositories are
   tested against Node's `node:sqlite` through the same `SqlDatabase` port used with expo-sqlite.
-- `npm run verify` = boundaries + typecheck + all tests.
+- `npm run verify` = boundaries + workflow policy (`npm run check:workflows`: no AI API integrations,
+  least-privilege Actions — ADR 0005) + typecheck + all tests.
 
 ## 6. Multi-agent ownership (suggested in the Sprint 1 brief)
 

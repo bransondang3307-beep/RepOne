@@ -43,7 +43,7 @@ Requires Node 22+ (SQLite tests use the built-in `node:sqlite`).
 
 ```bash
 npm install
-npm run verify       # module boundaries + typecheck + all Jest suites
+npm run verify       # module boundaries + workflow policy (no AI APIs) + typecheck + all tests
 cd apps/mobile && npx expo start   # run in Expo Go / simulator
 ```
 

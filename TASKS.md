@@ -29,7 +29,7 @@
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
-| RO-019 | Claude Code ↔ Codex workflow at zero additional AI API cost (replaces the archived API loop, PR #4) | Claude Code | P1 | in-review | — | `claude/RO-019-zero-cost-workflow` — PR_LINK |
+| RO-019 | Claude Code ↔ Codex workflow at zero additional AI API cost (replaces the archived API loop, PR #4) | Claude Code | P1 | in-review | — | `claude/RO-019-zero-cost-workflow` — [PR #11](https://github.com/bransondang3307-beep/RepOne/pull/11) |
 
 ## Task details
 
@@ -106,7 +106,7 @@
   and a separate replacement PR is opened. Manual Claude hand-offs; Auto-fix off; Codex GitHub code review, automatic
   on PR creation, with `@codex review` for re-reviews. This PR goes first; then Milestone 2 (RO-012) resumes.
 - **Files:** `docs/automation/{claude-codex-workflow,future-api-loop}.md`, ADR 0005, `scripts/check-workflow-policy{,.test}.mjs`,
-  `package.json` (scripts), `.github/workflows/ci.yml` (manual trigger + policy step), `AGENTS.md` (Review guidelines,
+  `.github/workflow-policy.json` (empty third-party action allowlist), `package.json` (scripts), `.github/workflows/ci.yml` (manual trigger + policy step), `AGENTS.md` (Review guidelines,
   step 7, zero-cost rule), `CLAUDE.md`, `.github/pull_request_template.md`, `README.md` and `docs/architecture.md`
   (verify description), this row.
 - **Completion criteria:** `npm run verify` and CI green; the policy tests detect prohibited AI API integrations

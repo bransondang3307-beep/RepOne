@@ -51,7 +51,8 @@ and again on each `@codex review` comment). The full hand-off: [`docs/automation
   - **P2:** missing or weak tests for changed behaviour, unclear error handling, docs out of sync with code.
   - **P3:** optional suggestion — mark it non-blocking.
 - GitHub Actions changes: read-only workflow defaults, write scopes only on the job that needs them with a
-  `# least-privilege: <reason>` comment, no `pull_request_target`/`workflow_run`, no merge/approve/force-push paths.
+  `# least-privilege: <reason>` comment, no `pull_request_target`/`workflow_run`, no merge/approve/force-push paths
+  or actions, third-party actions only via `.github/workflow-policy.json` (SHA-pinned), untrusted input via `env:`.
 - Never approve, merge or push. With no findings, say so explicitly: "No P0–P2 findings at `<sha>`."
 
 ## 3. Synchronization workflow (every task)

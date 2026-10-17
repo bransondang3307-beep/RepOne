@@ -79,7 +79,7 @@ What carried over into the zero-cost workflow:
 
 | v1 element | Now |
 |---|---|
-| Workflow-policy tests | `scripts/check-workflow-policy.mjs` + tests: least privilege, triggers, merge/approve paths, script injection, SHA pinning, **plus** detection of any AI API integration |
+| Workflow-policy tests | `scripts/check-workflow-policy.mjs` + tests: least privilege, triggers, merge/approve paths and actions, parsed script-injection checks, a third-party action allowlist with SHA pins, **plus** detection of any AI API integration (including npm aliases and the lockfile). It is fail-closed |
 | Review prompt and P0–P3 severity scheme | `AGENTS.md` → "Review guidelines", which Codex code review follows |
 | Claude fix prompt | Copy-paste prompt in `claude-codex-workflow.md` §6 |
 | 2-round cap; never merge or approve; protected areas | Process rules in `claude-codex-workflow.md` §3–§5 and the PR template |
@@ -121,6 +121,6 @@ These were never resolved, because the loop was paused first:
    projects. A new ADR supersedes ADR 0005.
 2. Concerns 1–3 above are fixed, with regression tests.
 3. `scripts/check-workflow-policy.mjs` is changed **deliberately**, in that PR, to admit exactly the reviewed AI
-   jobs. Today it rejects PR #4 with 23 violations: AI actions, AI credentials, non-`GITHUB_TOKEN` secrets, and
-   write scopes without a `least-privilege` reason.
+   jobs. Today it rejects PR #4 with 25 violations: AI actions, AI credentials, non-`GITHUB_TOKEN` secrets, write
+   scopes without a `least-privilege` reason, and two step outputs interpolated into `run:` scripts.
 4. A fresh independent review is done, then the staged test plan from `claude-codex-loop.md` §5 (dry run first).

@@ -121,6 +121,6 @@ These were never resolved, because the loop was paused first:
    projects. A new ADR supersedes ADR 0005.
 2. Concerns 1–3 above are fixed, with regression tests.
 3. `scripts/check-workflow-policy.mjs` is changed **deliberately**, in that PR, to admit exactly the reviewed AI
-   jobs. Today it rejects PR #4 with 25 violations: AI actions, AI credentials, non-`GITHUB_TOKEN` secrets, write
-   scopes without a `least-privilege` reason, and two step outputs interpolated into `run:` scripts.
+   jobs. Today it rejects PR #4 with 27 violations: AI actions, AI credentials (keys and values), non-`GITHUB_TOKEN`
+   secrets, write scopes without a `least-privilege` reason, and two step outputs interpolated into `run:` scripts.
 4. A fresh independent review is done, then the staged test plan from `claude-codex-loop.md` §5 (dry run first).

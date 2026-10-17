@@ -104,7 +104,8 @@
   Windows-simulation test) passed Linux CI but failed on native Windows.
 - **Files:** `.github/workflows/ci.yml` only — adds a `windows` job. The Linux `verify` and `handoff` jobs are unchanged.
 - **Scope:** small: `windows-latest`, Node 24, default line endings; `npm run test:scripts` + `npm run check:boundaries`
-  (both `--if-present`, so branches without the checker pass). No `npm ci`. Not in scope without a further decision:
+  (both `--if-present`, so branches without the checker pass). `npm ci` (npm cache) since PR #11's
+  workflow-policy check needs the `yaml` parser. Not in scope without a further decision:
   running the full `npm run verify` (typecheck + Jest) on Windows.
 - **Completion criteria:** the job fails on the RO-021 bugs (`40d4a22`, `30e2dd3`) and passes on the fix (`6f48f1d`);
   the Linux job still runs unchanged; Codex review; PR merged by the owner.

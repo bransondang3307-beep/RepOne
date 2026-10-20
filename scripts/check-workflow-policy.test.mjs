@@ -580,6 +580,103 @@ test('structural rules: secrets: inherit and event: APPROVE inputs are rejected'
   expectViolation({ '.github/workflows/x.yml': workflow('      - uses: actions/github-script@v7\n        with:\n          event: APPROVE') }, /x\.yml:11: \[merge-or-approve\] approves a pull request/);
 });
 
+// ---- Codex final review (round 3, owner-approved) — P1: wildcard, bare and dynamic secrets ------------
+
+const withEnv = (value, extraSteps = '') => workflow(`      - run: ./upload.sh\n        env:\n          VALUE: ${value}${extraSteps}`);
+
+test('R3 P1 #1 negative control: wildcard, bare and dynamic secrets references are rejected', () => {
+  // The original bypass: an object filter over secrets joined every secret into one value.
+  expectViolation({ '.github/workflows/x.yml': withEnv("${{ join(secrets.*, ',') }}") }, /x\.yml:11: \[secret\] exposes the whole secrets context \('secrets\.\*'\)/);
+  for (const expression of ['toJSON(secrets)', "format('{0}', secrets)", "secrets[format('{0}_TOKEN', 'NPM')]", 'secrets . *']) {
+    expectViolation({ '.github/workflows/x.yml': withEnv(`\${{ ${expression} }}`) }, /\[secret\] exposes the whole secrets context/);
+  }
+});
+
+test('R3 P1 #1: every spelling and position of a non-GITHUB_TOKEN secret is rejected', () => {
+  expectViolation({ '.github/workflows/x.yml': withEnv('${{ SECRETS.NPM_TOKEN }}') }, /\[secret\] SECRETS\.NPM_TOKEN: workflows may use only secrets\.GITHUB_TOKEN/);
+  expectViolation({ '.github/workflows/x.yml': withEnv("${{ secrets['NPM_TOKEN'] }}") }, /\[secret\] secrets\.NPM_TOKEN:/);
+  // A `}}` inside a string literal does not end the expression for GitHub, so it must not for the policy.
+  expectViolation({ '.github/workflows/x.yml': withEnv("${{ format('}}{0}', secrets.NPM_TOKEN) }}") }, /\[secret\] secrets\.NPM_TOKEN:/);
+  // `if:` is an expression even without ${{ }}.
+  expectViolation({ '.github/workflows/x.yml': workflow("      - if: secrets.NPM_TOKEN != ''\n        run: ./publish.sh") }, /x\.yml:9: \[secret\] secrets\.NPM_TOKEN:/);
+  expectViolation(
+    { '.github/workflows/x.yml': 'on: pull_request\npermissions:\n  contents: read\njobs:\n  a:\n    uses: ./.github/workflows/shared.yml\n    secrets:\n      token: ${{ secrets.NPM_TOKEN }}\n' },
+    /x\.yml:8: \[secret\] secrets\.NPM_TOKEN:/,
+  );
+});
+
+test('R3 P1 #1 positive control: secrets.GITHUB_TOKEN in any spelling, and plain text about secrets, still pass', () => {
+  expectPass({
+    '.github/workflows/x.yml': workflow(
+      '      - run: echo "secrets.* and toJSON(secrets) are documented elsewhere"\n' +
+        "        env:\n          A: ${{ secrets.GITHUB_TOKEN }}\n          B: ${{ secrets['GITHUB_TOKEN'] }}\n          C: ${{ SECRETS.github_token }}\n" +
+        "      - if: github.event_name == 'push'\n        run: true",
+    ),
+  });
+});
+
+test('R3: a }} inside a string literal no longer ends an expression (script injection too)', () => {
+  // Found while fixing P1 #1: the same extractor let an untrusted value through into a script.
+  expectViolation(
+    { '.github/workflows/x.yml': workflow(`      - run: echo "\${{ format('}}{0}', github.event.issue.title) }}"`) },
+    /x\.yml:9: \[script-injection\] 'github\.event\.issue\.title'/,
+  );
+  expectPass({ '.github/workflows/x.yml': workflow(`      - run: echo "\${{ format('{0}}}', github.sha) }}"`) });
+});
+
+// ---- round 3 — P1: AWS Bedrock and other cloud AI SDKs ---------------------------------------------------
+
+test('R3 P1 #2 negative control: the AWS Bedrock runtime client is detected in manifests and lockfiles', () => {
+  // The original bypass: a normal dependency (and its lockfile entry) on the Bedrock inference client passed.
+  expectViolation(
+    { 'package.json': manifest({ dependencies: { '@aws-sdk/client-bedrock-runtime': '^3.0.0' } }) },
+    /package\.json:\d+: \[ai-dependency\] dependencies '@aws-sdk\/client-bedrock-runtime' is an AI API SDK/,
+  );
+  expectViolation(
+    { 'package-lock.json': JSON.stringify({ lockfileVersion: 3, packages: { '': {}, 'node_modules/@aws-sdk/client-bedrock-runtime': { version: '3.0.0' } } }) },
+    /package-lock\.json:\d+: \[ai-dependency\] installs '@aws-sdk\/client-bedrock-runtime'/,
+  );
+});
+
+test('R3 P1 #2: other Bedrock clients and cloud AI SDKs are detected by every route', () => {
+  for (const name of [
+    '@aws-sdk/client-bedrock',
+    '@aws-sdk/client-bedrock-agent-runtime',
+    '@aws-sdk/client-sagemaker-runtime',
+    '@azure/openai',
+    '@azure-rest/ai-inference',
+    '@ibm-cloud/watsonx-ai',
+    'llamaindex',
+  ]) {
+    expectViolation({ 'packages/engine/package.json': JSON.stringify({ name: '@fixture/engine', devDependencies: { [name]: '1.0.0' } }) }, new RegExp(`\\[ai-dependency\\] devDependencies '${escapeRegExp(name)}'`));
+  }
+  expectViolation({ 'package.json': manifest({ dependencies: { helper: 'npm:@aws-sdk/client-bedrock-runtime@3.0.0' } }) }, /npm alias for '@aws-sdk\/client-bedrock-runtime'/);
+  expectViolation(
+    { 'package-lock.json': JSON.stringify({ lockfileVersion: 3, packages: { '': {}, 'node_modules/some-tool/node_modules/@aws-sdk/client-bedrock-runtime': { version: '3.0.0' } } }) },
+    /installs '@aws-sdk\/client-bedrock-runtime'/,
+  );
+  expectViolation({ '.github/workflows/x.yml': workflow('      - run: aws bedrock-runtime invoke-model --model-id m --body b out.json') }, /\[ai-cli\]/);
+  expectViolation({ '.github/workflows/x.yml': workflow('      - run: npm install @aws-sdk/client-bedrock-runtime') }, /\[ai-cli\]/);
+  expectViolation({ '.github/workflows/x.yml': workflow('      - run: curl https://bedrock-agent-runtime.us-east-1.amazonaws.com/agents') }, /\[ai-endpoint\] calls the AI API host 'bedrock-agent-runtime\.us-east-1\.amazonaws\.com'/);
+});
+
+test('R3 P1 #2 positive control: ordinary cloud SDKs and CLIs still pass', () => {
+  expectPass({
+    'package.json': manifest({ dependencies: { '@aws-sdk/client-s3': '^3.0.0', '@azure/storage-blob': '^12.0.0', '@google-cloud/storage': '^7.0.0' } }),
+    '.github/workflows/x.yml': workflow('      - run: aws s3 cp build.zip s3://bucket/ && az storage blob list'),
+  });
+});
+
+// ---- round 3 — robustness: malformed package files ---------------------------------------------------------
+
+test('R3: malformed package files fail with a clean diagnostic, not a crash', () => {
+  const noCrash = (output) => assert.ok(!/\n\s+at |node:internal/.test(output), `checker crashed:\n${output}`);
+  noCrash(expectViolation({ 'package.json': '{ not json' }, /package\.json:1: \[package-manifest\] package\.json is not valid JSON .* dependencies cannot be verified/));
+  noCrash(expectViolation({ 'packages/engine/package.json': '{"name": "@fixture/engine",' }, /packages\/engine\/package\.json:\d+: \[package-manifest\] package\.json is not valid JSON/));
+  noCrash(expectViolation({ 'package.json': '[]' }, /\[package-manifest\] package\.json must be a JSON object/));
+  noCrash(expectViolation({ 'package-lock.json': '{ "lockfileVersion": 3, ' }, /package-lock\.json:\d+: \[package-manifest\] lockfile is not valid JSON/));
+});
+
 // ---- portability (RO-021 lessons) -----------------------------------------------------------
 
 test('CRLF line endings (Windows checkout with autocrlf) are handled', () => {

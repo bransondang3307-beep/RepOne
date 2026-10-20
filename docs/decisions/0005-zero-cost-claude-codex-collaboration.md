@@ -61,6 +61,15 @@ Facts checked on 2026-10-17 against vendor documentation:
      false positives: quoted/inline permissions, npm aliases, bracket expressions and merge-capable actions, then
      escaped keys, event-derived matrices and trigger names in plain text. Each is a regression test now. Switching to
      a real parser in round 2 removes the whole class instead of patching cases.
+   - **Round 3**, the owner-approved final round (option A, 2026-10-20), fixed two more P1s:
+     - wildcard, bare and dynamic `secrets` references: only `secrets.GITHUB_TOKEN` is allowed, judged by parsing each
+       expression;
+     - AWS Bedrock and other cloud AI SDKs added to the denylist.
+     It also made the expression extractor respect string literals, and turned a malformed `package.json` into a clean
+     diagnostic instead of a crash.
+   - **Denylist limits:** the AI-SDK and endpoint lists can never be complete, so they are defense in depth. The $0
+     guarantee rests on having no AI credentials (the `secret` rule), no API billing and no paid extra usage. A
+     dependency allowlist (option C) was considered and not adopted.
 6. **PR #4 stays as an archive.** It is preserved, unmerged, with its branch and the archive tag
    `archive/RO-019-api-loop-v1`. PRs #4 and #5 stay open until this replacement is verified and merged; then the
    owner closes them.

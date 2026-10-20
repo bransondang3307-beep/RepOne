@@ -35,7 +35,7 @@ const AI_CREDENTIAL = new RegExp(
   'i',
 );
 const AI_ENDPOINT =
-  /\b(?:api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|aiplatform\.googleapis\.com|[\w-]+\.openai\.azure\.com|bedrock-runtime[\w.-]*\.amazonaws\.com|api\.mistral\.ai|openrouter\.ai|api\.groq\.com|api\.x\.ai|api\.deepseek\.com|api\.cohere\.(?:ai|com)|api\.perplexity\.ai)\b/i;
+  /\b(?:api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|aiplatform\.googleapis\.com|[\w-]+\.openai\.azure\.com|[\w-]+\.services\.ai\.azure\.com|models\.inference\.ai\.azure\.com|[\w-]+\.cognitiveservices\.azure\.com|bedrock(?:-[\w]+)*\.[\w.-]*amazonaws\.com|runtime\.sagemaker\.[\w.-]*amazonaws\.com|[\w-]+\.ml\.cloud\.ibm\.com|api\.mistral\.ai|openrouter\.ai|api\.groq\.com|api\.x\.ai|api\.deepseek\.com|api\.cohere\.(?:ai|com)|api\.perplexity\.ai)\b/i;
 const AI_CLI = [
   /@openai\/codex\b/i,
   /@anthropic-ai\/[\w-]+/i,
@@ -44,10 +44,29 @@ const AI_CLI = [
   /\bpip3?\s+install\b.*\b(?:openai|anthropic|google-genai|google-generativeai)\b/i,
   /\b(?:npm|npx|pnpm|yarn|bunx?)\b.*\s(?:openai|@ai-sdk\/[\w-]+)(?:@[\w.^~-]+)?(?:\s|$)/i,
   /\b(?:codex\s+exec|claude\s+(?:-p|--print)|gemini\s+(?:-p|--prompt))\b/i,
+  // Cloud AI SDKs and CLIs (AWS Bedrock / SageMaker Runtime, Azure OpenAI / Azure AI, IBM watsonx).
+  /@aws-sdk\/client-(?:bedrock|sagemaker-runtime)\b|@azure\/openai\b|@azure(?:-rest)?\/ai-[\w-]+|@ibm-cloud\/watsonx-ai\b/i,
+  /\baws\s+(?:bedrock(?:-[\w-]+)?|sagemaker-runtime)\s/i,
 ];
-/** AI SDK packages. Installing one — directly, by alias, by override or transitively — needs an owner-approved ADR. */
-const AI_PACKAGE =
-  /^(?:openai|@openai\/.+|@anthropic-ai\/.+|@google\/(?:genai|generative-ai|gemini-cli)|@google-cloud\/(?:vertexai|aiplatform)|@ai-sdk\/.+|ai|langchain|@langchain\/.+|cohere-ai|@mistralai\/.+|groq-sdk|@huggingface\/inference|ollama|replicate)$/;
+/**
+ * AI SDK packages. Installing one — directly, by alias, by override or transitively — needs an owner-approved
+ * ADR. This is a denylist, so it can never be complete (new SDKs appear all the time): it is defense in depth.
+ * The $0 guarantee rests on account controls — no AI API keys in secrets (enforced by the `secret` rule), no
+ * API billing accounts, no paid extra usage — see docs/automation/claude-codex-workflow.md §7.
+ */
+const AI_PACKAGE = new RegExp(
+  `^(?:${[
+    // Model vendors
+    'openai', '@openai/.+', '@anthropic-ai/.+', '@google/(?:genai|generative-ai|gemini-cli)', '@mistralai/.+', 'cohere-ai',
+    'groq-sdk', 'together-ai', 'replicate', 'ollama', '@huggingface/inference', '@ibm-cloud/watsonx-ai',
+    // Cloud AI platforms: AWS Bedrock (runtime, agent, agent runtime, data automation …), SageMaker Runtime,
+    // Google Vertex AI, Azure OpenAI and Azure AI services (inference, projects, agents, …)
+    '@aws-sdk/client-bedrock(?:-[\\w-]+)?', '@aws-sdk/client-sagemaker-runtime', '@google-cloud/(?:vertexai|aiplatform)',
+    '@azure/openai', '@azure(?:-rest)?/ai-[\\w-]+',
+    // Frameworks and gateways that bundle provider clients
+    'ai', '@ai-sdk/.+', 'langchain', '@langchain/.+', 'llamaindex', '@llamaindex/.+', '@openrouter/.+',
+  ].join('|')})$`,
+);
 
 // ---- merge and approval paths (AGENTS.md §3: only the owner merges or approves) ---------------
 /** Actions whose purpose is merging or approving pull requests. Rejected even if allowlisted. */
@@ -164,12 +183,17 @@ function checkStrings(yaml, allowed, localActions) {
       if (name === 'secrets' && isString(pair.value) && pair.value.value.trim().toLowerCase() === 'inherit') {
         report(file, yaml.lineOf(pair.value), 'secret', "'secrets: inherit' passes every secret — workflows may use only secrets.GITHUB_TOKEN");
       }
+      // `if:` is an expression even without ${{ }} (embedded ${{ }} are checked with every string below).
+      if (name === 'if' && isString(pair.value) && !pair.value.value.includes('${{')) {
+        checkSecretReferences(yaml, pair.value, [{ expression: pair.value.value, source: pair.value.value.trim() }]);
+      }
       if (name === 'event' && isString(pair.value) && pair.value.value.trim().toLowerCase() === 'approve') {
         report(file, yaml.lineOf(pair.value), 'merge-or-approve', 'approves a pull request — only the owner merges or approves (AGENTS.md §3)');
       }
     },
     Scalar(_, node) {
       if (typeof node.value !== 'string') return;
+      checkSecretReferences(yaml, node, expressionsIn(node.value));
       for (const text of node.value.split('\n')) {
         if (text.trim() === '') continue;
         const line = yaml.lineOf(node, text.trim());
@@ -179,12 +203,6 @@ function checkStrings(yaml, allowed, localActions) {
         if (endpoint) report(file, line, 'ai-endpoint', `calls the AI API host '${endpoint[0]}'`);
         if (AI_CLI.some((pattern) => pattern.test(text))) {
           report(file, line, 'ai-cli', 'installs or runs an AI CLI/SDK — automation must not call AI APIs');
-        }
-        for (const [, name] of text.matchAll(/\bsecrets\s*\.\s*([A-Za-z_][\w-]*)/g)) {
-          if (name !== 'GITHUB_TOKEN') report(file, line, 'secret', `secrets.${name}: workflows may use only secrets.GITHUB_TOKEN`);
-        }
-        if (/\bsecrets\s*\[/.test(text) || /toJSON\(\s*secrets\s*\)/i.test(text)) {
-          report(file, line, 'secret', 'exposes the whole secrets context — workflows may use only secrets.GITHUB_TOKEN');
         }
         for (const [pattern, what] of MERGE_OR_APPROVE) {
           if (pattern.test(text)) report(file, line, 'merge-or-approve', `${what} — only the owner merges or approves (AGENTS.md §3)`);
@@ -197,17 +215,47 @@ function checkStrings(yaml, allowed, localActions) {
 // ---- expressions ----------------------------------------------------------------------------------
 
 /**
- * Context references in a GitHub expression that must not be interpolated into a script. Bracket
- * property access (`github['event']`) is normalised to dots first, so dotted, bracket and mixed forms
- * are judged alike; dynamic indexes (`github[x]`) and whole contexts (`toJSON(github)`) are rejected.
- * `matrix` is trusted only when the job's matrix is provably static (no expressions).
+ * Every `${{ … }}` in a string, scanned the way GitHub scans it: a `}}` inside a '…' string literal does not
+ * end the expression. An unterminated `${{` runs to the end of the string.
  */
-function untrustedReferences(expression, matrixIsStatic) {
+function expressionsIn(text) {
+  const found = [];
+  let from = 0;
+  while ((from = text.indexOf('${{', from)) >= 0) {
+    let end = text.length;
+    let quoted = false;
+    for (let i = from + 3; i < text.length; i++) {
+      if (quoted) {
+        if (text[i] === "'") {
+          if (text[i + 1] === "'") i += 1; // '' is an escaped quote
+          else quoted = false;
+        }
+      } else if (text[i] === "'") {
+        quoted = true;
+      } else if (text[i] === '}' && text[i + 1] === '}') {
+        end = i;
+        break;
+      }
+    }
+    found.push({ expression: text.slice(from + 3, end), source: text.slice(from, Math.min(end + 2, text.length)) });
+    from = end + 2;
+  }
+  return found;
+}
+
+/**
+ * Context references in a GitHub expression. Bracket property access (`github['event']`) is normalised to
+ * dots first, so dotted, bracket and mixed forms are judged alike. Contexts are case-insensitive, like GitHub:
+ * `root` and `properties` are lower-cased; `path` keeps the original spelling for messages. Object filters
+ * (`secrets.*`) appear as a `*` property; dynamic indexes (`secrets[x]`) set `dynamic`; bare contexts
+ * (`toJSON(github)`) have no properties.
+ */
+function contextReferences(expression) {
   const text = expression
     .replace(/\[\s*'((?:[^']|'')*)'\s*\]/g, (_, name) => `.${name.replace(/''/g, "'")}`)
     .replace(/\[\s*"([^"]*)"\s*\]/g, (_, name) => `.${name}`)
     .replace(/'(?:[^']|'')*'/g, "''");
-  const found = [];
+  const references = [];
   const identifier = /[A-Za-z_][\w-]*/g;
   for (let match = identifier.exec(text); match; match = identifier.exec(text)) {
     if (text.slice(0, match.index).trimEnd().endsWith('.')) continue; // a property, not a context
@@ -217,16 +265,49 @@ function untrustedReferences(expression, matrixIsStatic) {
     if (LITERALS.has(root)) continue;
     const chain = after.match(/^(?:\s*\.\s*[\w*-]+)*/)[0];
     identifier.lastIndex = match.index + match[0].length + chain.length;
-    const properties = chain.split('.').map((p) => p.trim().toLowerCase()).filter(Boolean);
+    const names = chain.split('.').map((p) => p.trim()).filter(Boolean);
     const dynamic = /^\s*\[/.test(after.slice(chain.length));
+    references.push({
+      root,
+      properties: names.map((name) => name.toLowerCase()),
+      dynamic,
+      path: [match[0], ...names].join('.') + (dynamic ? '[…]' : ''),
+    });
+  }
+  return references;
+}
+
+/**
+ * References that must not be interpolated into a script: dynamic indexes and whole contexts are
+ * rejected, `matrix` is trusted only when the job's matrix is provably static (no expressions).
+ */
+function untrustedReferences(expression, matrixIsStatic) {
+  return contextReferences(expression).flatMap(({ root, properties, dynamic }) => {
     const path = [root, ...properties].join('.') + (dynamic ? '[…]' : '');
-    if (UNTRUSTED_ROOTS.has(root)) found.push(path);
-    else if (root === 'matrix' && !matrixIsStatic) found.push(`${path} (the matrix is built from an expression)`);
-    else if (root === 'github' && (dynamic || properties.length !== 1 || !SAFE_GITHUB_PROPERTIES.has(properties[0]))) {
-      found.push(path);
+    if (UNTRUSTED_ROOTS.has(root)) return [path];
+    if (root === 'matrix' && !matrixIsStatic) return [`${path} (the matrix is built from an expression)`];
+    if (root === 'github' && (dynamic || properties.length !== 1 || !SAFE_GITHUB_PROPERTIES.has(properties[0]))) return [path];
+    return [];
+  });
+}
+
+/** `secrets` may be referenced only as `secrets.GITHUB_TOKEN` (any case, dotted or bracket form). */
+function checkSecretReferences(yaml, node, expressions) {
+  for (const { expression, source } of expressions) {
+    for (const { root, properties, dynamic, path } of contextReferences(expression)) {
+      if (root !== 'secrets') continue;
+      if (!dynamic && properties.length === 1 && properties[0] === 'github_token') continue;
+      const whole = dynamic || properties.length === 0 || properties.includes('*');
+      report(
+        yaml.file,
+        yaml.lineOf(node, source),
+        'secret',
+        whole
+          ? `exposes the whole secrets context ('${path}') — workflows may use only secrets.GITHUB_TOKEN`
+          : `${path}: workflows may use only secrets.GITHUB_TOKEN`,
+      );
     }
   }
-  return found;
 }
 
 /** A job's matrix is static when nothing under `strategy:` is an expression. */
@@ -251,12 +332,12 @@ function checkScript(yaml, node, key, matrixIsStatic, checked) {
     return;
   }
   const text = String(node.value ?? '');
-  for (const match of text.matchAll(/\$\{\{([\s\S]*?)\}\}/g)) {
-    const references = untrustedReferences(match[1], matrixIsStatic);
+  for (const { expression, source } of expressionsIn(text)) {
+    const references = untrustedReferences(expression, matrixIsStatic);
     if (references.length === 0) continue;
     report(
       yaml.file,
-      yaml.lineOf(node, match[0]),
+      yaml.lineOf(node, source),
       'script-injection',
       `'${references.join("', '")}' interpolated into '${key}:' — pass it through env: and use "$VAR" (only trusted github.* identifiers, a static matrix, runner, vars may appear)`,
     );
@@ -482,9 +563,31 @@ function checkOverrides(file, text, node, where) {
   }
 }
 
-function checkManifest(file) {
+/**
+ * Parse a package manifest or lockfile. Malformed JSON (or JSON that is not an object) is reported as a
+ * clean `package-manifest` violation — the dependencies cannot be verified, so the check fails — never a crash.
+ */
+function readPackageJson(file, what) {
   const text = readFileSync(file, 'utf8');
-  const manifest = JSON.parse(text);
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch (error) {
+    const line = Number(String(error.message).match(/line (\d+)/)?.[1] ?? 1);
+    report(file, line, 'package-manifest', `${what} is not valid JSON (${String(error.message).split('\n')[0]}) — dependencies cannot be verified`);
+    return null;
+  }
+  if (json === null || typeof json !== 'object' || Array.isArray(json)) {
+    report(file, 1, 'package-manifest', `${what} must be a JSON object — dependencies cannot be verified`);
+    return null;
+  }
+  return { text, json };
+}
+
+function checkManifest(file) {
+  const parsed = readPackageJson(file, 'package.json');
+  if (!parsed) return;
+  const { text, json: manifest } = parsed;
   for (const field of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
     for (const [name, spec] of Object.entries(manifest[field] ?? {})) {
       if (AI_PACKAGE.test(name)) {
@@ -500,14 +603,9 @@ function checkManifest(file) {
 
 /** Catch-all: an AI SDK installed under any name or depth shows up in the lockfile with its real name. */
 function checkLockfile(file) {
-  const text = readFileSync(file, 'utf8');
-  let lock;
-  try {
-    lock = JSON.parse(text);
-  } catch {
-    report(file, 1, 'ai-dependency', 'lockfile is not valid JSON — cannot verify that no AI SDK is installed');
-    return;
-  }
+  const parsed = readPackageJson(file, 'lockfile');
+  if (!parsed) return;
+  const { text, json: lock } = parsed;
   const flag = (name, where) =>
     report(file, lineOf(text, `"${where}"`), 'ai-dependency', `installs '${name}' (at ${where}) — an AI API SDK, directly, by alias or transitively`);
   for (const [key, entry] of Object.entries(lock.packages ?? {})) {
@@ -544,8 +642,10 @@ function listFiles(dir, accept) {
 function packageManifests() {
   const rootManifest = join(ROOT, 'package.json');
   if (!existsSync(rootManifest)) return [];
-  const { workspaces = [] } = JSON.parse(readFileSync(rootManifest, 'utf8'));
-  const patterns = Array.isArray(workspaces) ? workspaces : (workspaces.packages ?? []);
+  const parsed = readPackageJson(rootManifest, 'package.json');
+  if (!parsed) return []; // reported once; workspaces cannot be discovered, and the check already fails
+  const workspaces = parsed.json.workspaces ?? [];
+  const patterns = (Array.isArray(workspaces) ? workspaces : (workspaces.packages ?? [])).filter((p) => typeof p === 'string');
   const workspaceDirs = patterns.flatMap((pattern) => {
     const base = join(ROOT, pattern.replace(/\/\*$/, ''));
     if (!pattern.endsWith('/*')) return [base];

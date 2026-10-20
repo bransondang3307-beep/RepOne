@@ -122,11 +122,11 @@ rejected, never assumed safe.
 |---|---|
 | `ai-action` | Actions from AI vendors (`openai/*`, `anthropics/*`, `google-gemini/*`) or named after an AI product (claude, codex, gemini, gpt…) |
 | `ai-credential` | AI API keys or tokens by name — `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `GEMINI_API_KEY`, … — from secrets, variables or literals |
-| `ai-endpoint` | Direct calls to AI API hosts (api.openai.com, api.anthropic.com, generativelanguage.googleapis.com, …) |
-| `ai-cli` | Installing or running AI CLIs/SDKs (`@openai/codex`, `@anthropic-ai/*`, `@google/gemini-cli`, `npm:openai` aliases, `pip install openai`, `codex exec`, `claude -p`, …) |
-| `ai-dependency` | AI SDKs (`openai`, `@anthropic-ai/sdk`, `@google/genai`, `ai`, `langchain`, …) under any name: direct dependencies, `npm:` aliases (`"helper": "npm:openai@5"`), `overrides`/`resolutions`, and **anything installed in `package-lock.json`**, including transitively |
+| `ai-endpoint` | Direct calls to AI API hosts: api.openai.com, api.anthropic.com, generativelanguage.googleapis.com, Vertex `aiplatform.googleapis.com`, Azure OpenAI / Azure AI (`*.openai.azure.com`, `*.services.ai.azure.com`, `*.cognitiveservices.azure.com`), **AWS Bedrock** (`bedrock*.…amazonaws.com`), SageMaker Runtime, IBM watsonx, … |
+| `ai-cli` | Installing or running AI CLIs/SDKs: `@openai/codex`, `@anthropic-ai/*`, `@google/gemini-cli`, `npm:openai` aliases, `pip install openai`, `codex exec`, `claude -p`, **`aws bedrock-runtime …`**, and cloud AI SDK installs (`@aws-sdk/client-bedrock*`, `@azure/openai`, `@azure/ai-*`, …) |
+| `ai-dependency` | AI SDKs under any name: direct dependencies, `npm:` aliases (`"helper": "npm:openai@5"`), `overrides`/`resolutions`, and **anything installed in `package-lock.json`**, including transitively. Covered SDKs:<br>• model vendors: `openai`, `@anthropic-ai/*`, `@google/genai`, `@mistralai/*`, `cohere-ai`, `groq-sdk`, …<br>• **cloud AI platforms:** AWS Bedrock `@aws-sdk/client-bedrock*` and SageMaker Runtime, Vertex AI, Azure OpenAI and `@azure/ai-*`, IBM watsonx<br>• frameworks: `ai`, `@ai-sdk/*`, `langchain`, `llamaindex`, … |
 | `dependency-source` | Dependencies or overrides from non-registry sources (git, GitHub shorthand, tarball URLs, `file:`). The policy cannot see which package those are |
-| `secret` | Any secret other than `secrets.GITHUB_TOKEN`, `secrets: inherit`, or the whole secrets context |
+| `secret` | Any reference to the `secrets` context except `secrets.GITHUB_TOKEN`. Expressions are parsed, so the check is case-insensitive (`SECRETS.X`) and covers bracket form (`secrets['X']`), **wildcards (`join(secrets.*, ',')`), bare contexts (`toJSON(secrets)`) and dynamic indexes**, in every value and in bare `if:` conditions. Also rejects `secrets: inherit`. A `}}` inside a string literal does not end an expression |
 | `permissions` | Missing or non-read-only workflow-level `permissions`, `write-all`, and job-level write scopes without a `# least-privilege: <reason>` comment. The reason must be a real YAML comment on that value (or on its inline `{ … }` map); a string that only looks like one does not count. Values must be exactly `read`, `write` or `none` after decoding |
 | `trigger` | `pull_request_target` and `workflow_run` **declared under `on:`**, in any form: a string, a list or a mapping. Ordinary text that mentions them (a name, a script, an env value) is fine |
 | `merge-or-approve` | Actions that merge or approve (`*automerge*`, `*auto-approve*`, `mergify`, …, even if allowlisted), `gh pr merge`, `gh pr review --approve`/`-a`, `event=APPROVE`, REST `…/pulls/N/merge`, GraphQL `mergePullRequest`/auto-merge, force-push, pushes to `main`/`master` |
@@ -136,8 +136,22 @@ rejected, never assumed safe.
 | `yaml-feature` | YAML anchors, aliases, merge keys (`<<`), explicit tags (`!!str`), directives (`%YAML`) and keys that are not plain strings (e.g. `true:`). They could change meaning between parsers |
 | `yaml-parse` | Invalid YAML, duplicate keys, an empty file, or more than one document |
 | `workflow-schema` | Unknown top-level workflow keys (only `name`, `run-name`, `on`, `permissions`, `env`, `defaults`, `concurrency`, `jobs`), and jobs, steps or `steps:` that are not mappings or lists |
+| `package-manifest` | A `package.json` or lockfile that is not valid JSON (or not a JSON object). It gets a clean diagnostic with file and line instead of a crash, and the check fails because its dependencies cannot be verified |
 
 Local actions (`uses: ./path`) are scanned wherever they live, including actions nested inside them.
+
+**Limits of the denylist, and why it is still worth having.** The AI-SDK, endpoint and CLI rules are **denylists**.
+They can never be complete: new SDKs, wrappers and OpenAI-compatible gateways appear all the time. Codex's final
+review found the AWS Bedrock client missing, and other gaps will exist. These rules are **defense in depth**. The $0
+guarantee rests on layers that do not depend on knowing every SDK:
+1. **No credential, no paid call.** No AI API keys or tokens exist in repository secrets, and the `secret` rule allows
+   only `GITHUB_TOKEN` to reach any step. An AI SDK without a key cannot make a billed request.
+2. **No billing to charge.** There are no API billing accounts or payment methods, Claude extra usage is off and no
+   Codex credits are bought (owner checklist below).
+3. **Review.** Every new dependency and workflow change is in a PR that Codex and the owner review.
+
+A dependency **allowlist** (every new package needs owner approval) would close the denylist gap completely. It was
+considered (option C, 2026-10-20) and not adopted because it adds friction to every dependency change.
 
 Least privilege does **not** mean "never write". A job may get, for example, `pull-requests: write` if the line says
 why: `pull-requests: write # least-privilege: posts the coverage comment`.

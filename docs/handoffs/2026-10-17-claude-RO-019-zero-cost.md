@@ -6,9 +6,9 @@
 | **Date** | 2026-10-17 |
 | **Task** | RO-019 (owner-approved redesign, 2026-10-17) |
 | **Branch** | `claude/RO-019-zero-cost-workflow` (base: `main` @ `cd884fc`) |
-| **Commits** | `127d6d5` RO-019: zero-additional-API-cost Claude Code <-> Codex workflow · handoff + PR link · `b261ee3` RO-019: fix Codex's four P1 policy-checker bypasses (fail-closed) · `5dcb397` round-1 record · `ee1bc42` RO-019: parse workflows as YAML (Codex round 2: 2 x P1, 1 x P2) · round-2 record (see the PR's commit list) |
+| **Commits** | `127d6d5` RO-019: zero-additional-API-cost Claude Code <-> Codex workflow · handoff + PR link · `b261ee3` RO-019: fix Codex's four P1 policy-checker bypasses (fail-closed) · `5dcb397` round-1 record · `ee1bc42` RO-019: parse workflows as YAML (Codex round 2: 2 x P1, 1 x P2) · `9d649e2` round-2 record · `c6dc754` RO-019: round 3 — secrets wildcard and Bedrock SDK (owner-approved option A) · round-3 record (see the PR's commit list) |
 | **Pull request** | [PR #11](https://github.com/bransondang3307-beep/RepOne/pull/11) → `main` (replacement PR; open, **not merged**) |
-| **Status** | implemented; verified (local Linux + GitHub Actions Linux and native Windows); **review rounds 2/2 done** (round 1: 4 × P1 fixed in `b261ee3`; round 2: 2 × P1 + 1 × P2 fixed in `ee1bc42`); awaiting Codex's final review of the head and the owner's merge decision. No further automatic fix rounds |
+| **Status** | implemented; verified (local Linux + GitHub Actions Linux and native Windows); **review round 3 done** (the owner-approved final round, option A, 2026-10-20: 2 × P1 fixed in `c6dc754`); awaiting Codex's final review of the head and the owner's merge decision. Exit rule: new P1s go to the owner; P2/P3 become follow-up tasks |
 
 ## Objective
 Redesign RO-019 so Claude Code and Codex collaborate with **$0 separately billed AI API usage**:
@@ -161,6 +161,27 @@ hash.
 `yaml`. Measured `npm ci` time is 60–79 s, so the job takes about 1.8 minutes: roughly **4 billed Windows minutes per CI
 run instead of 2**. The boundary checker itself is still dependency-free.
 
+## Review round 3 — owner-approved final round (option A, PR #11 comment 6300812749); Codex review 5555447195 on `9d649e2` (2 × P1, fixed in `c6dc754`)
+
+| # | Codex finding | Reproduced before the fix? | Fix | Regression tests |
+|---|---|---|---|---|
+| P1 | Wildcard read of the secrets context: `${{ join(secrets.*, ',') }}` | yes — exit 0 | `secrets` is judged by **parsing each expression**: only `secrets.GITHUB_TOKEN` is allowed (any case, dotted or bracket). Wildcards, bare `secrets`, dynamic indexes and other names are rejected, in every value and in bare `if:` conditions. This replaces the old text regexes, which missed `SECRETS.X` and flagged plain text | Negative control, plus `toJSON(secrets)`, `format(…, secrets)`, a dynamic index and spaced `secrets . *`; `SECRETS.X`, bracket form, `}}` inside a literal, bare `if:`, reusable-workflow `secrets:`; positive control (`GITHUB_TOKEN` in three spellings; plain text about secrets) |
+| P1 | AWS Bedrock client not in the AI-SDK denylist (`@aws-sdk/client-bedrock-runtime`, manifest and lockfile) | yes — exit 0 | Added `@aws-sdk/client-bedrock*`, SageMaker Runtime, Azure OpenAI / `@azure(-rest)/ai-*`, IBM watsonx, `together-ai`, `llamaindex` and `@openrouter/*`, across manifests, aliases, overrides and the lockfile. Also Bedrock, Azure and watsonx endpoints and `aws bedrock-runtime`. **Denylist limits are documented**: it is defense in depth, and the $0 guarantee rests on no credentials and no billing | Negative control (manifest + lockfile); seven other cloud SDKs, npm alias, transitive lockfile entry, CLI, install and endpoint; positive control (`@aws-sdk/client-s3`, `@azure/storage-blob`, `@google-cloud/storage`, `aws s3`) |
+
+**Also fixed in this round:**
+- **Same mechanism, found while fixing the secrets rule:** `${{ format('}}{0}', github.event.issue.title) }}` in `run:` passed. The expression extractor ended at the `}}` inside the string literal. It now scans literals the way GitHub does. Covered by a regression test and a positive control.
+- **Optional robustness fix:** a malformed `package.json` or lockfile (invalid JSON, or not an object) now gets a clean `package-manifest` diagnostic with file and line, instead of an unhandled crash. Covered by a test asserting there is no stack trace.
+
+| Check (round 3) | Result |
+|---|---|
+| Linux, Node 22.22.0: `npm ci` | exit 0 |
+| `npm run verify` | exit 0. Boundaries OK; `✓ workflow policy OK (1 workflow, 0 action, 5 package, 1 lock files …)`; typecheck clean; script tests **62/62** (8 boundaries + **54 policy**, was 46); Jest **48/48** |
+| `npm run test:scripts` / `npm run check:workflows` | exit 0 (62/62) / exit 0 |
+| New test file against the **round-2** checker (`9d649e2`) | **7 of 54 fail**: both round-3 negative controls, their variant tests, the `}}` literal fix and the crash case, plus one positive control the old text rule got wrong (it rejected `secrets['GITHUB_TOKEN']`) |
+| Rule coverage: each of the 17 rules disabled in turn (`package-manifest` is new) | every mutation fails 1–9 tests |
+| **Native Windows + Linux**, preview run [39495052546](https://github.com/bransondang3307-beep/RepOne/actions/runs/39495052546) (`c6dc754` + PR #10's Windows job) | Windows, Node 24, CRLF checkout: `npm ci`, script tests 62 ✅, boundaries ✅ (90 s). Linux: all steps incl. Workflow policy ✅ |
+| PR #11 CI on `c6dc754`, run [39495064660](https://github.com/bransondang3307-beep/RepOne/actions/runs/39495064660) | success |
+
 ## Decisions / ADRs
 - ADR 0005 (Accepted on merge): subscription-only AI collaboration, AI-free CI, a policy enforced in CI, least
   privilege, and PR #4 archived.
@@ -176,6 +197,9 @@ run instead of 2**. The boundary checker itself is still dependency-free.
     write-scoped token to merge. No static check can prevent that. The real control is least privilege: write scopes
     need a `# least-privilege:` reason that the owner and Codex review, and today no workflow has any write scope.
   - **Code inside a local JavaScript/Docker action** is not scanned, only its `action.yml`. None exist here.
+  - **The AI SDK, endpoint and CLI lists are denylists** and can never be complete. They are defense in depth; see
+    `claude-codex-workflow.md` §7 "Limits of the denylist". A dependency allowlist (option C) would close this and
+    remains an owner option.
 - The lockfile check also fails on an AI SDK pulled in **transitively** by a legitimate dependency. That is
   intentional (fail-closed); the owner would then decide.
 - Credential detection is name-based. A key under a neutral name (e.g. `MY_KEY`) is still caught by the `secret`

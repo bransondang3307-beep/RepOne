@@ -36,6 +36,25 @@ Code and test results beat any document about what is *implemented*. Report conf
 Ownership of paths is assigned per task in `TASKS.md` ("Files" column). One agent per file at a time.
 `REPONE_SOURCE_OF_TRUTH.md` changes only with owner approval.
 
+### Review guidelines
+
+Codex follows this section when it reviews a pull request on GitHub (automatically when the PR is opened,
+and again on each `@codex review` comment). The full hand-off: [`docs/automation/claude-codex-workflow.md`](docs/automation/claude-codex-workflow.md).
+
+- Review what the PR changes at its **head commit**, and name that commit SHA in the review.
+- Report each finding as `[P0]`–`[P3]` with `file:line`, what is wrong, why it matters and a concrete fix.
+  Report **P2 findings too**, not only P0/P1.
+  - **P0:** secret exposure, data loss, security hole, or the build/tests are broken.
+  - **P1:** correctness bug; rep-counting algorithm, sensor units or data contracts changed without an ADR;
+    module-boundary violation; simulated/synthetic data presented as real; any AI API key or token, paid AI
+    service, AI action or AI SDK dependency added (`npm run check:workflows` must stay green).
+  - **P2:** missing or weak tests for changed behaviour, unclear error handling, docs out of sync with code.
+  - **P3:** optional suggestion — mark it non-blocking.
+- GitHub Actions changes: read-only workflow defaults, write scopes only on the job that needs them with a
+  `# least-privilege: <reason>` comment, no `pull_request_target`/`workflow_run`, no merge/approve/force-push paths
+  or actions, third-party actions only via `.github/workflow-policy.json` (SHA-pinned), untrusted input via `env:`.
+- Never approve, merge or push. With no findings, say so explicitly: "No P0–P2 findings at `<sha>`."
+
 ## 3. Synchronization workflow (every task)
 
 1. **Sync first.** `git fetch origin --prune` and read the latest `main` versions of the files in §1.
@@ -47,7 +66,7 @@ Ownership of paths is assigned per task in `TASKS.md` ("Files" column). One agen
 4. **Work small.** Stay inside the task's files. Commit messages start with the task ID:
    `RO-012: add device connection interface`.
 5. **Test.** Run the relevant checks and record the exact output summary:
-   - `npm run verify` when it exists (boundaries + typecheck + tests), otherwise
+   - `npm run verify` when it exists (boundaries + workflow policy + typecheck + tests), otherwise
    - `npm run typecheck && npm test`
    - Docs-only change: state "docs only — no code tests required" and still run `npm test` if any config changed.
    Never report a test as passing unless it was executed in this session.
@@ -55,7 +74,9 @@ Ownership of paths is assigned per task in `TASKS.md` ("Files" column). One agen
    [`docs/handoffs/TEMPLATE.md`](docs/handoffs/TEMPLATE.md) (changes, commit IDs, tests, risks, next steps).
 7. **Pull request.** Push the branch and open a PR to `main` using the PR template. In `TASKS.md`,
    set only *your* task row to `in-review` with the PR link. Code PRs need a Codex review
-   (or the owner's) before merge; CI must be green.
+   (or the owner's) before merge; CI must be green. Claude ↔ Codex hand-off (no AI API keys):
+   [`docs/automation/claude-codex-workflow.md`](docs/automation/claude-codex-workflow.md) — Codex reviews on GitHub,
+   `@codex review` after each fix push, at most two fix rounds, CI and the review must cover the head commit.
 8. **Merge.** The owner merges (or explicitly delegates merging).
 9. **Update status after merge only.** Once merged and CI on `main` is green, a follow-up PR
    (by the task's agent, or ChatGPT's drafted text committed by the owner/Claude Code) sets the task
@@ -74,5 +95,8 @@ Describe software as **implemented** (code exists), **verified** (tests/checks e
 - Breaking interface changes: ADR in `docs/decisions/` + note in the PR + review by every affected owner.
 - ADR numbers are global across branches: check open branches (`git branch -r`) before picking the next number.
 - Never commit secrets, API keys, `.env` files, personal health data, or identifying gym photos.
+- **Zero additional AI API cost (owner rule, 2026-10-17; ADR 0005):** development uses subscriptions only — Claude
+  Code (Claude Pro), Codex (ChatGPT Plus), Gemini (Google AI Pro). Never add AI API keys or tokens, paid AI services,
+  AI actions or AI SDK dependencies; `npm run check:workflows` enforces this in CI. Changing it needs the owner and an ADR.
 - Do not edit files another agent's open PR is changing; coordinate via `TASKS.md` / the owner.
 - Keep `TASKS.md` edits to your own task row(s); new tasks are added by ChatGPT/owner (or proposed in your handoff).

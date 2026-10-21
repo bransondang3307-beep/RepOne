@@ -5,7 +5,7 @@
 > - Edit only your own task's row/section; ChatGPT or the owner add and assign tasks.
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-019**.
+> - Next free ID: **RO-023** (RO-019: this file · RO-020: PR #6 · RO-021: PR #9 · RO-022: PR #10).
 
 ## Board
 
@@ -29,6 +29,7 @@
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
+| RO-019 | Claude Code ↔ Codex workflow at zero additional AI API cost (replaces the archived API loop, PR #4) | Claude Code | P1 | in-review | — | `claude/RO-019-zero-cost-workflow` — [PR #11](https://github.com/bransondang3307-beep/RepOne/pull/11) |
 
 ## Task details
 
@@ -97,3 +98,18 @@
 ### RO-018 — H0 hardware bring-up (Owner)
 - Source of truth §11: locate Uno R3 + GY-521, verify markings/voltage, I²C scan, stream timestamped raw samples.
   Criteria: values change appropriately with movement (source of truth H0-A exit gate).
+
+### RO-019 — Claude Code ↔ Codex workflow at zero additional AI API cost (owner redesign, 2026-10-17)
+- **History:** v1 built an API-powered loop ([PR #4](https://github.com/bransondang3307-beep/RepOne/pull/4),
+  never enabled), which was then paused ([PR #5](https://github.com/bransondang3307-beep/RepOne/pull/5)). The owner set a
+  non-negotiable rule — **$0 separately billed AI API usage** — and approved the redesign: PR #4 is kept as an archive,
+  and a separate replacement PR is opened. Manual Claude hand-offs; Auto-fix off; Codex GitHub code review, automatic
+  on PR creation, with `@codex review` for re-reviews. This PR goes first; then Milestone 2 (RO-012) resumes.
+- **Files:** `docs/automation/{claude-codex-workflow,future-api-loop}.md`, ADR 0005, `scripts/check-workflow-policy{,.test}.mjs`,
+  `.github/workflow-policy.json` (empty third-party action allowlist), `package.json` (scripts; devDependency `yaml` 2.9.1 for
+  YAML parsing) + `package-lock.json`, `.github/workflows/ci.yml` (manual trigger + policy step), `AGENTS.md` (Review guidelines,
+  step 7, zero-cost rule), `CLAUDE.md`, `.github/pull_request_template.md`, `README.md` and `docs/architecture.md`
+  (verify description), this row.
+- **Completion criteria:** `npm run verify` and CI green; the policy tests detect prohibited AI API integrations
+  (including PR #4's real workflows) and enforce least-privilege permissions; Codex review; owner merges. Only
+  **after** that merge does the owner close PRs #4 and #5 (unmerged; branches kept as the archive).

@@ -33,6 +33,26 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+  # RO-021 showed that path-separator bugs in scripts/ pass on Linux and fail on the owner's Windows
+  # laptop. Kept small: only the scripts/ checks run here. `npm ci` is needed because the workflow-policy
+  # check (RO-019, PR #11) parses YAML with the `yaml` package; the npm cache keeps it short. Default
+  # git line endings (autocrlf) and Node 24 match the Lenovo; the Linux job above stays the full check.
+  windows:
+    name: Windows — boundary checker and its tests
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Script tests — boundaries and workflow policy (when present on this branch)
+        run: npm run test:scripts --if-present
+      - name: Module boundaries (when the checker exists on this branch)
+        run: npm run check:boundaries --if-present
+
   handoff:
     name: Handoff file present
     if: github.event_name == 'pull_request'

@@ -6,8 +6,8 @@
 | **Date** | 2026-10-22 |
 | **Task** | RO-019 and RO-022 (`TASKS.md`): the post-merge status follow-up from `AGENTS.md` §3 step 9, requested by the owner |
 | **Branch** | `claude/RO-019-RO-022-status-done` (base: `main` @ `8a70565`) |
-| **Commits** | see the PR's commit list (docs only) |
-| **Pull request** | opened from this branch; see `TASKS.md` and the PR list |
+| **Commits** | `e4e12ab` RO-019, RO-022: mark done (acb9857, 8a70565) and update PROJECT_STATUS.md · then a commit recording the PR link in this handoff |
+| **Pull request** | [PR #12](https://github.com/bransondang3307-beep/RepOne/pull/12) → `main` (open, not merged) |
 | **Status** | implemented; docs only; awaiting Codex review and the owner's merge |
 
 ## Objective

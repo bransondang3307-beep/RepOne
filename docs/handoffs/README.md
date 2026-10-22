@@ -18,5 +18,9 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 
 | Date | Agent | Task | File |
 |---|---|---|---|
+| 2026-10-22 | Claude Code | RO-019 / RO-022 post-merge status update | [2026-10-22-claude-RO-019-RO-022-status.md](2026-10-22-claude-RO-019-RO-022-status.md) |
+| 2026-10-17 | Claude Code | RO-019 zero-cost Claude Code ↔ Codex workflow | [2026-10-17-claude-RO-019-zero-cost.md](2026-10-17-claude-RO-019-zero-cost.md) |
+| 2026-10-16 | Claude Code | RO-022 Windows CI job | [2026-10-16-claude-RO-022.md](2026-10-16-claude-RO-022.md) |
+| 2026-10-15 | Claude Code | RO-005 Milestone 1 PR | [2026-10-15-claude-RO-005.md](2026-10-15-claude-RO-005.md) |
 | 2026-10-15 | Claude Code | RO-004 multi-agent sync setup | [2026-10-15-claude-RO-004.md](2026-10-15-claude-RO-004.md) |
 | 2026-10-15 | Claude Code | Sprint 1 (RO-001/RO-002) | [2026-10-15-sprint-1-handoff.md](2026-10-15-sprint-1-handoff.md) (pre-template) |

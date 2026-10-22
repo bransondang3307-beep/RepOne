@@ -5,7 +5,7 @@
 > - Edit only your own task's row/section; ChatGPT or the owner add and assign tasks.
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-023** (RO-019: PR #11 · RO-020: PR #6 · RO-021: PR #9 · RO-022: PR #10).
+> - Next free ID: **RO-023** (RO-019: merged `acb9857` · RO-020: PR #6 · RO-021: PR #9 · RO-022: merged `8a70565`).
 
 ## Board
 
@@ -29,8 +29,8 @@
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
-| RO-019 | Claude Code ↔ Codex workflow at zero additional AI API cost (replaces the archived API loop, PR #4) | Claude Code | P1 | in-review | — | `claude/RO-019-zero-cost-workflow` — [PR #11](https://github.com/bransondang3307-beep/RepOne/pull/11) |
-| RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | in-review | RO-021 | `claude/RO-022-windows-ci` — [PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10) |
+| RO-019 | Claude Code ↔ Codex workflow at zero additional AI API cost (replaces the archived API loop, PR #4) | Claude Code | P1 | done | — | [PR #11](https://github.com/bransondang3307-beep/RepOne/pull/11) — merged `acb9857` |
+| RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | done | RO-021 | [PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10) — merged `8a70565` |
 
 ## Task details
 
@@ -114,6 +114,13 @@
 - **Completion criteria:** `npm run verify` and CI green; the policy tests detect prohibited AI API integrations
   (including PR #4's real workflows) and enforce least-privilege permissions; Codex review; owner merges. Only
   **after** that merge does the owner close PRs #4 and #5 (unmerged; branches kept as the archive).
+- **Done — merged 2026-10-21 (UTC) as `acb9857`** ([PR #11](https://github.com/bransondang3307-beep/RepOne/pull/11), head `45cdbee`, merged by the owner).
+  - Codex's final review of `45cdbee` found no findings ("Didn't find any major issues").
+  - CI was green on the PR head and again on `main` after the merge (run [39522348555](https://github.com/bransondang3307-beep/RepOne/actions/runs/39522348555)).
+  - The owner closed PRs #4 and #5 unmerged right after the merge. Their branches are kept; the archive branch
+    `claude/RO-019-claude-codex-loop` is at `af8acd9`.
+  - Still open (owner, outside the completion criteria): the archive tag `archive/RO-019-api-loop-v1` (ADR 0005 §6) does
+    not exist yet. This environment's GitHub proxy refuses tag pushes.
 
 ### RO-022 — Windows CI job for the boundary checker (owner-approved, 2026-10-16)
 - **Why:** RepOne is developed on Windows machines, and RO-021's bugs (the checker's path separators, then its own
@@ -125,3 +132,9 @@
   running the full `npm run verify` (typecheck + Jest) on Windows.
 - **Completion criteria:** the job fails on the RO-021 bugs (`40d4a22`, `30e2dd3`) and passes on the fix (`6f48f1d`);
   the Linux job still runs unchanged; Codex review; PR merged by the owner.
+- **Done — merged 2026-10-22 (UTC) as `8a70565`** ([PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10), head `2b09895`).
+  - The owner explicitly approved merging that exact commit. Claude Code ran the merge, pinned to `2b09895`.
+  - Preview runs [38935881737](https://github.com/bransondang3307-beep/RepOne/actions/runs/38935881737) and [38935885847](https://github.com/bransondang3307-beep/RepOne/actions/runs/38935885847) failed
+    on the RO-021 bugs; [38935889064](https://github.com/bransondang3307-beep/RepOne/actions/runs/38935889064) passed on the fix.
+  - Codex reviewed `2b09895` with no findings.
+  - After the merge, CI on `main` passed on both Linux and Windows (run [39701367400](https://github.com/bransondang3307-beep/RepOne/actions/runs/39701367400)).

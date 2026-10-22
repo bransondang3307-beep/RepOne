@@ -5,6 +5,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch: # re-run CI by hand from the Actions tab
 
 permissions:
   contents: read
@@ -27,6 +28,8 @@ jobs:
       - run: npm ci
       - name: Module boundaries (when the checker exists on this branch)
         run: npm run check:boundaries --if-present
+      - name: Workflow policy — no paid AI API integrations, least privilege (when present on this branch)
+        run: npm run check:workflows --if-present
       - run: npm run typecheck
       - run: npm test
 

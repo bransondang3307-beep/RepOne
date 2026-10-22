@@ -1,0 +1,4 @@
+{
+  "$comment": "Owner-reviewed third-party GitHub Actions ('owner/repo'), read by scripts/check-workflow-policy.mjs. Each use must be pinned to a full 40-character commit SHA. AI actions and merge/approve actions are rejected even if listed. GitHub-owned actions (actions/*, github/*) need no entry. Adding an entry needs the owner's review (ADR 0005; docs/automation/claude-codex-workflow.md section 7).",
+  "allowedThirdPartyActions": []
+}

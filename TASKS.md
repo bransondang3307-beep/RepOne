@@ -5,7 +5,7 @@
 > - Edit only your own task's row/section; ChatGPT or the owner add and assign tasks.
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-023** (RO-019: PRs #4/#5 · RO-020: PR #6 · RO-021: PR #9 · RO-022: this row).
+> - Next free ID: **RO-023** (RO-019: PR #11 · RO-020: PR #6 · RO-021: PR #9 · RO-022: PR #10).
 
 ## Board
 
@@ -13,9 +13,9 @@
 |---|---|---|---|---|---|---|
 | RO-001 | Sprint 1 foundation (core + Expo app) | Claude Code | — | done | — | `main` @ `1b7e5b9` (pushed directly; pre-workflow) |
 | RO-002 | Publish repository to private GitHub | Claude Code | — | done | RO-001 | `main` @ `d9a7274` |
-| RO-003 | Milestone 1: align module layout with full Sprint 1 brief | Claude Code | P1 | in-progress | — | `sprint-1-alignment` (no PR yet → RO-005) |
+| RO-003 | Milestone 1: align module layout with full Sprint 1 brief | Claude Code | P1 | in-review | — | `sprint-1-alignment` — [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) |
 | RO-004 | Multi-agent synchronization setup | Claude Code | P1 | in-review | — | `claude/RO-004-agent-sync` — [PR #1](https://github.com/bransondang3307-beep/RepOne/pull/1) |
-| RO-005 | Open PR for `sprint-1-alignment` → `main` | Claude Code | P1 | todo | RO-004 | — |
+| RO-005 | Open PR for `sprint-1-alignment` → `main` | Claude Code | P1 | in-review | RO-004 | `sprint-1-alignment` — [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) |
 | RO-006 | Review Milestone 1 PR | Codex | P1 | todo | RO-005 | — |
 | RO-007 | Run Milestone 1 app in Expo Go | Owner | P1 | todo | — | — |
 | RO-008 | Update `docs/architecture.md` §6 ownership to `AGENTS.md` roles | Claude Code | P2 | todo | RO-003 merged | — |
@@ -29,6 +29,7 @@
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
+| RO-019 | Claude Code ↔ Codex workflow at zero additional AI API cost (replaces the archived API loop, PR #4) | Claude Code | P1 | in-review | — | `claude/RO-019-zero-cost-workflow` — [PR #11](https://github.com/bransondang3307-beep/RepOne/pull/11) |
 | RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | in-review | RO-021 | `claude/RO-022-windows-ci` — [PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10) |
 
 ## Task details
@@ -98,6 +99,21 @@
 ### RO-018 — H0 hardware bring-up (Owner)
 - Source of truth §11: locate Uno R3 + GY-521, verify markings/voltage, I²C scan, stream timestamped raw samples.
   Criteria: values change appropriately with movement (source of truth H0-A exit gate).
+
+### RO-019 — Claude Code ↔ Codex workflow at zero additional AI API cost (owner redesign, 2026-10-17)
+- **History:** v1 built an API-powered loop ([PR #4](https://github.com/bransondang3307-beep/RepOne/pull/4),
+  never enabled), which was then paused ([PR #5](https://github.com/bransondang3307-beep/RepOne/pull/5)). The owner set a
+  non-negotiable rule — **$0 separately billed AI API usage** — and approved the redesign: PR #4 is kept as an archive,
+  and a separate replacement PR is opened. Manual Claude hand-offs; Auto-fix off; Codex GitHub code review, automatic
+  on PR creation, with `@codex review` for re-reviews. This PR goes first; then Milestone 2 (RO-012) resumes.
+- **Files:** `docs/automation/{claude-codex-workflow,future-api-loop}.md`, ADR 0005, `scripts/check-workflow-policy{,.test}.mjs`,
+  `.github/workflow-policy.json` (empty third-party action allowlist), `package.json` (scripts; devDependency `yaml` 2.9.1 for
+  YAML parsing) + `package-lock.json`, `.github/workflows/ci.yml` (manual trigger + policy step), `AGENTS.md` (Review guidelines,
+  step 7, zero-cost rule), `CLAUDE.md`, `.github/pull_request_template.md`, `README.md` and `docs/architecture.md`
+  (verify description), this row.
+- **Completion criteria:** `npm run verify` and CI green; the policy tests detect prohibited AI API integrations
+  (including PR #4's real workflows) and enforce least-privilege permissions; Codex review; owner merges. Only
+  **after** that merge does the owner close PRs #4 and #5 (unmerged; branches kept as the archive).
 
 ### RO-022 — Windows CI job for the boundary checker (owner-approved, 2026-10-16)
 - **Why:** RepOne is developed on Windows machines, and RO-021's bugs (the checker's path separators, then its own

@@ -14,5 +14,8 @@ All shared project rules, context order, roles and the synchronization workflow 
 - **Branch:** `claude/<TASK-ID>-<slug>` from `origin/main`. Use `gh` / the GitHub REST API to open PRs.
 - **Verify before claiming:** run `npm run verify` (or `npm run typecheck && npm test` where `verify`
   does not exist) and paste the summary lines into the handoff and PR.
-- **Request review:** every code PR asks for a Codex review in its description.
+- **Request review:** every code PR asks for a Codex review in its description (Codex reviews automatically
+  when the PR is opened). Address findings per `docs/automation/claude-codex-workflow.md` §4: one fix commit
+  per round, reply `Fixed in <sha>` (or why not) to each finding, `npm run verify`, then comment `@codex review`;
+  stop after two fix rounds. Use your Claude subscription only — never an `ANTHROPIC_API_KEY`. Auto-fix stays off.
 - **Never** mark a task `done` or edit `PROJECT_STATUS.md` "Verified on main" before the PR is merged.

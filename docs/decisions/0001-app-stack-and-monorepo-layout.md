@@ -1,7 +1,7 @@
 # ADR 0001 — App stack and monorepo layout
 
 - **Date:** 2026-10-15
-- **Status:** Accepted (owner approved layout option "apps/mobile + packages/core" on 2026-10-15)
+- **Status:** Accepted 2026-10-15; **layout section superseded by [ADR 0003](0003-full-spec-module-layout.md)** (stack choices still stand)
 - **Resolves:** Source of truth §12 open decision 4 ("Initial app stack/platform and repo status")
 
 ## Context

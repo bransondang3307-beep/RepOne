@@ -1,9 +1,7 @@
-import type { WorkoutSessionSummary } from '@repone/core';
-import { useEffect } from 'react';
+import type { WorkoutSessionSummary } from '@repone/workout-domain';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { useWorkout } from '../src/state/WorkoutStoreProvider';
-import { ProvenanceBadge } from '../src/ui/components/ProvenanceBadge';
-import { colors, spacing } from '../src/ui/theme/tokens';
+import { useWorkoutHistory } from '../src/features/workouts';
+import { ProvenanceBadge, colors, spacing } from '../src/shared';
 
 function formatDuration(s: WorkoutSessionSummary): string {
   if (s.ended_at_epoch_ms === null) return 'in progress';
@@ -12,13 +10,7 @@ function formatDuration(s: WorkoutSessionSummary): string {
 }
 
 export default function HistoryScreen() {
-  const history = useWorkout((s) => s.history);
-  const historyError = useWorkout((s) => s.historyError);
-  const refreshHistory = useWorkout((s) => s.refreshHistory);
-
-  useEffect(() => {
-    void refreshHistory();
-  }, [refreshHistory]);
+  const { sessions: history, error: historyError } = useWorkoutHistory();
 
   return (
     <FlatList

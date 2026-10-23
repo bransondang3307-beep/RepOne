@@ -6,8 +6,8 @@
 | **Date** | 2026-10-23 |
 | **Task** | Milestone 1 closeout requested by the owner: reconcile RO-003…RO-007 (`TASKS.md`), record RO-023, update `PROJECT_STATUS.md` |
 | **Branch** | `claude/RO-003-m1-closeout` (base: `main` @ `9b8b81a`) |
-| **Commits** | see the PR's commit list (docs only) |
-| **Pull request** | opened from this branch (link recorded in a follow-up commit) |
+| **Commits** | `669a95a` RO-003…RO-007, RO-023: Milestone 1 closeout (docs only) · then a commit recording the PR link in this handoff |
+| **Pull request** | [PR #13](https://github.com/bransondang3307-beep/RepOne/pull/13) → `main` (open, not merged) |
 | **Status** | implemented; docs only; awaiting Codex review and the owner's merge |
 
 ## Objective

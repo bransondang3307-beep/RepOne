@@ -72,17 +72,28 @@ function describeSensorError(error: SensorError, samplesReceived: number): strin
   return `${SENSOR_ERROR_TEXT[error.code]} (${error.message}). ${saved}`;
 }
 
-function startFailureOf(error: unknown): SensorError {
-  const detail = error as { sensorError?: SensorError } | null;
-  return detail?.sensorError ?? { code: 'start_failed', message: error instanceof Error ? error.message : String(error) };
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
-interface ActiveSession {
+function startFailureOf(error: unknown): SensorError {
+  const detail = error as { sensorError?: SensorError } | null;
+  return detail?.sensorError ?? { code: 'start_failed', message: messageOf(error) };
+}
+
+/** One recording. Its outcome is decided from these fields alone, so a later session can never inherit it. */
+interface Session {
   readonly id: string;
   readonly sensor: SensorSource;
   readonly detector: MotionDetector<RepEvent>;
   readonly unsubscribers: Unsubscribe[];
   buffer: RawSensorSample[];
+  /** First failed write of this session. It outranks the sensor's reason: data may be missing. */
+  writeError: string | null;
+  /** Why the sensor failed, or why it could not start. */
+  sensorError: SensorError | null;
+  /** Set when finalisation begins; resolves once its outcome has been published. */
+  released: Promise<void> | null;
 }
 
 /**
@@ -94,15 +105,18 @@ interface ActiveSession {
  * queue so persistence order matches sample order.
  *
  * Every way a recording ends goes through `finalize`: the sensor is released, buffered samples are flushed
- * and the session is marked ended. A stop or a finite stream ending gives `finished`; a sensor failure or a
- * failed write gives `error`, keeping what was saved up to that point (ADR 0007).
+ * and the session is marked ended. A stop or a finite stream ending gives `finished`; a sensor failure, a failed
+ * start or a failed write gives `error`, keeping what was saved up to that point (ADR 0007). The controller stays
+ * locked until finalisation has finished, and an outcome is only ever published to its own session's snapshot.
  */
 export class WorkoutSessionController {
   private snapshot: SessionSnapshot = INITIAL;
   private readonly listeners = new Set<(s: SessionSnapshot) => void>();
-  private active: ActiveSession | null = null;
+  /** The session being recorded. */
+  private active: Session | null = null;
+  /** The session being finalised. */
+  private releasing: Session | null = null;
   private writeQueue: Promise<void> = Promise.resolve();
-  private finalizing: Promise<void> = Promise.resolve();
   private readonly batchSize: number;
 
   constructor(private readonly deps: WorkoutSessionControllerDeps) {
@@ -119,14 +133,12 @@ export class WorkoutSessionController {
   }
 
   async start(params: StartSessionParams): Promise<string> {
-    if (this.active || this.snapshot.status === 'starting' || this.snapshot.status === 'stopping') {
-      throw new Error('A session is already in progress');
-    }
+    if (this.isBusy()) throw new Error('A session is already in progress');
     const { sensor, calibration } = params;
     const id = this.deps.createId();
     this.update({ ...INITIAL, status: 'starting', sessionId: id, provenance: sensor.provenance });
 
-    let active: ActiveSession | null = null;
+    let session: Session | null = null;
     try {
       const { repositories, clock } = this.deps;
       await repositories.calibrations.save(calibration);
@@ -144,8 +156,17 @@ export class WorkoutSessionController {
         ended_at_epoch_ms: null,
       });
 
-      const current: ActiveSession = { id, sensor, detector, unsubscribers: [], buffer: [] };
-      active = current;
+      const current: Session = {
+        id,
+        sensor,
+        detector,
+        unsubscribers: [],
+        buffer: [],
+        writeError: null,
+        sensorError: null,
+        released: null,
+      };
+      session = current;
       this.active = current;
       current.unsubscribers.push(
         sensor.subscribe((sample) => this.onSample(current, sample)),
@@ -153,66 +174,96 @@ export class WorkoutSessionController {
       );
       this.update({ status: 'recording' });
       await sensor.start();
+      // stop() may have won the race while start() was pending: don't leave the sensor streaming.
+      if (current.released) await sensor.stop();
       return id;
     } catch (error) {
-      if (active === null) this.fail(error);
-      // The sensor normally publishes `error` before rejecting, which has already begun finalising.
-      else if (this.active === active) await this.finalize(active, startFailureOf(error));
-      else await this.finalizing;
+      if (session === null) this.update({ status: 'error', error: messageOf(error) });
+      else await this.recordStartFailure(session, startFailureOf(error));
       throw error;
     }
   }
 
   async stop(): Promise<void> {
-    const active = this.active;
-    if (!active) return this.finalizing;
-    return this.finalize(active, null);
+    if (this.active) return this.finalize(this.active);
+    await this.releasing?.released;
   }
 
   /** Clear a finished/errored snapshot back to idle. */
   reset(): void {
-    const { status } = this.snapshot;
-    if (this.active || status === 'starting' || status === 'stopping') throw new Error('Cannot reset while recording');
+    if (this.isBusy()) throw new Error('Cannot reset while a session is in progress');
     this.update(INITIAL);
   }
 
-  private onSensorStatus(active: ActiveSession, status: SensorStatus): void {
-    if (this.active !== active) return;
+  private isBusy(): boolean {
+    return this.active !== null || this.releasing !== null || this.snapshot.status === 'starting';
+  }
+
+  private onSensorStatus(session: Session, status: SensorStatus): void {
+    if (this.active !== session) return;
     // A finite source (e.g. replay) ending on its own finalises the session as finished.
-    if (status === 'stopped') void this.finalize(active, null);
+    if (status === 'stopped') void this.finalize(session);
     else if (status === 'error') {
-      void this.finalize(active, active.sensor.getLastError() ?? { code: 'unknown', message: 'no reason given' });
+      session.sensorError ??= session.sensor.getLastError() ?? { code: 'unknown', message: 'no reason given' };
+      void this.finalize(session);
     }
   }
 
-  private finalize(active: ActiveSession, sensorError: SensorError | null): Promise<void> {
-    if (this.active !== active) return this.finalizing;
-    this.active = null;
-    this.finalizing = this.release(active, sensorError);
-    return this.finalizing;
+  /**
+   * start() rejected. The sensor normally publishes `error` first, which has already begun finalising; a
+   * stop() may also have finalised the session while start() was pending. Either way the failure is this
+   * session's outcome, and it is published only while this session still owns the snapshot.
+   */
+  private async recordStartFailure(session: Session, reason: SensorError): Promise<void> {
+    session.sensorError ??= reason;
+    await this.finalize(session);
+    this.publishOutcome(session);
   }
 
-  private async release(active: ActiveSession, sensorError: SensorError | null): Promise<void> {
-    this.update({ status: 'stopping' });
-    active.unsubscribers.forEach((u) => u());
-    await active.sensor.stop();
-    this.flush(active);
-    this.enqueue(() => this.deps.repositories.sessions.markEnded(active.id, this.deps.clock.now()));
-    await this.writeQueue;
-    // A failed write (already in `error`) outranks the sensor's reason: it means data may be missing.
-    const error =
-      this.snapshot.error ?? (sensorError ? describeSensorError(sensorError, this.snapshot.samplesReceived) : null);
-    this.update({ status: error === null ? 'finished' : 'error', error, sensorError });
+  private finalize(session: Session): Promise<void> {
+    if (session.released) return session.released;
+    if (this.active === session) this.active = null;
+    this.releasing = session;
+    session.released = this.release(session);
+    return session.released;
   }
 
-  private onSample(active: ActiveSession, sample: RawSensorSample): void {
-    active.buffer.push(sample);
-    if (active.buffer.length >= this.batchSize) this.flush(active);
+  private async release(session: Session): Promise<void> {
+    try {
+      this.update({ status: 'stopping' });
+      session.unsubscribers.forEach((u) => u());
+      try {
+        await session.sensor.stop();
+      } catch (error) {
+        session.sensorError ??= { code: 'unknown', message: `stopping the sensor failed: ${messageOf(error)}` };
+      }
+      this.flush(session);
+      this.enqueue(session, () => this.deps.repositories.sessions.markEnded(session.id, this.deps.clock.now()));
+      await this.writeQueue;
+    } finally {
+      this.releasing = null;
+    }
+    this.publishOutcome(session);
+  }
 
-    const events = active.detector.push(sample);
+  /** Publish the session's outcome, unless a newer session (or a reset) owns the snapshot by now. */
+  private publishOutcome(session: Session): void {
+    if (this.snapshot.sessionId !== session.id) return;
+    const { sensorError, writeError } = session;
+    const error = writeError ?? (sensorError ? describeSensorError(sensorError, this.snapshot.samplesReceived) : null);
+    const status = error === null ? 'finished' : 'error';
+    if (status === this.snapshot.status && error === this.snapshot.error && sensorError === this.snapshot.sensorError) return;
+    this.update({ status, error, sensorError });
+  }
+
+  private onSample(session: Session, sample: RawSensorSample): void {
+    session.buffer.push(sample);
+    if (session.buffer.length >= this.batchSize) this.flush(session);
+
+    const events = session.detector.push(sample);
     let { fullReps, partialReps } = this.snapshot;
     for (const event of events) {
-      this.enqueue(() => this.deps.repositories.repEvents.append(event));
+      this.enqueue(session, () => this.deps.repositories.repEvents.append(event));
       if (event.classification === 'full') fullReps += 1;
       else partialReps += 1;
     }
@@ -225,21 +276,22 @@ export class WorkoutSessionController {
     }
   }
 
-  private flush(active: ActiveSession): void {
-    if (active.buffer.length === 0) return;
-    const batch = active.buffer;
-    active.buffer = [];
-    this.enqueue(() => this.deps.repositories.rawSamples.appendBatch(active.id, batch));
+  private flush(session: Session): void {
+    if (session.buffer.length === 0) return;
+    const batch = session.buffer;
+    session.buffer = [];
+    this.enqueue(session, () => this.deps.repositories.rawSamples.appendBatch(session.id, batch));
   }
 
-  private enqueue(write: () => Promise<void>): void {
-    this.writeQueue = this.writeQueue.then(write).catch((error: unknown) => this.fail(error));
+  private enqueue(session: Session, write: () => Promise<void>): void {
+    this.writeQueue = this.writeQueue.then(write).catch((error: unknown) => this.writeFailed(session, error));
   }
 
-  private fail(error: unknown): void {
-    this.update({ status: 'error', error: error instanceof Error ? error.message : String(error) });
+  private writeFailed(session: Session, error: unknown): void {
+    session.writeError ??= messageOf(error);
     // A recording whose writes fail cannot be trusted: stop it rather than keep collecting unsaved samples.
-    if (this.active) void this.finalize(this.active, null);
+    // While finalising, nothing is published early; the outcome is published when finalisation ends.
+    if (this.active === session) void this.finalize(session);
   }
 
   private update(patch: Partial<SessionSnapshot>): void {

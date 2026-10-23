@@ -80,6 +80,13 @@ continuous streams.
    - **Failed write:** `error`. The recording is stopped, because unsaved samples cannot be trusted.
 
    A write failure's message takes precedence over the sensor's reason, because it means data may be missing.
+
+   Two further rules came from Codex's first review of PR #14:
+   - **Locking.** The controller stays locked until finalisation has finished: no new start and no reset. Each
+     session's outcome is decided from that session's own record, never from the shared snapshot. It is published only
+     while that session still owns the snapshot.
+   - **`stop()` winning against a pending `start()`.** If `start()` later rejects, the failure becomes that session's
+     outcome. If `start()` later succeeds, the sensor is stopped again.
    **No schema change:** the session row does not record why it ended. An end-reason column belongs with the
    Milestone 3 persistence work (RO-013).
 

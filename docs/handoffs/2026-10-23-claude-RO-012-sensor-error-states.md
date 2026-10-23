@@ -94,6 +94,26 @@ Environment notes:
 - Rep counting is unchanged: there are no rep-engine edits, and its 16 tests are unchanged and passing.
 - The simulated fault is only exercised in tests. The app's demo sensor has no fault configured.
 
+## Review round 1 (Codex, 2026-10-23, on `c7b745f`)
+Codex found two P1s and one P2. I reproduced all three before fixing them, and fixed them in one commit (this round's
+fix commit; its SHA is in the PR replies).
+
+| Finding | Reproduced (before the fix) | Fix |
+|---|---|---|
+| **P1:** a start failure is lost when `stop()` wins the finalisation race (`WorkoutSessionController.ts:161`) | New test with a deferred-start sensor: after `stop()`, a late `SensorStartError` left the session **`finished`** with no error | The outcome is session-local. A late start failure becomes that session's `error`, published only while that session still owns the snapshot. A newer session is never touched (separate test). I also found and fixed the reverse case: a late `start()` *success* left the sensor streaming, so the controller now stops it (new test) |
+| **P1:** the controller is not locked until finalisation completes (`:205`) | New test: a write failing during finalisation published `error` early, and `reset()` and `start()` were then accepted while the old finalisation could still overwrite the snapshot | Finalisation is tracked separately from the published status (`releasing`). `start()` and `reset()` reject until it ends. A failed write is recorded on its own session, and nothing is published until finalisation ends |
+| **P2:** the double-`start()` contract test cannot catch a restarting source (`sensorSourceContract.ts:100`) | Mutating `SimulatedSensorSource.start()` to restart its stream passed the old test (3 of 3 harnesses) | The second `start()` now comes mid-stream, and the **complete** sample sequences must be equal. The same mutation now fails it (2 of 3 harnesses; replay is not mutated) |
+
+New and changed tests:
+- **Controller tests: 13** (were 9).
+  - Run against the pre-fix controller (`c7b745f`): 3 fail (late start failure, late start success, locking).
+  - The fourth new test (a newer session is untouched) passed before and still passes.
+- **Mobile Jest: 23** (were 19). **sensor-contracts: 31**, unchanged in count; the double-start test is stronger.
+- After the fix:
+  - `npm run verify`: exit 0, Jest **74/74** (mobile 23, rep-engine 16, sensor-contracts 31, workout-domain 4) and
+    script tests 62/62.
+  - Expo exports: Android and iOS both exit 0 (2.7 MB / 2.4 MB).
+
 ## Decisions / ADRs
 - [ADR 0007](../decisions/0007-sensor-errors-channels-device-connections.md) (Proposed). Decision 1 is implemented
   here; decisions 2–4 plan parts 2–4. Contract changes need Codex review (`docs/architecture.md` §6).

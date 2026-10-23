@@ -15,3 +15,9 @@ export {
   type RotationalRepDetectorConfig,
 } from './RotationalRepDetector';
 export { evaluateReps, type RepEvaluation } from './evaluateReps';
+export {
+  MultiChannelRepDetector,
+  type ChannelDetectorFactory,
+  type ChannelRepEvent,
+  type MultiChannelRepDetectorOptions,
+} from './MultiChannelRepDetector';

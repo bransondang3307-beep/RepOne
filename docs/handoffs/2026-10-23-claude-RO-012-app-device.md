@@ -5,8 +5,8 @@
 | **Agent** | Claude Code |
 | **Date** | 2026-10-23 |
 | **Task** | RO-012 (`TASKS.md`), Milestone 2, part 4 of 4 |
-| **Branch** | `claude/RO-012-app-device`, **stacked on part 3** (PR #16) → part 2 (PR #15) → part 1 (PR #14). It contains every fix from those PRs (merge commits `9a3c219`, `9932487`) |
-| **Commits** | `e128124` part 4 · `afdf647` PR link · `9a3c219` merge of part 3's round 1 · `9932487` merge of part 3's round 2 · then the owner-decision commit (SHA in PR #17) |
+| **Branch** | `claude/RO-012-app-device`, **stacked on part 3** (PR #16) → part 2 (PR #15) → part 1 (PR #14). It contains every fix from those PRs (merge commits `9a3c219`, `9932487`, `fe39974`) |
+| **Commits** | `e128124` part 4 · `afdf647` PR link · `9a3c219` merge of part 3's round 1 · `9932487` merge of part 3's round 2 · `39d0e7e` owner decisions · `fe39974` merge of part 3's round 3 · then this handoff update (the final SHA is in PR #17) |
 | **Pull request** | [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17), stacked: it targets `claude/RO-012-device-connection` until PR #16 merges |
 | **Status** | implemented; verified locally (tests, typecheck, Expo exports); Codex review on the final commit; awaiting the **owner's Expo Go check** |
 
@@ -56,7 +56,7 @@ home screen shows the connection, and losing the connection mid-set ends the set
 | `combineChannels` (4 tests) | pass. Rejects colliding devices (nothing started), the same device twice, and empty input. Combines distinct devices (50 + 50 samples, each under its own id). Drops and counts a mislabelling channel's samples |
 | Live-session store through the real composition root | pass. Normal set; auto-connect; loss via the **app's** test hook ends the set in `error` with the exact message (250 samples saved); the next set reconnects |
 | `deviceConnectionStore` (4 tests) | pass. Includes "test control only when provided; no-op for a real device" |
-| `npm run verify` (Linux, Node 22.22.0) | exit 0. Boundaries OK (72 files, no circular imports); workflow policy OK; typecheck OK; Jest **143/143**: mobile 29, rep-engine 27, sensor-contracts 83, workout-domain 4 |
+| `npm run verify` (Linux, Node 22.22.0), after merging part 3's round 3 | exit 0. Boundaries OK (72 files, no circular imports); workflow policy OK; typecheck OK; Jest **153/153**: mobile 29, rep-engine 27, sensor-contracts 93, workout-domain 4 |
 | `npm run test:scripts` | 62/62 |
 | `npx expo export --platform android` / `ios` | both exit 0. Hermes bundles 2.8 MB / 2.4 MB |
 | **Expo Go on a device** | **owner**: steps below |

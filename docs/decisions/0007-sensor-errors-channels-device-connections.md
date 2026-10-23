@@ -140,6 +140,14 @@ continuous streams.
     A channel's source rejects `start()` with `start_failed` while the device is disconnected. A lost link fails every
     *streaming* channel with `connection_lost` before the device publishes `failed`.
 
+  Rules added after Codex's first review of PR #16:
+  - **Attempt first.** The pending attempt exists before `connecting` is published, so a `disconnect()` or
+    `connect()` called from a state listener waits for it.
+  - **Pending starts.** A channel start that is still pending when the link drops rejects with `connection_lost`. A
+    `stop()` cancels a pending start quietly.
+  - **Nothing after the end.** A stopped or failed channel, or source, delivers nothing more, even when the stop or
+    failure is triggered from inside a sample listener mid-batch. The sensor suite tests this for every source.
+
   The shared suite `describeDeviceConnectionContract` tests all of this. It covers instant and delayed connects,
   idempotency, disconnect while streaming, disconnect during a pending connect, listener unsubscription, connection
   loss and recovery, and refused connects. A device's channels must also pass `describeSensorSourceContract`.

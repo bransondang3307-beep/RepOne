@@ -95,6 +95,29 @@ Negative controls (run, then reverted): each of five `SimulatedDevice` mutations
 | Channels are offered while disconnected | 8 |
 | Connection loss leaves channels streaming | 3 |
 
+## Review round 1 (Codex, 2026-10-23, on `a06f28c`)
+Codex found three P1s and one P2. I reproduced each one with a test first and fixed all of them in one commit (SHA in
+the PR replies).
+
+| Finding | Reproduced (before the fix) | Fix |
+|---|---|---|
+| **P1:** connection loss while a channel `start()` is pending leaves the channel streaming (`SimulatedDevice.ts:183`) | New device-suite test fails on both harnesses | The channel tracks its in-flight start (`starting`, `generation`). A loss fails it: `start()` rejects with `connection_lost`, the inner source is released, and no samples arrive. A `stop()` cancels a pending start quietly (new test) |
+| **P1:** remaining batch samples are delivered after a failure (`:166`) | New device-suite test: a sample listener triggering loss got further samples. The same defect affected `stop()` from a listener in `SimulatedSensorSource` and `ReplaySensorSource` (new sensor-suite test; 4 sources failed) | The channel forwards samples only while streaming. The simulated and replay batch loops exit once their run has ended |
+| **P1:** `connecting` was published before the pending attempt was installed (`:84`) | New device-suite test: a `disconnect()` from the `connecting` listener was ignored and the device stayed connected | The attempt promise is created and installed before `connecting` is published, on both the instant and the delayed path |
+| **P2:** the loss test did not check that channels fail before the device (`deviceConnectionContract.ts:174`) | The ordering was right but untested | Every channel's status and reason are captured inside the device's `failed` callback. Reversing the order now fails the test (negative control) |
+
+Negative controls (each re-introduces one defect, then reverted). Each fails its intended tests:
+
+| Defect re-introduced | Tests failing |
+|---|---|
+| Device fails before its channels | 2 |
+| `connecting` published before the attempt is installed | 2 |
+| Loss ignores a pending start | 2 |
+| Both batch guards removed | 5 |
+
+After the fix, `npm run verify` exits 0: Jest **129/129** (mobile 23, rep-engine 27, sensor-contracts **75**, was 64;
+workout-domain 4) and script tests 62/62.
+
 ## Decisions / ADRs
 - ADR 0007 decisions 2 and 4 (Proposed), refined: one `SensorSource` per channel instead of multi-channel sources.
 

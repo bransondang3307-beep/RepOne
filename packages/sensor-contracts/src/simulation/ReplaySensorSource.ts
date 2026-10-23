@@ -32,7 +32,11 @@ export class ReplaySensorSource extends BaseSensorSource {
     this.setStatus('streaming');
 
     if ((this.deps.mode ?? 'immediate') === 'immediate') {
-      for (const sample of samples) this.emit(sample);
+      for (const sample of samples) {
+        // A listener may have stopped this replay: deliver nothing more.
+        if (this.getStatus() !== 'streaming') return;
+        this.emit(sample);
+      }
       this.setStatus('stopped');
       return;
     }
@@ -41,14 +45,17 @@ export class ReplaySensorSource extends BaseSensorSource {
     const origin = samples[0]?.timestamp_ms ?? 0;
     let cursor = 0;
     let elapsedMs = 0;
-    this.handle = this.scheduler.setInterval(() => {
+    const handle = this.scheduler.setInterval(() => {
       elapsedMs += tickMs;
       while (cursor < samples.length && samples[cursor]!.timestamp_ms - origin < elapsedMs) {
+        // A listener may have stopped this replay mid-batch: deliver nothing more.
+        if (this.handle !== handle) return;
         this.emit(samples[cursor]!);
         cursor += 1;
       }
       if (cursor >= samples.length) void this.stop();
     }, tickMs);
+    this.handle = handle;
   }
 
   async stop(): Promise<void> {

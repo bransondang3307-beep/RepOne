@@ -50,8 +50,10 @@ export class SimulatedSensorSource extends BaseSensorSource {
     const samplesPerTick = Math.max(1, Math.round((this.deps.simulation.sampleRateHz * this.tickMs) / 1000));
     let delivered = 0;
     this.setStatus('streaming');
-    this.handle = this.scheduler.setInterval(() => {
+    const handle = this.scheduler.setInterval(() => {
       for (let i = 0; i < samplesPerTick; i++) {
+        // A listener may have stopped (or failed) this run mid-batch: deliver nothing more.
+        if (this.handle !== handle) return;
         if (fault && delivered >= fault.afterSamples) {
           this.release();
           this.fail(faultError(fault));
@@ -68,6 +70,7 @@ export class SimulatedSensorSource extends BaseSensorSource {
         }
       }
     }, this.tickMs);
+    this.handle = handle;
   }
 
   async stop(): Promise<void> {

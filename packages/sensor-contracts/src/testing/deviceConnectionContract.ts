@@ -146,6 +146,21 @@ export function describeDeviceConnectionContract(
       expect(states).toEqual(['connecting', 'connected', 'disconnecting', 'disconnected']);
     });
 
+    it('makes a disconnect() called from a `connecting` listener wait for that attempt', async () => {
+      const harness = createHarness();
+      const states = recordStates(harness.device);
+      let disconnecting: Promise<void> | null = null;
+      harness.device.subscribeState((s) => {
+        if (s === 'connecting') disconnecting = harness.device.disconnect();
+      });
+      const connecting = harness.device.connect();
+      harness.advance(connectTimeMs);
+      await connecting;
+      await disconnecting;
+      expect(states).toEqual(['connecting', 'connected', 'disconnecting', 'disconnected']);
+      expect(harness.device.getState()).toBe('disconnected');
+    });
+
     it('stops notifying unsubscribed state listeners', async () => {
       const harness = createHarness();
       const removed = jest.fn();
@@ -169,14 +184,19 @@ export function describeDeviceConnectionContract(
         advance(200);
         const states = recordStates(device);
         let errorWhenPublished: unknown = 'not published';
+        let channelsWhenPublished: unknown = 'not published';
         device.subscribeState((s) => {
-          if (s === 'failed') errorWhenPublished = device.getLastError();
+          if (s !== 'failed') return;
+          errorWhenPublished = device.getLastError();
+          // Channels must already have failed when the device publishes `failed`.
+          channelsWhenPublished = channels.map((c) => [c.source.getStatus(), c.source.getLastError()?.code]);
         });
 
         harness.loseConnection!();
         expect(states).toEqual(['failed']);
         expect(device.getLastError()?.code).toBe('connection_lost');
         expect(errorWhenPublished).toEqual(device.getLastError());
+        expect(channelsWhenPublished).toEqual(channels.map(() => ['error', 'connection_lost']));
         for (const c of channels) {
           expect(c.source.getStatus()).toBe('error');
           expect(c.source.getLastError()?.code).toBe('connection_lost');
@@ -192,6 +212,41 @@ export function describeDeviceConnectionContract(
         expect(device.getState()).toBe('connected');
         expect(device.getLastError()).toBeNull();
         await device.disconnect();
+      });
+
+      it('delivers nothing more once a sample listener triggers connection loss', async () => {
+        const harness = createHarness();
+        await connect(harness);
+        const [channel] = harness.device.getChannels();
+        let received = 0;
+        channel!.source.subscribe(() => {
+          received += 1;
+          if (received === 1) harness.loseConnection!();
+        });
+        await channel!.source.start();
+        harness.advance(1000);
+        expect(received).toBe(1);
+        expect(channel!.source.getStatus()).toBe('error');
+      });
+
+      it('fails a channel whose start() is still pending when the connection is lost', async () => {
+        const harness = createHarness();
+        await connect(harness);
+        const [channel] = harness.device.getChannels();
+        const samples: RawSensorSample[] = [];
+        channel!.source.subscribe((s) => samples.push(s));
+        const starting = channel!.source.start();
+        harness.loseConnection!();
+        const failure = await starting.then(
+          () => null,
+          (e: unknown) => e,
+        );
+        expect(failure).toBeInstanceOf(SensorStartError);
+        expect((failure as SensorStartError).sensorError.code).toBe('connection_lost');
+        harness.advance(1000);
+        expect(samples).toHaveLength(0);
+        expect(channel!.source.getStatus()).toBe('error');
+        expect(harness.device.getState()).toBe('failed');
       });
     }
 

@@ -99,6 +99,21 @@ describe('SimulatedDevice', () => {
     expect(device.getLastError()).toEqual({ code: 'connection_lost', message: 'cable unplugged (simulated)' });
   });
 
+  it('cancels a pending channel start on stop(): no samples, no error', async () => {
+    const { device, advance } = deviceHarness();
+    await device.connect();
+    const [channel] = device.getChannels();
+    const samples: RawSensorSample[] = [];
+    channel!.source.subscribe((s) => samples.push(s));
+    const starting = channel!.source.start();
+    await channel!.source.stop();
+    await expect(starting).resolves.toBeUndefined();
+    advance(1000);
+    expect(samples).toHaveLength(0);
+    expect(channel!.source.getStatus()).toBe('idle');
+    expect(channel!.source.getLastError()).toBeNull();
+  });
+
   it('lets a later connect() succeed when only the first attempts are refused', async () => {
     const { device } = deviceHarness({ refuseConnect: { code: 'unavailable', message: 'port busy', attempts: 2 } });
     await expect(device.connect()).rejects.toThrow('port busy');

@@ -6,8 +6,8 @@
 | **Date** | 2026-10-23 |
 | **Task** | RO-012 (`TASKS.md`), Milestone 2, resumed by the owner on 2026-10-23. Part 1 of 4 |
 | **Branch** | `claude/RO-012-sensor-error-states` (base: `main` @ `9b8b81a`) |
-| **Commits** | see the PR's commit list |
-| **Pull request** | opened from this branch (link recorded in a follow-up commit) |
+| **Commits** | `d49acb3` RO-012: sensor error states, contract-suite hardening, session failure handling (part 1) · then a commit recording the PR link |
+| **Pull request** | [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14) → `main` (open, not merged) |
 | **Status** | implemented; verified locally (tests, typecheck, Expo exports); awaiting Codex review, owner merge |
 
 ## Objective
@@ -20,7 +20,8 @@ milestone is ADR 0007 (Proposed).
 
 **Not blocking:**
 - **Documentation PRs (#2, #6, #7, #8, #9, #13).** None changes code this work touches. This branch edits only the
-  RO-012 row and section of `TASKS.md`. Its trial merge with PR #13's branch is clean (see below).
+  RO-012 row and section of `TASKS.md`. Its trial merges with the branches of PRs #13, #6, #7 and #8 are clean
+  (`git merge-tree`).
 - **RO-016 (H0 sample rate and packet schema).** It blocks a real USB-serial adapter, which is outside Milestone 2.
 - **PR #8's checker hardening (finding 2).** Isolating `infrastructure/<adapter>` folders from each other matters only
   when a second infrastructure adapter exists. Milestone 2 adds none: the simulated device lives in

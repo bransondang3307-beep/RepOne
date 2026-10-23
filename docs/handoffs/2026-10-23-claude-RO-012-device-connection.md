@@ -6,8 +6,8 @@
 | **Date** | 2026-10-23 |
 | **Task** | RO-012 (`TASKS.md`), Milestone 2, part 3 of 4 |
 | **Branch** | `claude/RO-012-device-connection`, **stacked on part 2** (`claude/RO-012-channel-rep-engine`, PR #15), which is stacked on part 1 (PR #14) |
-| **Commits** | see the PR's commit list |
-| **Pull request** | opened against the part 2 branch (link recorded in a follow-up commit) |
+| **Commits** | `038d3f9` RO-012: DeviceConnection contract, SimulatedDevice and device contract suite (part 3) · then a commit recording the PR link |
+| **Pull request** | [PR #16](https://github.com/bransondang3307-beep/RepOne/pull/16), stacked: it targets `claude/RO-012-channel-rep-engine` until PR #15 merges |
 | **Status** | implemented; verified locally; awaiting Codex review. Merge after PRs #14 and #15 |
 
 ## Objective

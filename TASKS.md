@@ -92,8 +92,9 @@
     - `source_id` stays the sensor identity, with no collisions within a session (`combineChannels`).
     - A "Simulate connection loss" test control is added, for the simulated device only.
     - The synthetic motion stays repeatable (one seed per app start).
-  - Not in RO-012: real USB/BLE adapters, the H0 wire format (RO-016), schema changes (RO-013) and the badge fix
-    (RO-023, P3).
+  - Not in RO-012: real USB/BLE adapters, the H0 wire format (RO-016) and schema changes (RO-013).
+  - The badge fix (RO-023) ships in PR #17 at the owner's request (2026-10-23), as separate `RO-023:` commits. Its
+    task row is added by PR #13.
 - **RO-013 (M3):** Workout → Exercise → Set → Reps; user-entered resistance (labelled, never "measured");
   machine–exercise links; lifecycle start/pause/resume/finish with validation; SQLite migration. Full reps count
   toward a set, partials logged (ADR 0003). Criteria: domain + persistence tests pass.

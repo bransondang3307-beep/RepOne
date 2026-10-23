@@ -213,7 +213,8 @@ continuous streams.
 - **H0 wire format:** sample rate and packet schema (source of truth §12 open decision 2; RO-016).
 - **Milestone 3 work:** database schema changes (end reason, rep-event channel).
 - **Detector changes:** algorithm or threshold changes.
-- **RO-023:** the warning-badge fix stays a separate P3 task.
+- **RO-023:** the warning-badge fix is its own task. At the owner's request after the Expo Go check (2026-10-23), it
+  ships in PR #17 as separate `RO-023:` commits.
 
 ## Naming
 

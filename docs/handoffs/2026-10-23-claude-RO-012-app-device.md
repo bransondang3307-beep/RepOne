@@ -6,7 +6,7 @@
 | **Date** | 2026-10-23 |
 | **Task** | RO-012 (`TASKS.md`), Milestone 2, part 4 of 4 |
 | **Branch** | `claude/RO-012-app-device`, **stacked on part 3** (PR #16) → part 2 (PR #15) → part 1 (PR #14). It contains every fix from those PRs (merge commits `9a3c219`, `9932487`, `fe39974`) |
-| **Commits** | `e128124` part 4 · `afdf647` PR link · `9a3c219` merge of part 3's round 1 · `9932487` merge of part 3's round 2 · `39d0e7e` owner decisions · `fe39974` merge of part 3's round 3 · then this handoff update (the final SHA is in PR #17) |
+| **Commits** | `e128124` part 4 · `afdf647` PR link · `9a3c219` merge of part 3's round 1 · `9932487` merge of part 3's round 2 · `39d0e7e` owner decisions · `fe39974` merge of part 3's round 3 · `0325874` handoff · then the `RO-023:` badge fix (the final SHA is in PR #17) |
 | **Pull request** | [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17), stacked: it targets `claude/RO-012-device-connection` until PR #16 merges |
 | **Status** | implemented; verified locally (tests, typecheck, Expo exports); Codex review on the final commit; awaiting the **owner's Expo Go check** |
 
@@ -44,8 +44,7 @@ home screen shows the connection, and losing the connection mid-set ends the set
 - **`features/device-connection` (new):** a store and hook that mirror the device's state and reason (actions never
   throw), and `DeviceConnectionPanel` with the transport, state, reason, Connect / Disconnect / Reconnect (locked
   while a set records) and the test control.
-- **Home route:** the panel sits above the set card. **No other UI changed.** The warning-badge row (RO-023, P3) is
-  untouched.
+- **Home route:** the panel sits above the set card. The status row wraps (RO-023, below). No other UI changed.
 - **`@repone/sensor-contracts`:** `combineChannels`, `ChannelCollisionError`, `SessionChannels` (new `src/channels.ts`).
 - **Unchanged:** the rep detection algorithm, units, the database schema and the provenance badge. All texts are
   brand-free.
@@ -56,10 +55,23 @@ home screen shows the connection, and losing the connection mid-set ends the set
 | `combineChannels` (4 tests) | pass. Rejects colliding devices (nothing started), the same device twice, and empty input. Combines distinct devices (50 + 50 samples, each under its own id). Drops and counts a mislabelling channel's samples |
 | Live-session store through the real composition root | pass. Normal set; auto-connect; loss via the **app's** test hook ends the set in `error` with the exact message (250 samples saved); the next set reconnects |
 | `deviceConnectionStore` (4 tests) | pass. Includes "test control only when provided; no-op for a real device" |
-| `npm run verify` (Linux, Node 22.22.0), after merging part 3's round 3 | exit 0. Boundaries OK (72 files, no circular imports); workflow policy OK; typecheck OK; Jest **153/153**: mobile 29, rep-engine 27, sensor-contracts 93, workout-domain 4 |
+| `npm run verify` (Linux, Node 22.22.0), with part 3's round 3 and the RO-023 fix | exit 0. Boundaries OK (73 files, no circular imports); workflow policy OK; typecheck OK; Jest **155/155**: mobile 31, rep-engine 27, sensor-contracts 93, workout-domain 4 |
 | `npm run test:scripts` | 62/62 |
 | `npx expo export --platform android` / `ios` | both exit 0. Hermes bundles 2.8 MB / 2.4 MB |
 | **Expo Go on a device** | **owner**: steps below |
+
+## RO-023 fix: simulated-data badge no longer runs off screen (owner request, 2026-10-23)
+The owner's Expo Go screenshot showed the yellow badge clipped at the right edge, so the owner asked for the fix
+here. It is in separate `RO-023:` commits; its task row lives in PR #13.
+- **The badge** (`ProvenanceBadge`, shared by the home and History screens): it gets `flexShrink: 1` and
+  `maxWidth: '100%'`, so it never grows past its container and its text wraps instead. It is a rounded rectangle
+  (radius 12, not a pill) so it still reads as a badge on two lines. There is no truncation, and the colours are
+  unchanged: simulated and replay data stay distinct from live sensor data.
+- **The home status row** gets `flexWrap: 'wrap'`, and the status text no longer shrinks. When "Recording" and the
+  badge don't fit on one line, the badge moves to its own line below.
+- **Test:** `ProvenanceBadge.test.tsx`, a regression test for this layout rule (shrinkable, capped at 100%, no
+  `numberOfLines` or ellipsis, full label) and for the colour distinction. Jest has no layout engine, so the visual
+  result is confirmed on the phone (checklist step 2). Against the old badge the first test fails (negative control).
 
 ## Owner check in Expo Go
 **Launch** on the Windows laptop, in a *new* folder. Leave `C:\Users\Admin\Documents\RepOne`, Antigravity's checkout,
@@ -88,7 +100,8 @@ npx expo start                # npx.cmd expo start if needed
 2. **Normal recording.**
    - Optionally type a machine label, then tap **Start simulated set**.
    - The panel turns **Connected**, the status reads **Recording**, reps count up, and the yellow "Simulated data"
-     badge is visible. Its clipping is the known RO-023 issue.
+     badge is visible. **Check RO-023:** the badge's whole text "Simulated data — not a real measurement" is
+     visible, either beside "Recording" or on its own line below it, never running off the screen.
    - After about 20 s tap **Stop set**: the status reads **Set saved**.
 3. **History.** Tap **View history**: the set is listed with its label and rep counts. Go back.
 4. **Idle disconnect and reconnect.**

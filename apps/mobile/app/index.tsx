@@ -85,8 +85,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
-  status: { fontSize: 16, fontWeight: '600', color: colors.text },
+  // Wraps so the simulated-data badge moves under the status when both don't fit on one line (RO-023).
+  row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+  status: { fontSize: 16, fontWeight: '600', color: colors.text, flexShrink: 0 },
   counters: { flexDirection: 'row', alignItems: 'flex-end', marginTop: spacing.md },
   meta: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
   input: {

@@ -8,6 +8,7 @@ import {
   SimulatedSensorSource,
   createSyntheticCalibration,
   generateTrace,
+  type SensorError,
   type SimulatedFault,
   type SimulationOptions,
 } from '@repone/sensor-contracts';
@@ -47,6 +48,36 @@ class RejectingSensor extends BaseSensorSource {
   }
   async stop(): Promise<void> {}
 }
+
+/** A source whose start() stays pending until the test settles it (models a slow port open). */
+class DeferredStartSensor extends BaseSensorSource {
+  private settle: { resolve: () => void; reject: (e: unknown) => void } | null = null;
+  constructor() {
+    super('deferred-01', 'usb_serial', 'sensor');
+  }
+  start(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.settle = { resolve, reject };
+    });
+  }
+  stopCalls = 0;
+  async stop(): Promise<void> {
+    this.stopCalls += 1;
+  }
+  resolveStart(): void {
+    this.setStatus('streaming');
+    this.settle!.resolve();
+  }
+  rejectStart(error: SensorError): void {
+    this.fail(error);
+    this.settle!.reject(new SensorStartError(error));
+  }
+}
+
+/** Let pending promise chains (in-memory repository calls, the write queue) run. */
+const flush = async (rounds = 5) => {
+  for (let i = 0; i < rounds; i++) await new Promise((r) => setTimeout(r, 0));
+};
 
 /** Wait until the controller reaches a terminal status. */
 const settled = (controller: WorkoutSessionController) =>
@@ -187,6 +218,82 @@ describe('WorkoutSessionController', () => {
     expect(final.status).toBe('error');
     expect(sensor.getStatus()).toBe('stopped');
     expect(scheduler.activeTimers).toBe(0);
+  });
+
+  it('keeps a start failure that arrives after stop() won the race as that session\'s outcome', async () => {
+    const { controller } = createController();
+    const sensor = new DeferredStartSensor();
+    const starting = controller.start({ sensor, calibration });
+    await flush();
+    expect(controller.getSnapshot().status).toBe('recording');
+    await controller.stop();
+    expect(controller.getSnapshot().status).toBe('finished');
+
+    sensor.rejectStart({ code: 'start_failed', message: 'Port open timed out' });
+    await expect(starting).rejects.toBeInstanceOf(SensorStartError);
+    expect(controller.getSnapshot()).toMatchObject({
+      status: 'error',
+      sensorError: { code: 'start_failed', message: 'Port open timed out' },
+    });
+  });
+
+  it('stops the sensor again when its start() completes after stop() won the race', async () => {
+    const { controller } = createController();
+    const sensor = new DeferredStartSensor();
+    const starting = controller.start({ sensor, calibration });
+    await flush();
+    await controller.stop();
+    const stopsBefore = sensor.stopCalls;
+
+    sensor.resolveStart();
+    await starting;
+    expect(sensor.stopCalls).toBe(stopsBefore + 1);
+    expect(controller.getSnapshot().status).toBe('finished');
+  });
+
+  it('does not let a late start failure of an old session touch a newer one', async () => {
+    const { controller } = createController();
+    const sensor = new DeferredStartSensor();
+    const starting = controller.start({ sensor, calibration });
+    await flush();
+    await controller.stop();
+    controller.reset();
+    const live = faultySensor({ afterSamples: 10_000, code: 'unknown' });
+    const newer = await controller.start({ sensor: live.sensor, calibration });
+
+    sensor.rejectStart({ code: 'start_failed', message: 'Port open timed out' });
+    await expect(starting).rejects.toBeInstanceOf(SensorStartError);
+    expect(controller.getSnapshot()).toMatchObject({ status: 'recording', sessionId: newer, error: null, sensorError: null });
+    await controller.stop();
+  });
+
+  it('stays locked until finalisation completes, even when a write fails meanwhile', async () => {
+    const repositories = createInMemoryRepositories();
+    repositories.rawSamples.appendBatch = async () => {
+      throw new Error('disk full');
+    };
+    const markEnded = repositories.sessions.markEnded.bind(repositories.sessions);
+    let finishMarkEnded: () => void = () => {};
+    repositories.sessions.markEnded = (id, at) =>
+      new Promise<void>((resolve) => {
+        finishMarkEnded = () => void markEnded(id, at).then(resolve);
+      });
+    const { controller } = createController(repositories);
+    // Immediate replay ends inside start(), so finalisation begins at once and waits on markEnded.
+    await controller.start({ sensor: new ReplaySensorSource({ id: 'replay-1', samples: labelledSetTrace().samples }), calibration });
+    await flush();
+
+    expect(controller.getSnapshot().status).toBe('stopping');
+    expect(() => controller.reset()).toThrow(/in progress/);
+    await expect(controller.start({ sensor: new ReplaySensorSource({ id: 'r2', samples: [] }), calibration })).rejects.toThrow(
+      /in progress/,
+    );
+
+    finishMarkEnded();
+    const final = await settled(controller);
+    expect(final).toMatchObject({ status: 'error', error: 'disk full' });
+    controller.reset();
+    expect(controller.getSnapshot().status).toBe('idle');
   });
 
   it('can be reset to idle after finishing', async () => {

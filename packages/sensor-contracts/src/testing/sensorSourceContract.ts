@@ -88,18 +88,22 @@ export function describeSensorSourceContract(
       expect(kept.mock.calls).toEqual([['streaming'], ['stopped']]);
     });
 
-    it('ignores start() while already streaming', async () => {
+    it('ignores start() while already streaming: no restart, no duplicate stream', async () => {
       const twice = createHarness();
       const once = createHarness();
       const a = record(twice.source);
       const b = record(once.source);
       await twice.source.start();
-      await twice.source.start();
       await once.source.start();
-      twice.advance(1000);
-      once.advance(1000);
+      twice.advance(500);
+      once.advance(500);
+      // A second start mid-stream must neither restart the stream (repeating data) nor add a second one.
+      await twice.source.start();
+      twice.advance(500);
+      once.advance(500);
       expect(a.statuses).toEqual(['streaming']);
-      expect(a.samples).toHaveLength(b.samples.length);
+      expect(a.samples.length).toBeGreaterThan(0);
+      expect(a.samples).toEqual(b.samples);
       await twice.source.stop();
       await once.source.stop();
     });

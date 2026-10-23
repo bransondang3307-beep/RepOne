@@ -53,7 +53,10 @@ export interface DeviceConnection {
   getState(): ConnectionState;
   /** Why the connection is `failed`; null in every other state. Set before `failed` is published. */
   getLastError(): ConnectionError | null;
-  /** Each state change is published once; no-op calls publish nothing. */
+  /**
+   * Each state change is published once, to every listener, in the order the changes happen; no-op calls publish
+   * nothing. A change made by a listener is published after the current one; getState() returns the latest.
+   */
   subscribeState(listener: (state: ConnectionState) => void): Unsubscribe;
   /**
    * Connect. Resolves at once when already connected; while connecting, returns the pending attempt. That

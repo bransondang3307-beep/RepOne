@@ -155,6 +155,15 @@ continuous streams.
     restart attempted from a failure listener is refused, and a start in flight never publishes `streaming` on a
     lost device.
 
+  Rules added in the owner-approved third fix round on PR #16:
+  - **Ordered delivery** (sources and devices). Every listener receives status and state changes in the order they
+    happen. A change made by a listener while another change is being delivered is published after that one has
+    reached every listener. `getStatus()` / `getState()` always return the latest value.
+  - **No overwriting a newer run.** An earlier `stop()` never overwrites a run started after it (e.g. by a `stopped`
+    listener); every async continuation is guarded by its run's generation.
+  - **Shared-suite coverage.** The sensor suite checks both rules for every source, and the device suite checks
+    ordered delivery.
+
   The shared suite `describeDeviceConnectionContract` tests all of this. It covers instant and delayed connects,
   idempotency, disconnect while streaming, disconnect during a pending connect, listener unsubscription, connection
   loss and recovery, and refused connects. A device's channels must also pass `describeSensorSourceContract`.

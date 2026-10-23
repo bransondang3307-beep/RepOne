@@ -76,6 +76,9 @@ export interface SensorSource {
   stop(): Promise<void>;
   /** Samples are delivered in non-decreasing timestamp order. */
   subscribe(listener: (sample: RawSensorSample) => void): Unsubscribe;
-  /** Each status change is published once; no-op calls publish nothing. */
+  /**
+   * Each status change is published once, to every listener, in the order the changes happen; no-op calls publish
+   * nothing. A change made by a listener is published after the current one; getStatus() returns the latest.
+   */
   subscribeStatus(listener: (status: SensorStatus) => void): Unsubscribe;
 }

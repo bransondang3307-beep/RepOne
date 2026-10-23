@@ -133,6 +133,48 @@ Negative controls (each defect re-introduced, then reverted):
 
 sensor-contracts tests: 75 → **79**.
 
+## Review round 3 (owner-approved third round, 2026-10-23, on `3288d5c`)
+After round 2, Codex found one more P1. I stopped and reported it, and the owner approved a third fix round. Because
+it was the third listener re-entrancy finding, this round also audits that whole class, not just the reported case.
+
+**The finding.**
+- **What Codex found** (`SimulatedDevice.ts:236`): an old `stop()` overwrote a channel that its own `stopped`
+  listener had restarted.
+- **Reproduced:** the new sensor-suite test 'stays streaming when a `stopped` listener restarts it' failed on the
+  device channel. It ended `stopped` with a live timer and no samples.
+- **Fix:** `stop()` takes its own generation and publishes `stopped` only if no newer run started meanwhile.
+
+**Found by the audit: listeners could see events out of order.**
+- **What was wrong:** status and state changes made by a listener were delivered *nested*. Later listeners therefore
+  saw events out of order, e.g. `streaming, streaming, stopped` for `stopped → streaming`.
+- **Reproduced with two new tests:** sensor suite, failing on the simulated, looping and replay sources; device suite,
+  failing on both harnesses.
+- **Fix:** `BaseSensorSource` and `SimulatedDevice` queue changes made during delivery, so every listener sees them
+  in order. `getStatus()` / `getState()` return the latest. The contract docs state this.
+
+**Audit of every async continuation in `SimulatedDevice`:**
+
+| Continuation | Guard |
+|---|---|
+| Channel `start()` | Generation check, plus a connection re-check (rounds 1–2) |
+| Channel `stop()` | Generation check (this round) |
+| `interrupt()` | Synchronous: bumps the generation, fails, releases the inner source |
+| `connect()` | Attempt installed before `connecting`; `disconnect()` waits for it (round 1) |
+| `disconnect()` | Re-checks `closing` and the state after awaiting a pending connect; installed before `disconnecting` (round 2) |
+| Loss | `dropping` refuses restarts until `failed` (round 2) |
+| Nested listener calls | Ordered delivery (this round) |
+
+**Negative controls** (each defect re-introduced, then reverted). Each fails its intended tests:
+
+| Defect re-introduced | Tests failing |
+|---|---|
+| `stop()` without its generation guard | 1 |
+| Sensor statuses delivered nested | 3 |
+| Device states delivered nested | 2 |
+
+`npm run verify` exits 0. Jest **143/143**: mobile 23, rep-engine 27, sensor-contracts **89** (was 79), workout-domain
+4. Script tests 62/62.
+
 ## Decisions / ADRs
 - ADR 0007 decisions 2 and 4 (Proposed), refined: one `SensorSource` per channel instead of multi-channel sources.
 

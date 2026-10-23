@@ -175,6 +175,29 @@ it was the third listener re-entrancy finding, this round also audits that whole
 `npm run verify` exits 0. Jest **143/143**: mobile 23, rep-engine 27, sensor-contracts **89** (was 79), workout-domain
 4. Script tests 62/62.
 
+## Final review round (owner-approved fourth round, 2026-10-23, on `343f519`)
+Codex's review of round 3 found one P1 and one P2. I reproduced both and stopped; the owner approved one final round.
+**Exit rule:** after this round, only new P0 or P1 findings come back to the owner; P2 or P3 findings become
+follow-up tasks.
+
+| Finding | Reproduced (before the fix) | Fix |
+|---|---|---|
+| **P1:** a reconnect requested from a channel's `error` listener during a connection loss was a no-op, and the device stayed `failed` (`SimulatedDevice.ts:85`) | New device-suite test fails on both harnesses | `connect()` waits while a loss is being published (`lossPublished`), then makes a real attempt. Same class: `disconnect()` in that window waits and is a no-op on the failed device (new test) |
+| **P2:** a listener that throws stopped delivery to later listeners and stranded queued changes (`BaseSensorSource.ts:70`, same in `SimulatedDevice.setState`) | New sensor-suite test fails on all 4 sources; new device-suite test fails on both harnesses. In the reproduction the second listener saw only `["streaming"]` | **Listener isolation** (`src/listeners.ts`). Every sample, status and state listener call is wrapped: a failure is reported with `console.error` and delivery continues, so the queue always drains. A listener's failure no longer fails `start()` / `stop()` / `connect()` |
+
+Negative controls (each defect re-introduced, then reverted). Each fails its intended tests:
+
+| Defect re-introduced | Tests failing |
+|---|---|
+| Status listener not isolated | 4 |
+| Sample listener not isolated | 4 |
+| Device-state listener not isolated | 2 |
+| Reconnect during loss not deferred | 2 |
+| Disconnect during loss not deferred | 2 |
+
+`npm run verify` exits 0. Jest **153/153**: mobile 23, rep-engine 27, sensor-contracts **99** (was 89), workout-domain
+4. Script tests 62/62.
+
 ## Decisions / ADRs
 - ADR 0007 decisions 2 and 4 (Proposed), refined: one `SensorSource` per channel instead of multi-channel sources.
 

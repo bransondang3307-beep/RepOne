@@ -160,6 +160,40 @@ export function describeSensorSourceContract(
       expect(seen).toEqual(['streaming', 'stopped', 'streaming', 'stopped']);
     });
 
+    it('keeps delivering to every listener when one throws, and reports the error instead of failing', async () => {
+      const { source, advance } = createHarness();
+      const reported = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      try {
+        let restarted = false;
+        source.subscribeStatus((s) => {
+          if (s === 'stopped' && !restarted) {
+            restarted = true;
+            void source.start();
+          }
+          throw new Error('status listener failure');
+        });
+        const seen: SensorStatus[] = [];
+        source.subscribeStatus((s) => seen.push(s));
+        source.subscribe(() => {
+          throw new Error('sample listener failure');
+        });
+        const samples: RawSensorSample[] = [];
+        source.subscribe((s) => samples.push(s));
+
+        await source.start(); // a listener's failure is not the source's failure
+        advance(500);
+        expect(samples.length).toBeGreaterThan(0);
+        await source.stop();
+        await Promise.resolve();
+        expect(seen).toEqual(['streaming', 'stopped', 'streaming']);
+        expect(source.getStatus()).toBe('streaming');
+        expect(reported).toHaveBeenCalled();
+        await source.stop();
+      } finally {
+        reported.mockRestore();
+      }
+    });
+
     it('treats stop() as a no-op unless streaming', async () => {
       const { source, advance } = createHarness();
       const { statuses } = record(source);

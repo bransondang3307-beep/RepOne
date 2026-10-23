@@ -178,6 +178,16 @@ continuous streams.
   - **Shared-suite coverage.** The sensor suite checks both rules for every source, and the device suite checks
     ordered delivery.
 
+  Rules added in the owner-approved final fix round on PR #16:
+  - **Listener isolation** (sample, status and state listeners). A listener that throws is reported (`console.error`)
+    and skipped. The other listeners still receive every event, queued changes are always delivered, and a listener's
+    failure never fails the source's `start()` / `stop()` or the device's `connect()`.
+  - **Calls during a loss.** A `connect()` requested while a connection loss is being published waits until `failed`
+    is published, then makes a real attempt. A `disconnect()` requested then waits and is a no-op on the failed
+    device.
+  - **Exit rule** (owner, 2026-10-23). After this round, only new P0 or P1 review findings are brought back; P2 or
+    P3 findings become follow-up tasks.
+
   The shared suite `describeDeviceConnectionContract` tests all of this. It covers instant and delayed connects,
   idempotency, disconnect while streaming, disconnect during a pending connect, listener unsubscription, connection
   loss and recovery, and refused connects. A device's channels must also pass `describeSensorSourceContract`.

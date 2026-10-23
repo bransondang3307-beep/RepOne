@@ -148,6 +148,13 @@ continuous streams.
   - **Nothing after the end.** A stopped or failed channel, or source, delivers nothing more, even when the stop or
     failure is triggered from inside a sample listener mid-batch. The sensor suite tests this for every source.
 
+  Rules added after Codex's second review of PR #16:
+  - **Disconnect first.** The disconnect exists before `disconnecting` is published, so a `connect()` called from a
+    state listener waits for it.
+  - **Link gone means not connected.** From the moment the link drops, the device counts as not connected. A channel
+    restart attempted from a failure listener is refused, and a start in flight never publishes `streaming` on a
+    lost device.
+
   The shared suite `describeDeviceConnectionContract` tests all of this. It covers instant and delayed connects,
   idempotency, disconnect while streaming, disconnect during a pending connect, listener unsubscription, connection
   loss and recovery, and refused connects. A device's channels must also pass `describeSensorSourceContract`.

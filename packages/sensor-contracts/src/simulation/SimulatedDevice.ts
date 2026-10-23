@@ -46,6 +46,8 @@ export class SimulatedDevice implements DeviceConnection {
   private lastError: ConnectionError | null = null;
   private pending: Promise<void> | null = null;
   private closing: Promise<void> | null = null;
+  /** True while a connection loss is being published: the link is already gone, though not yet `failed`. */
+  private dropping = false;
   private attempts = 0;
 
   constructor(private readonly options: SimulatedDeviceOptions) {
@@ -55,7 +57,8 @@ export class SimulatedDevice implements DeviceConnection {
     this.deviceId = options.deviceId;
     this.scheduler = options.scheduler ?? systemScheduler;
     this.channels = options.channels.map(
-      (spec) => new SimulatedDeviceChannel(spec, this.scheduler, options.tickMs, () => this.state === 'connected'),
+      (spec) =>
+        new SimulatedDeviceChannel(spec, this.scheduler, options.tickMs, () => this.state === 'connected' && !this.dropping),
     );
   }
 
@@ -113,19 +116,28 @@ export class SimulatedDevice implements DeviceConnection {
     if (this.pending) await this.pending.catch(() => undefined);
     if (this.closing) return this.closing;
     if (this.state !== 'connected') return;
-    this.setState('disconnecting');
-    this.closing = Promise.all(this.channels.map((c) => c.stop())).then(() => {
+    // Install the disconnect before publishing `disconnecting`, so a listener's connect() waits for it.
+    const closing = Promise.resolve().then(async () => {
+      await Promise.all(this.channels.map((c) => c.stop()));
       this.closing = null;
       this.setState('disconnected');
     });
-    return this.closing;
+    this.closing = closing;
+    this.setState('disconnecting');
+    return closing;
   }
 
   /** Drop the link (test and demo hook): every streaming channel fails, then the device is `failed`. */
   simulateConnectionLoss(message = 'Simulated connection loss'): void {
-    if (this.state !== 'connected') return;
-    for (const channel of this.channels) channel.interrupt({ code: 'connection_lost', message });
-    this.fail({ code: 'connection_lost', message });
+    if (this.state !== 'connected' || this.dropping) return;
+    // From here on the link is gone: a channel restart attempted from a failure listener is refused.
+    this.dropping = true;
+    try {
+      for (const channel of this.channels) channel.interrupt({ code: 'connection_lost', message });
+      this.fail({ code: 'connection_lost', message });
+    } finally {
+      this.dropping = false;
+    }
   }
 
   private finishConnect(): void {
@@ -198,6 +210,13 @@ class SimulatedDeviceChannel extends BaseSensorSource {
       () => {
         this.starting = null;
         if (generation !== this.generation) return overtaken();
+        if (!this.isConnected()) {
+          // The link went away while this start was in flight: never publish `streaming` on a lost device.
+          void this.inner.stop();
+          const error: SensorError = { code: 'connection_lost', message: 'The device connection was lost while starting' };
+          this.fail(error);
+          throw new SensorStartError(error);
+        }
         this.setStatus('streaming');
       },
       (error: unknown) => {

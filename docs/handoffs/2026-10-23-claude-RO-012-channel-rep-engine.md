@@ -6,8 +6,8 @@
 | **Date** | 2026-10-23 |
 | **Task** | RO-012 (`TASKS.md`), Milestone 2, part 2 of 4 |
 | **Branch** | `claude/RO-012-channel-rep-engine`, **stacked on part 1** (`claude/RO-012-sensor-error-states`, PR #14) |
-| **Commits** | see the PR's commit list |
-| **Pull request** | opened against the part 1 branch (link recorded in a follow-up commit) |
+| **Commits** | `62ca9e0` RO-012: per-channel rep engine (MultiChannelRepDetector) with channel-independence tests (part 2) · then a commit recording the PR link |
+| **Pull request** | [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15), stacked: it targets `claude/RO-012-sensor-error-states` until PR #14 merges |
 | **Status** | implemented; verified locally; awaiting Codex review. Merge after PR #14 |
 
 ## Objective

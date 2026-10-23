@@ -5,7 +5,7 @@
   - Decision 1 is implemented by RO-012 part 1 (PR #14).
   - Decision 3, and decision 2 as the rep engine uses it, are implemented by part 2.
   - Decision 4's contract and simulated device, and decision 2's channel exposure, are implemented by part 3.
-  - Decision 4's app integration is the plan for part 4 and may be refined there.
+  - Decision 4's app integration is implemented by part 4. The owner's Expo Go check is pending.
   - The owner accepts it by merging; contract changes also need Codex review (`docs/architecture.md` §6).
 - **Extends:** [ADR 0002](0002-sensor-contract-and-rep-detector.md) (`SensorSource`) and
   [ADR 0003](0003-full-spec-module-layout.md) ("Module G and multi-channel contracts are added in Milestone 2").
@@ -125,7 +125,7 @@ continuous streams.
 - **Persistence deferred.** Storing the channel on `rep_events` is a schema change, left to Milestone 3. Until then
   the app records one channel per session.
 
-## Decision 4 — Device connection and simulated device (contract implemented in RO-012 part 3; app integration in part 4)
+## Decision 4 — Device connection and simulated device (implemented: contract in RO-012 part 3, app in part 4)
 
 - **Contract** (`src/device.ts`): `DeviceConnection` covers the following.
   - **Identity.** `deviceId` is a stable identifier, never a display or product name. `transport` is `simulated`,
@@ -150,11 +150,17 @@ continuous streams.
 - **No real transports.** No native BLE or serial dependency is added in Milestone 2. Real transports come later, as
   `apps/mobile/src/infrastructure/<transport>/` adapters that pass both suites.
 - **App integration** (part 4):
-  - the composition root obtains the session's sensor from a device connection;
-  - a `features/device-connection` view shows the connection state;
-  - losing the connection mid-set ends it as in Decision 1.
-
-  The owner checks this in Expo Go.
+  - **Composition root.** `AppContainer.device` is a single-IMU `SimulatedDevice` (`simulated-device-01`, channel
+    `simulated-imu-01`). `getSessionSensor()` connects it if needed and returns its channel's source, so starting a set
+    connects automatically: the flow keeps one tap.
+  - **`features/device-connection`.** A store and hook mirror the device's state and reason. `DeviceConnectionPanel`
+    on the home screen shows the transport, the state and any failure reason, with Connect / Disconnect / Reconnect.
+    It is locked while a set records or saves.
+  - **Losing the connection mid-set** ends the set in `error` with the samples saved so far (Decision 1). The panel
+    shows `failed` with the reason, and the next set reconnects.
+  - **Not included: a "simulate connection loss" control in the app.** It awaits the owner's decision, so on the
+    phone the failure path is covered by tests only.
+  - The owner checks the rest in Expo Go.
 - **Discovery and pairing UI** are out of scope until a real transport exists.
 
 ## Out of scope for Milestone 2

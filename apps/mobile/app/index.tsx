@@ -1,6 +1,7 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { DeviceConnectionPanel } from '../src/features/device-connection';
 import { RepCounter, useLiveSession } from '../src/features/rep-tracking';
 import { PrimaryButton, ProvenanceBadge, colors, spacing } from '../src/shared';
 
@@ -32,6 +33,7 @@ export default function WorkoutScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <DeviceConnectionPanel locked={recording || busy} />
       <View style={styles.card}>
         <View style={styles.row}>
           <Text style={styles.status}>{STATUS_TEXT[session.status]}</Text>

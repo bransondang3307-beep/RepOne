@@ -49,6 +49,8 @@ export class SimulatedDevice implements DeviceConnection {
   /** True while a connection loss is being published: the link is already gone, though not yet `failed`. */
   private dropping = false;
   private attempts = 0;
+  private readonly unpublished: ConnectionState[] = [];
+  private publishing = false;
 
   constructor(private readonly options: SimulatedDeviceOptions) {
     if (options.channels.length === 0) throw new Error('A simulated device needs at least one channel');
@@ -156,11 +158,21 @@ export class SimulatedDevice implements DeviceConnection {
     this.setState('failed');
   }
 
+  /** Delivered to every listener in order; a change made by a listener is published after the current one. */
   private setState(state: ConnectionState): void {
     if (state === this.state) return;
     if (state !== 'failed') this.lastError = null;
     this.state = state;
-    for (const listener of this.listeners) listener(state);
+    this.unpublished.push(state);
+    if (this.publishing) return;
+    this.publishing = true;
+    try {
+      for (let next = this.unpublished.shift(); next !== undefined; next = this.unpublished.shift()) {
+        for (const listener of this.listeners) listener(next);
+      }
+    } finally {
+      this.publishing = false;
+    }
   }
 }
 
@@ -231,9 +243,10 @@ class SimulatedDeviceChannel extends BaseSensorSource {
   }
 
   async stop(): Promise<void> {
-    this.generation += 1;
+    const generation = ++this.generation;
     await this.inner.stop();
-    if (this.getStatus() === 'streaming') this.setStatus('stopped');
+    // A start() made meanwhile (e.g. by a `stopped` listener) owns the channel now: never overwrite that newer run.
+    if (generation === this.generation && this.getStatus() === 'streaming') this.setStatus('stopped');
   }
 
   /** The device lost its link: fail with its reason if streaming or starting. */

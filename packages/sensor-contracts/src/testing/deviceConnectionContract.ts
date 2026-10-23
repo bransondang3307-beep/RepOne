@@ -178,6 +178,19 @@ export function describeDeviceConnectionContract(
       await harness.device.disconnect();
     });
 
+    it('delivers state changes to every listener in order, even when a listener changes the state', async () => {
+      const harness = createHarness();
+      let disconnecting: Promise<void> | null = null;
+      harness.device.subscribeState((s) => {
+        if (s === 'connected' && disconnecting === null) disconnecting = harness.device.disconnect();
+      });
+      const seen = recordStates(harness.device);
+      await connect(harness);
+      await disconnecting;
+      expect(seen).toEqual(['connecting', 'connected', 'disconnecting', 'disconnected']);
+      expect(harness.device.getState()).toBe('disconnected');
+    });
+
     it('stops notifying unsubscribed state listeners', async () => {
       const harness = createHarness();
       const removed = jest.fn();

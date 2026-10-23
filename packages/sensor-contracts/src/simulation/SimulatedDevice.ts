@@ -1,5 +1,6 @@
 import { systemScheduler, type Scheduler, type Unsubscribe } from '../common';
 import { BaseSensorSource } from '../BaseSensorSource';
+import { deliver } from '../listeners';
 import {
   DeviceConnectError,
   type ConnectionError,
@@ -48,6 +49,8 @@ export class SimulatedDevice implements DeviceConnection {
   private closing: Promise<void> | null = null;
   /** True while a connection loss is being published: the link is already gone, though not yet `failed`. */
   private dropping = false;
+  /** Settles once a connection loss has been fully published; connect()/disconnect() made meanwhile wait for it. */
+  private lossPublished: Promise<void> | null = null;
   private attempts = 0;
   private readonly unpublished: ConnectionState[] = [];
   private publishing = false;
@@ -82,6 +85,8 @@ export class SimulatedDevice implements DeviceConnection {
   }
 
   connect(): Promise<void> {
+    // During a loss the device still reads `connected` until `failed` is published: wait, then really attempt.
+    if (this.lossPublished) return this.lossPublished.then(() => this.connect());
     if (this.state === 'connected') return Promise.resolve();
     if (this.pending) return this.pending;
     if (this.closing) return this.closing.then(() => this.connect());
@@ -115,6 +120,7 @@ export class SimulatedDevice implements DeviceConnection {
   }
 
   async disconnect(): Promise<void> {
+    if (this.lossPublished) await this.lossPublished;
     if (this.pending) await this.pending.catch(() => undefined);
     if (this.closing) return this.closing;
     if (this.state !== 'connected') return;
@@ -132,13 +138,20 @@ export class SimulatedDevice implements DeviceConnection {
   /** Drop the link (test and demo hook): every streaming channel fails, then the device is `failed`. */
   simulateConnectionLoss(message = 'Simulated connection loss'): void {
     if (this.state !== 'connected' || this.dropping) return;
-    // From here on the link is gone: a channel restart attempted from a failure listener is refused.
+    // From here on the link is gone: a channel restart attempted from a failure listener is refused, and a
+    // connect() or disconnect() requested meanwhile waits until `failed` has been published.
+    let published!: () => void;
+    this.lossPublished = new Promise<void>((resolve) => {
+      published = resolve;
+    });
     this.dropping = true;
     try {
       for (const channel of this.channels) channel.interrupt({ code: 'connection_lost', message });
       this.fail({ code: 'connection_lost', message });
     } finally {
       this.dropping = false;
+      this.lossPublished = null;
+      published();
     }
   }
 
@@ -158,7 +171,10 @@ export class SimulatedDevice implements DeviceConnection {
     this.setState('failed');
   }
 
-  /** Delivered to every listener in order; a change made by a listener is published after the current one. */
+  /**
+   * Delivered to every listener in order; a change made by a listener is published after the current one. A
+   * listener that throws is reported and skipped: the others still get every change.
+   */
   private setState(state: ConnectionState): void {
     if (state === this.state) return;
     if (state !== 'failed') this.lastError = null;
@@ -168,7 +184,7 @@ export class SimulatedDevice implements DeviceConnection {
     this.publishing = true;
     try {
       for (let next = this.unpublished.shift(); next !== undefined; next = this.unpublished.shift()) {
-        for (const listener of this.listeners) listener(next);
+        for (const listener of this.listeners) deliver(() => listener(next));
       }
     } finally {
       this.publishing = false;

@@ -191,6 +191,23 @@ export function describeDeviceConnectionContract(
       expect(harness.device.getState()).toBe('disconnected');
     });
 
+    it('keeps delivering state changes to every listener when one throws, and reports the error', async () => {
+      const harness = createHarness();
+      const reported = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      try {
+        harness.device.subscribeState(() => {
+          throw new Error('state listener failure');
+        });
+        const seen = recordStates(harness.device);
+        await connect(harness); // a listener's failure is not the device's failure
+        await harness.device.disconnect();
+        expect(seen).toEqual(['connecting', 'connected', 'disconnecting', 'disconnected']);
+        expect(reported).toHaveBeenCalled();
+      } finally {
+        reported.mockRestore();
+      }
+    });
+
     it('stops notifying unsubscribed state listeners', async () => {
       const harness = createHarness();
       const removed = jest.fn();
@@ -280,6 +297,44 @@ export function describeDeviceConnectionContract(
         expect(samples).toHaveLength(count);
         expect(channel!.source.getStatus()).toBe('error');
         expect(harness.device.getState()).toBe('failed');
+      });
+
+      it('makes a real reconnect attempt when one is requested from a channel `error` listener during the loss', async () => {
+        const harness = createHarness();
+        await connect(harness);
+        const [channel] = harness.device.getChannels();
+        await channel!.source.start();
+        harness.advance(200);
+        let reconnecting: Promise<void> | null = null;
+        channel!.source.subscribeStatus((s) => {
+          if (s === 'error' && reconnecting === null) reconnecting = harness.device.connect();
+        });
+        const states = recordStates(harness.device);
+
+        harness.loseConnection!();
+        for (let i = 0; i < 10; i++) await Promise.resolve(); // let the deferred attempt begin
+        harness.advance(connectTimeMs);
+        await reconnecting;
+        expect(states).toEqual(['failed', 'connecting', 'connected']);
+        expect(harness.device.getState()).toBe('connected');
+        await harness.device.disconnect();
+      });
+
+      it('treats a disconnect() requested from a channel `error` listener during the loss as a no-op on the failed device', async () => {
+        const harness = createHarness();
+        await connect(harness);
+        const [channel] = harness.device.getChannels();
+        await channel!.source.start();
+        harness.advance(200);
+        let disconnecting: Promise<void> | null = null;
+        channel!.source.subscribeStatus((s) => {
+          if (s === 'error' && disconnecting === null) disconnecting = harness.device.disconnect();
+        });
+        const states = recordStates(harness.device);
+        harness.loseConnection!();
+        await disconnecting;
+        expect(states).toEqual(['failed']);
+        expect(harness.device.getLastError()?.code).toBe('connection_lost');
       });
 
       it('fails a channel whose start() is still pending when the connection is lost', async () => {

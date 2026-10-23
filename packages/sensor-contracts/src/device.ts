@@ -56,8 +56,9 @@ export interface DeviceConnection {
   /** Each state change is published once; no-op calls publish nothing. */
   subscribeState(listener: (state: ConnectionState) => void): Unsubscribe;
   /**
-   * Connect. Resolves at once when already connected; while connecting, returns the pending attempt.
-   * Rejects with a `DeviceConnectError` if the attempt fails; the state is then `failed`.
+   * Connect. Resolves at once when already connected; while connecting, returns the pending attempt. That
+   * attempt exists before `connecting` is published, so connect()/disconnect() called from a state listener see
+   * it. Rejects with a `DeviceConnectError` if the attempt fails; the state is then `failed`.
    */
   connect(): Promise<void>;
   /**
@@ -67,7 +68,9 @@ export interface DeviceConnection {
   disconnect(): Promise<void>;
   /**
    * The channels while `connected`; empty otherwise. A channel's source cannot start unless the device is
-   * connected (`SensorStartError`, code `start_failed`), and fails with `connection_lost` if the link drops.
+   * connected (`SensorStartError`, code `start_failed`). If the link drops, every streaming channel, and every
+   * channel whose start() is still pending (that start() rejects), fails with `connection_lost` before the device
+   * publishes `failed`. A failed or stopped channel delivers nothing more, even mid-batch.
    */
   getChannels(): readonly DeviceChannel[];
 }

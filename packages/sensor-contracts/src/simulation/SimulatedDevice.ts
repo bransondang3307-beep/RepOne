@@ -81,29 +81,31 @@ export class SimulatedDevice implements DeviceConnection {
     if (this.pending) return this.pending;
     if (this.closing) return this.closing.then(() => this.connect());
     this.attempts += 1;
+    let settle!: { resolve: () => void; reject: (error: unknown) => void };
+    const pending = new Promise<void>((resolve, reject) => {
+      settle = { resolve, reject };
+    });
+    const finish = () => {
+      this.pending = null;
+      try {
+        this.finishConnect();
+        settle.resolve();
+      } catch (error) {
+        settle.reject(error);
+      }
+    };
+    // Install the attempt before publishing `connecting`, so a listener's connect()/disconnect() sees and waits for it.
+    this.pending = pending;
     this.setState('connecting');
     const delayMs = this.options.connectDelayMs ?? 0;
     if (delayMs <= 0) {
-      try {
-        this.finishConnect();
-        return Promise.resolve();
-      } catch (error) {
-        return Promise.reject(error);
-      }
-    }
-    const pending = new Promise<void>((resolve, reject) => {
+      finish();
+    } else {
       const handle = this.scheduler.setInterval(() => {
         this.scheduler.clearInterval(handle);
-        this.pending = null;
-        try {
-          this.finishConnect();
-          resolve();
-        } catch (error) {
-          reject(error);
-        }
+        finish();
       }, delayMs);
-    });
-    this.pending = pending;
+    }
     return pending;
   }
 
@@ -154,6 +156,9 @@ export class SimulatedDevice implements DeviceConnection {
 class SimulatedDeviceChannel extends BaseSensorSource {
   readonly channel: DeviceChannel;
   private readonly inner: SimulatedSensorSource;
+  private starting: Promise<void> | null = null;
+  /** Bumped by stop() and interrupt() so a start still in flight knows it was overtaken. */
+  private generation = 0;
 
   constructor(
     spec: SimulatedChannelSpec,
@@ -163,7 +168,10 @@ class SimulatedDeviceChannel extends BaseSensorSource {
   ) {
     super(spec.simulation.sourceId, 'simulated', 'simulated');
     this.inner = new SimulatedSensorSource({ script: spec.script, simulation: spec.simulation, scheduler, tickMs, fault: spec.fault });
-    this.inner.subscribe((sample) => this.emit(sample));
+    // Only a streaming channel forwards samples: nothing reaches listeners after a stop or a failure.
+    this.inner.subscribe((sample) => {
+      if (this.getStatus() === 'streaming') this.emit(sample);
+    });
     this.inner.subscribeStatus((status) => {
       if (this.getStatus() !== 'streaming') return;
       if (status === 'stopped') this.setStatus('stopped');
@@ -172,31 +180,47 @@ class SimulatedDeviceChannel extends BaseSensorSource {
     this.channel = { source_id: this.id, source: this };
   }
 
-  async start(): Promise<void> {
-    if (this.getStatus() === 'streaming') return;
+  start(): Promise<void> {
+    if (this.getStatus() === 'streaming') return Promise.resolve();
+    if (this.starting) return this.starting;
     if (!this.isConnected()) {
       const error: SensorError = { code: 'start_failed', message: 'The device is not connected' };
       this.fail(error);
-      throw new SensorStartError(error);
+      return Promise.reject(new SensorStartError(error));
     }
-    try {
-      await this.inner.start();
-    } catch (error) {
-      const reason = (error as SensorStartError).sensorError ?? { code: 'start_failed', message: String(error) };
-      this.fail(reason);
-      throw new SensorStartError(reason);
-    }
-    this.setStatus('streaming');
+    const generation = ++this.generation;
+    const overtaken = () => {
+      // A connection loss failed this start (reject); a stop() cancelled it (resolve, stay stopped).
+      const error = this.getLastError();
+      if (this.getStatus() === 'error' && error) throw new SensorStartError(error);
+    };
+    this.starting = this.inner.start().then(
+      () => {
+        this.starting = null;
+        if (generation !== this.generation) return overtaken();
+        this.setStatus('streaming');
+      },
+      (error: unknown) => {
+        this.starting = null;
+        if (generation !== this.generation) return overtaken();
+        const reason = (error as SensorStartError).sensorError ?? { code: 'start_failed', message: String(error) };
+        this.fail(reason);
+        throw new SensorStartError(reason);
+      },
+    );
+    return this.starting;
   }
 
   async stop(): Promise<void> {
+    this.generation += 1;
     await this.inner.stop();
     if (this.getStatus() === 'streaming') this.setStatus('stopped');
   }
 
-  /** The device lost its link: fail with its reason if streaming. */
+  /** The device lost its link: fail with its reason if streaming or starting. */
   interrupt(error: SensorError): void {
-    if (this.getStatus() !== 'streaming') return;
+    if (this.getStatus() !== 'streaming' && this.starting === null) return;
+    this.generation += 1;
     this.fail(error);
     void this.inner.stop();
   }

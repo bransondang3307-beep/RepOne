@@ -108,6 +108,19 @@ export function describeSensorSourceContract(
       await once.source.stop();
     });
 
+    it('delivers nothing more once stop() is called from inside a sample listener', async () => {
+      const { source, advance } = createHarness();
+      let received = 0;
+      source.subscribe(() => {
+        received += 1;
+        if (received === 1) void source.stop();
+      });
+      await source.start();
+      advance(1000);
+      expect(received).toBe(1);
+      expect(source.getStatus()).toBe('stopped');
+    });
+
     it('treats stop() as a no-op unless streaming', async () => {
       const { source, advance } = createHarness();
       const { statuses } = record(source);

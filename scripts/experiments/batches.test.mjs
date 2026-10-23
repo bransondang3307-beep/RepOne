@@ -18,6 +18,22 @@ test('splits items into batches of the given size, in order', () => {
   ]);
 });
 
+// Codex P1 on PR #18 (5a5fa13): trailing items were dropped whenever the length was not a multiple of `size`.
+test('keeps the final partial batch: every item appears exactly once', () => {
+  assert.deepEqual(splitIntoBatches([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+  assert.deepEqual(splitIntoBatches([1, 2, 3], 2), [[1, 2], [3]]);
+  // A size larger than a non-empty input gives one short batch, not none.
+  assert.deepEqual(splitIntoBatches([1, 2], 3), [[1, 2]]);
+  for (let length = 0; length <= 12; length += 1) {
+    const items = Array.from({ length }, (_, i) => i);
+    for (let size = 1; size <= 7; size += 1) {
+      const batches = splitIntoBatches(items, size);
+      assert.deepEqual(batches.flat(), items, `length ${length}, size ${size}`);
+      assert.ok(batches.every((batch, i) => batch.length === size || (i === batches.length - 1 && batch.length > 0)));
+    }
+  }
+});
+
 test('one batch when the size equals the number of items', () => {
   assert.deepEqual(splitIntoBatches([1, 2, 3], 3), [[1, 2, 3]]);
 });

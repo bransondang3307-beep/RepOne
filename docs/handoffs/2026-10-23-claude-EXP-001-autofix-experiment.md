@@ -6,9 +6,9 @@
 | **Date** | 2026-10-23 |
 | **Task** | EXP-001, a disposable experiment authorised by the owner on 2026-10-23. It has no `TASKS.md` row, on purpose: the PR is never merged, so nothing in the task list should change |
 | **Branch** | `claude/EXP-001-autofix-experiment` (base: `main` @ `9b8b81a`) |
-| **Commits** | see the PR; this file records each round |
+| **Commits** | `5a5fa13` helper (with the seeded defect), baseline tests and handoff · then the round-1 fix commit, which also updates this file (its SHA is in the PR) |
 | **Pull request** | the "DO NOT MERGE — Auto-fix experiment" PR on this branch |
-| **Status** | implemented · baseline verified · experiment running |
+| **Status** | **trigger confirmed**: the Codex finding woke the session by itself. Round 1 is fixed with a regression test, and a re-review is requested |
 
 ## Objective
 Find out whether a **Codex review comment on its own** wakes a Claude Code cloud session that has **Auto-fix**
@@ -23,9 +23,9 @@ The owner authorised this only as an experiment.
 
 ## What changed
 - **`scripts/experiments/batches.mjs`** (new): `splitIntoBatches(items, size)`, a tiny stand-alone helper.
-  - **It contains one deliberate correctness defect, seeded for this experiment.**
-  - The defect is not described here, in the code or in the PR, so that Codex's review is blind. The owner has the
-    details in the session report.
+  - At `5a5fa13` it contained **one deliberate correctness defect**, seeded for this experiment and not described
+    anywhere, so that Codex's review was blind.
+  - The defect was dropping the final partial batch. Codex found it, and round 1 fixed it (log below).
 - **`scripts/experiments/batches.test.mjs`** (new): baseline tests for the helper. They pass.
 - **`package.json`:** `test:scripts` also runs the new test file, so CI (Linux and Windows) exercises the helper.
 
@@ -43,8 +43,12 @@ The helper is **disconnected from the application.**
 ## Tests and checks (exact results)
 | Command | Result |
 |---|---|
-| `node --test scripts/experiments/batches.test.mjs` | 6/6 pass |
-| `npm run verify` (Linux, Node 22.22.0) | recorded in the PR body for each head |
+| `node --test scripts/experiments/batches.test.mjs` at `5a5fa13` | 6/6 pass (the baseline tests do not exercise the defect) |
+| New regression test, against the unfixed helper (negative control) | **fails** as intended: 6 pass, 1 fail (`keeps the final partial batch`) |
+| `node --test scripts/experiments/batches.test.mjs` after the fix | 7/7 pass |
+| `npm run verify` (Linux, Node 22.22.0) at `5a5fa13` | exit 0; scripts 68/68; Jest 48/48 |
+| CI at `5a5fa13` (baseline) | run 39906276040 success |
+| `npm run verify` (Linux, Node 22.22.0) with the fix | exit 0. Boundaries OK; workflow policy OK; typecheck OK; scripts **69/69**; Jest 48/48 (mobile 15, rep-engine 16, sensor-contracts 13, workout-domain 4) |
 
 ## Experiment protocol
 1. Open the PR as a **draft**, so Codex's automatic review on open does not start before CI.
@@ -72,4 +76,28 @@ The helper is **disconnected from the application.**
 - none
 
 ## Experiment log
-_(Filled in as the experiment runs.)_
+Times are UTC on 2026-10-23. "Session" is the Claude Code cloud session that opened the PR.
+
+| Time | Event |
+|---|---|
+| 05:31:55 | Draft PR #18 opened at head `5a5fa13` |
+| ~05:32 | Session subscribed to PR #18 activity (Auto-fix on for this PR only) |
+| 05:32:11 | **Deviation:** Codex began a review before CI finished. The PR description quoted the review command in backticks, and Codex counted that as a "Manual request" even on a draft. The mention was then removed |
+| 05:33:16 | Codex posted review `5624318298` with one inline finding, `4356457805`: **[P1] "Include the final partial batch"** at `scripts/experiments/batches.mjs:20`. It correctly identified the seeded defect and suggested `start < items.length` plus regression tests |
+| 05:33:20 | GitHub queued `pull_request_review.submitted` and `pull_request_review_comment.created` events (author `chatgpt-codex-connector[bot]`) to the session |
+| 05:33:24 | **The idle session woke on those events, with no human message.** The latency from the review being posted was about 8 s |
+| 05:34:23 | **Baseline CI passed on `5a5fa13`** (run 39906276040: Boundaries, typecheck and tests: success; Windows — boundary checker and its tests: success; Handoff file present: success), before any fix was pushed |
+| 05:33–05:36 | The session checked the finding against GitHub (it is real, on `5a5fa13`) and reproduced it (`[1,2,3]`, size 2 → `[[1,2]]`; `[1,2]`, size 3 → `[]`). It added a regression test that fails without the fix, made the one-line fix, and ran verify |
+
+**Result: triggered.** A Codex bot review comment, on its own, woke the Auto-fix-subscribed session.
+
+**Round 1 fix:**
+- `start + size <= items.length` → `start < items.length`.
+- The regression test covers both of Codex's examples, plus an exhaustive check over lengths 0–12 and sizes 1–7 that
+  every item appears exactly once and only the last batch is short.
+
+**Notes:**
+- The finding's text cites "reviewed commit `8a03b9e…`". No commit with that SHA exists in the repository; it is
+  probably Codex's internal checkout. GitHub's review metadata and the receipt both name `5a5fa13`.
+- Because the review started at PR open, the planned review request after CI was not needed for `5a5fa13`. It is
+  used for the fix head instead.

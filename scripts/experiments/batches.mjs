@@ -17,7 +17,7 @@ export function splitIntoBatches(items, size) {
     throw new RangeError(`size must be a positive integer, got ${size}`);
   }
   const batches = [];
-  for (let start = 0; start + size <= items.length; start += size) {
+  for (let start = 0; start < items.length; start += size) {
     batches.push(items.slice(start, start + size));
   }
   return batches;

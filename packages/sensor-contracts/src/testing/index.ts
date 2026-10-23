@@ -6,3 +6,8 @@ export {
   type SensorSourceContractOptions,
   type SensorSourceHarness,
 } from './sensorSourceContract';
+export {
+  describeDeviceConnectionContract,
+  type DeviceConnectionContractOptions,
+  type DeviceConnectionHarness,
+} from './deviceConnectionContract';

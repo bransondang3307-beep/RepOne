@@ -4,7 +4,8 @@
 - **Status:** Proposed.
   - Decision 1 is implemented by RO-012 part 1 (PR #14).
   - Decision 3, and decision 2 as the rep engine uses it, are implemented by part 2.
-  - Decision 4, and decision 2's wording on `SensorSource`, are the plan for parts 3–4 and may be refined there.
+  - Decision 4's contract and simulated device, and decision 2's channel exposure, are implemented by part 3.
+  - Decision 4's app integration is the plan for part 4 and may be refined there.
   - The owner accepts it by merging; contract changes also need Codex review (`docs/architecture.md` §6).
 - **Extends:** [ADR 0002](0002-sensor-contract-and-rep-detector.md) (`SensorSource`) and
   [ADR 0003](0003-full-spec-module-layout.md) ("Module G and multi-channel contracts are added in Milestone 2").
@@ -90,17 +91,19 @@ continuous streams.
    **No schema change:** the session row does not record why it ended. An end-reason column belongs with the
    Milestone 3 persistence work (RO-013).
 
-## Decision 2 — Channels (proposed; used by the rep engine since RO-012 part 2)
+## Decision 2 — Channels (implemented across RO-012 parts 2–3)
 
 `docs/hardware-protocol.md` §4 leaves open question 3: `source_id` per sensor, or a channel index?
 
 - **Identity.** One channel = one physical IMU, identified by the existing `source_id` field, which is already "stable
   per physical sensor" and stored on every raw-sample row. There is **no new sample field and no schema change** for
   raw samples.
-- **Multiple channels per source.** A `SensorSource` (or a connected device, Decision 4) may deliver several
-  channels.
-- **Ordering.** `timestamp_ms` is non-decreasing **per `source_id`**. Different IMUs have independent clocks, so there
-  is no ordering guarantee across channels. Every single-channel source already satisfies this.
+- **One source per channel.** A device with several IMUs exposes **one `SensorSource` per channel** (Decision 4).
+  This refines the earlier plan of letting one source carry several channels. Each source stays single-channel, so:
+  - the existing guarantee (`timestamp_ms` non-decreasing per source) is unchanged, and `SensorSource` needs no
+    change;
+  - there is no ordering across channels, since different IMUs have independent clocks;
+  - a consumer that combines channels routes samples by `source_id`, as the part 2 wrapper does.
 - **Channel independence.** A gap, failure or noise on one channel must not affect another channel's samples or
   reps. Tests assert this.
 
@@ -122,18 +125,28 @@ continuous streams.
 - **Persistence deferred.** Storing the channel on `rep_events` is a schema change, left to Milestone 3. Until then
   the app records one channel per session.
 
-## Decision 4 — Device connection and simulated device (proposed, RO-012 parts 3–4)
+## Decision 4 — Device connection and simulated device (contract implemented in RO-012 part 3; app integration in part 4)
 
-- **Contract.** A `DeviceConnection` contract in `@repone/sensor-contracts` covers:
-  - device identity and transport (`simulated`, `usb_serial`, `ble`);
-  - a connection state (`disconnected → connecting → connected → disconnecting`, plus a failed state with a coded
-    reason, modelled on Decision 1);
-  - `connect()` and `disconnect()`, idempotent like `start()` and `stop()`;
-  - while connected, one `SensorSource` per channel.
+- **Contract** (`src/device.ts`): `DeviceConnection` covers the following.
+  - **Identity.** `deviceId` is a stable identifier, never a display or product name. `transport` is `simulated`,
+    `usb_serial` or `ble`.
+  - **State.** `ConnectionState` runs `disconnected → connecting → connected → disconnecting`, plus `failed`.
+  - **Reason.** `getLastError()` returns a `ConnectionError` with code `unavailable`, `timeout`, `connection_lost` or
+    `unknown`. The reason is set before `failed` is published.
+  - **`connect()`.** It is idempotent: while connecting it returns the pending attempt. On failure it rejects with
+    `DeviceConnectError` and the state becomes `failed`; `connect()` is also how a `failed` device recovers.
+  - **`disconnect()`.** It waits for a pending connect, stops every channel, and is a no-op when not connected.
+  - **Channels.** `getChannels()` returns one `DeviceChannel { source_id, source }` per IMU, but only while connected.
+    A channel's source rejects `start()` with `start_failed` while the device is disconnected. A lost link fails every
+    *streaming* channel with `connection_lost` before the device publishes `failed`.
 
-  A shared `describeDeviceConnectionContract` suite covers the lifecycle and failures: refused connect, connection
-  lost while streaming, disconnect during connect.
-- **Simulated device.** A `SimulatedDevice` (Module B) implements it with scripted faults.
+  The shared suite `describeDeviceConnectionContract` tests all of this. It covers instant and delayed connects,
+  idempotency, disconnect while streaming, disconnect during a pending connect, listener unsubscription, connection
+  loss and recovery, and refused connects. A device's channels must also pass `describeSensorSourceContract`.
+- **Simulated device** (`SimulatedDevice`, Module B). It has synthetic channels with an optional per-channel fault,
+  an optional connect delay, refused connects (always, or for the first N attempts), and
+  `simulateConnectionLoss()`. A fault on one channel leaves the other channel and the connection untouched (tested). A
+  two-IMU device streaming into the part 2 wrapper gives each channel exactly its own detection (tested).
 - **No real transports.** No native BLE or serial dependency is added in Milestone 2. Real transports come later, as
   `apps/mobile/src/infrastructure/<transport>/` adapters that pass both suites.
 - **App integration** (part 4):

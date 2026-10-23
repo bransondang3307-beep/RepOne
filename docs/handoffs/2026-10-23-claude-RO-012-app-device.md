@@ -6,8 +6,8 @@
 | **Date** | 2026-10-23 |
 | **Task** | RO-012 (`TASKS.md`), Milestone 2, part 4 of 4 |
 | **Branch** | `claude/RO-012-app-device`, **stacked on part 3** (PR #16) → part 2 (PR #15) → part 1 (PR #14) |
-| **Commits** | see the PR's commit list |
-| **Pull request** | opened against the part 3 branch (link recorded in a follow-up commit) |
+| **Commits** | `e128124` RO-012: app takes its sensor from a (simulated) device connection; connection panel (part 4) · then a commit recording the PR link |
+| **Pull request** | [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17), stacked: it targets `claude/RO-012-device-connection` until PR #16 merges |
 | **Status** | implemented; verified locally (tests, typecheck, Expo exports); awaiting Codex review and the **owner's Expo Go check** |
 
 ## Objective

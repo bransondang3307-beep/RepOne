@@ -1,11 +1,14 @@
 import { RotationalRepDetector } from '@repone/rep-engine';
 import {
+  BaseSensorSource,
   DEMO_LOOP_SCRIPT,
   LABELLED_SET_SCRIPT,
   ReplaySensorSource,
+  SensorStartError,
   SimulatedSensorSource,
   createSyntheticCalibration,
   generateTrace,
+  type SimulatedFault,
   type SimulationOptions,
 } from '@repone/sensor-contracts';
 import { ManualScheduler } from '@repone/sensor-contracts/testing';
@@ -28,6 +31,22 @@ function createController(repositories: Repositories = createInMemoryRepositorie
 }
 
 const calibration = createSyntheticCalibration(0);
+
+function faultySensor(fault: SimulatedFault, script = LABELLED_SET_SCRIPT) {
+  const scheduler = new ManualScheduler();
+  return { scheduler, sensor: new SimulatedSensorSource({ script, simulation: BASE_SIMULATION, scheduler, fault }) };
+}
+
+/** A non-conforming source whose start() rejects without reporting `error` first. */
+class RejectingSensor extends BaseSensorSource {
+  constructor() {
+    super('rejecting-01', 'usb_serial', 'sensor');
+  }
+  async start(): Promise<void> {
+    throw new Error('port not found');
+  }
+  async stop(): Promise<void> {}
+}
 
 /** Wait until the controller reaches a terminal status. */
 const settled = (controller: WorkoutSessionController) =>
@@ -92,6 +111,82 @@ describe('WorkoutSessionController', () => {
     await controller.start({ sensor, calibration });
     const final = await settled(controller);
     expect(final).toMatchObject({ status: 'error', error: 'disk full' });
+  });
+
+  it('ends in error with the sensor\'s reason when the sensor fails mid-set, keeping what was recorded', async () => {
+    const { controller, repositories } = createController();
+    const { scheduler, sensor } = faultySensor({ afterSamples: 120, code: 'connection_lost' });
+
+    const sessionId = await controller.start({ sensor, calibration });
+    scheduler.advance(5000);
+    const final = await settled(controller);
+
+    expect(final).toMatchObject({
+      status: 'error',
+      samplesReceived: 120,
+      sensorError: { code: 'connection_lost', message: 'Simulated fault: connection_lost' },
+    });
+    expect(final.error).toBe(
+      'The sensor connection was lost (Simulated fault: connection_lost). The 120 samples received before the failure were saved.',
+    );
+    expect(await repositories.rawSamples.listBySession(sessionId)).toEqual(labelledSetTrace().samples.slice(0, 120));
+    expect((await repositories.sessions.getById(sessionId))!.ended_at_epoch_ms).not.toBeNull();
+    expect(scheduler.activeTimers).toBe(0);
+
+    controller.reset();
+    const next = faultySensor({ afterSamples: 10_000, code: 'unknown' });
+    await controller.start({ sensor: next.sensor, calibration });
+    expect(controller.getSnapshot()).toMatchObject({ status: 'recording', sensorError: null, error: null });
+    await controller.stop();
+  });
+
+  it('ends in error and rethrows when the sensor cannot start', async () => {
+    const { controller, repositories } = createController();
+    const { sensor } = faultySensor({ afterSamples: 0, code: 'start_failed', message: 'Port busy' });
+
+    await expect(controller.start({ sensor, calibration })).rejects.toBeInstanceOf(SensorStartError);
+
+    const snapshot = controller.getSnapshot();
+    expect(snapshot).toMatchObject({ status: 'error', sensorError: { code: 'start_failed', message: 'Port busy' } });
+    expect(snapshot.error).toBe('The sensor could not start (Port busy). No samples were recorded.');
+    expect((await repositories.sessions.getById(snapshot.sessionId!))!.ended_at_epoch_ms).not.toBeNull();
+    controller.reset();
+    expect(controller.getSnapshot().status).toBe('idle');
+  });
+
+  it('ends the session when a source rejects start() without reporting an error', async () => {
+    const { controller, repositories } = createController();
+
+    await expect(controller.start({ sensor: new RejectingSensor(), calibration })).rejects.toThrow('port not found');
+
+    const snapshot = controller.getSnapshot();
+    expect(snapshot).toMatchObject({ status: 'error', sensorError: { code: 'start_failed', message: 'port not found' } });
+    expect((await repositories.sessions.getById(snapshot.sessionId!))!.ended_at_epoch_ms).not.toBeNull();
+    controller.reset();
+    const { sensor } = faultySensor({ afterSamples: 10_000, code: 'unknown' });
+    await controller.start({ sensor, calibration });
+    expect(controller.getSnapshot().status).toBe('recording');
+    await controller.stop();
+  });
+
+  it('stops a live recording whose writes fail instead of collecting unsaved samples', async () => {
+    const repositories = createInMemoryRepositories();
+    repositories.rawSamples.appendBatch = async () => {
+      throw new Error('disk full');
+    };
+    const { controller } = createController(repositories);
+    const scheduler = new ManualScheduler();
+    const sensor = new SimulatedSensorSource({ script: DEMO_LOOP_SCRIPT, simulation: BASE_SIMULATION, scheduler });
+
+    await controller.start({ sensor, calibration });
+    scheduler.advance(2000);
+    const final = await settled(controller);
+    await controller.stop();
+
+    expect(controller.getSnapshot()).toMatchObject({ status: 'error', error: 'disk full', sensorError: null });
+    expect(final.status).toBe('error');
+    expect(sensor.getStatus()).toBe('stopped');
+    expect(scheduler.activeTimers).toBe(0);
   });
 
   it('can be reset to idle after finishing', async () => {

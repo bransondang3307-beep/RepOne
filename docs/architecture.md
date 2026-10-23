@@ -1,6 +1,6 @@
 # RepOne architecture
 
-> Status: describes what is **implemented** on branch `sprint-1-alignment` (Milestone 1).
+> Status: describes what is **implemented** on `main` (Milestone 1, plus Milestone 2 / RO-012 parts as they merge).
 > Items marked *planned* do not exist yet. Decisions: [`docs/decisions/`](decisions/).
 
 ## 1. Layers and dependency direction
@@ -24,13 +24,13 @@ Infrastructure implements contract/domain interfaces; only the composition root
 
 | Module (spec) | Location | Public API | Status |
 |---|---|---|---|
-| A — Sensor contracts | `packages/sensor-contracts/src/{common,sensor,derived}.ts` | `@repone/sensor-contracts` | Implemented; multi-channel + richer error states *planned (M2)* |
-| B — Sensor simulation | `packages/sensor-contracts/src/simulation/` | same package | Implemented |
-| C — Rep engine | `packages/rep-engine/src/` | `@repone/rep-engine` | Implemented (single channel); per-channel state *planned (M2)* |
+| A — Sensor contracts | `packages/sensor-contracts/src/{common,sensor,derived}.ts` | `@repone/sensor-contracts` | Implemented, including error states and reasons ([ADR 0007](decisions/0007-sensor-errors-channels-device-connections.md) §1); multi-channel *planned (M2, ADR 0007 §2)* |
+| B — Sensor simulation | `packages/sensor-contracts/src/simulation/` | same package | Implemented, with deterministic scripted faults (ADR 0007 §1) |
+| C — Rep engine | `packages/rep-engine/src/` | `@repone/rep-engine` | Implemented (single channel); per-channel wrapper *planned (M2, ADR 0007 §3)* |
 | D — Workout domain | `packages/workout-domain/src/` | `@repone/workout-domain` | Session + repository ports only; exercises/sets/resistance/lifecycle *planned (M3)* |
 | E — Persistence | `apps/mobile/src/infrastructure/database/` | `infrastructure/database/index.ts` | SQLite adapter + migrations implemented; new tables *planned (M3)* |
 | F — Mobile UI | `apps/mobile/app/`, `src/features/`, `src/shared/` | feature `index.ts` files | Active set + history; dashboard, exercise selection, pause *planned (M4)* |
-| G — Device connectivity | `src/features/device-connection/`, `src/infrastructure/bluetooth/` | — | *Planned (M2)*; no native BLE deps in Sprint 1 |
+| G — Device connectivity | `src/features/device-connection/`, `src/infrastructure/bluetooth/` | — | *Planned (M2, ADR 0007 §4)*: contract + simulated device; no native BLE deps in Sprint 1 |
 | Application services | `apps/mobile/src/application/` | `application/index.ts` | `WorkoutSessionController`, composition root |
 
 Folders from the spec tree that have no code yet (`features/exercises`, `features/machines`,
@@ -66,7 +66,9 @@ container is created once at boot and passed through React context.
    `RawSampleRepository` and pushed to the `MotionDetector` (`RotationalRepDetector`).
 4. Emitted `RepEvent`s are appended to `RepEventRepository`; the controller publishes a
    `SessionSnapshot`; the store mirrors it; the screen re-renders.
-5. All writes go through one ordered queue; failures surface as `status: 'error'`.
+5. All writes go through one ordered queue. A stop, or a finite stream ending, finishes the set. A sensor failure
+   (`SensorError`, ADR 0007), a failed start or a failed write ends the recording in `status: 'error'`: the sensor is
+   released, what was received is flushed and the session is marked ended.
 
 ## 5. Contracts and testing
 
@@ -76,6 +78,9 @@ container is created once at boot and passed through React context.
 - Shared suites any new implementation must pass:
   `describeSensorSourceContract` (`@repone/sensor-contracts/testing`) and
   `describeRepositoriesContract` (`@repone/workout-domain/testing`).
+  - The sensor suite covers the lifecycle, idempotent `start()`/`stop()` and listener unsubscription.
+  - Its options declare continuous sources (`finite: false`) and the minimum sample rate, and supply sources that
+    fail mid-stream or at start, which enable the failure tests (ADR 0007 §1).
 - Packages test with ts-jest under Node; the app tests with jest-expo. SQLite repositories are
   tested against Node's `node:sqlite` through the same `SqlDatabase` port used with expo-sqlite.
 - `npm run verify` = boundaries + workflow policy (`npm run check:workflows`: no AI API integrations,

@@ -20,6 +20,21 @@ Every hardware path must end up as `RawSensorSample` objects delivered through a
 Engine assumptions today: ~50 Hz (simulator default); gaps > 200 ms abort a rep in progress.
 The contract carries **raw IMU**, not position — see ADR 0003.
 
+### Failure reporting (implemented contract, ADR 0007 §1)
+
+An adapter reports why it stopped through `getLastError()`, set before its `error` status is published:
+
+| Situation (examples) | `SensorError.code` |
+|---|---|
+| Port or device cannot be opened; `start()` rejects with `SensorStartError` | `start_failed` |
+| Cable unplugged, port closed, link dropped while streaming | `connection_lost` |
+| No data for longer than the adapter's watchdog window | `stream_timeout` |
+| Data persistently cannot be decoded into valid samples | `invalid_data` |
+| Anything else | `unknown` |
+
+`error` ends the run. The app ends the set with the samples received so far saved. How a single malformed line is
+handled (skip it and flag the next sample, or fail) is decided with the first real adapter, against H0 evidence.
+
 ## 2. H0 — wired USB serial (Uno R3 + GY-521 / MPU-6050) — *proposed*
 
 Hardware facts to verify physically before use (source of truth §4): board, breakout voltage,

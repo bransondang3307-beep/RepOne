@@ -62,7 +62,8 @@ export interface DeviceConnection {
    */
   connect(): Promise<void>;
   /**
-   * Disconnect: waits for a pending connect, stops every channel, then `disconnected`. A no-op when not
+   * Disconnect: waits for a pending connect, stops every channel, then `disconnected`. The disconnect exists
+   * before `disconnecting` is published, so a connect() from a state listener waits for it. A no-op when not
    * connected (including `failed`; connect() is the way out of `failed`).
    */
   disconnect(): Promise<void>;
@@ -70,7 +71,9 @@ export interface DeviceConnection {
    * The channels while `connected`; empty otherwise. A channel's source cannot start unless the device is
    * connected (`SensorStartError`, code `start_failed`). If the link drops, every streaming channel, and every
    * channel whose start() is still pending (that start() rejects), fails with `connection_lost` before the device
-   * publishes `failed`. A failed or stopped channel delivers nothing more, even mid-batch.
+   * publishes `failed`. From the moment the link drops the device counts as not connected, so a channel restart
+   * attempted from a failure listener is refused. A failed or stopped channel delivers nothing more, even
+   * mid-batch.
    */
   getChannels(): readonly DeviceChannel[];
 }

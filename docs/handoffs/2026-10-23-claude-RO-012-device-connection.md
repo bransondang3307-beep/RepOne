@@ -118,6 +118,21 @@ Negative controls (each re-introduces one defect, then reverted). Each fails its
 After the fix, `npm run verify` exits 0: Jest **129/129** (mobile 23, rep-engine 27, sensor-contracts **75**, was 64;
 workout-domain 4) and script tests 62/62.
 
+## Review round 2 (Codex, 2026-10-23, on `86e7f17`). This is the last allowed fix round
+Codex found two new P1s, both re-entrant calls from listeners during a transition. I reproduced each with a
+contract test first and fixed both in one commit (SHA in the PR replies).
+
+| Finding | Reproduced (before the fix) | Fix |
+|---|---|---|
+| **P1:** a channel restarted from its own `error` listener during a connection loss ends up streaming on a failed device (`SimulatedDevice.ts:225`) | New device-suite test fails on both harnesses | Two layers. (1) The device counts as not connected from the moment the link drops (`dropping`), so the retry is refused. (2) A channel start re-checks the connection before publishing `streaming`, and fails with `connection_lost` instead |
+| **P1:** `disconnecting` was published before the disconnect was installed (`:117`) | New device-suite test: a `connect()` from the `disconnecting` listener resolved, yet the device ended `disconnected` | The disconnect operation is installed before `disconnecting` is published, so a listener's `connect()` waits for it. States: `disconnecting → disconnected → connecting → connected` |
+
+Negative controls (each defect re-introduced, then reverted):
+- **Both loss guards removed:** the restart test fails on 2 harnesses. Either guard alone is enough.
+- **`disconnecting` published first:** the reconnect test fails on 2 harnesses.
+
+sensor-contracts tests: 75 → **79**.
+
 ## Decisions / ADRs
 - ADR 0007 decisions 2 and 4 (Proposed), refined: one `SensorSource` per channel instead of multi-channel sources.
 

@@ -161,6 +161,23 @@ export function describeDeviceConnectionContract(
       expect(harness.device.getState()).toBe('disconnected');
     });
 
+    it('makes a connect() called from a `disconnecting` listener wait for the disconnect', async () => {
+      const harness = createHarness();
+      await connect(harness);
+      const states = recordStates(harness.device);
+      let reconnecting: Promise<void> | null = null;
+      harness.device.subscribeState((s) => {
+        if (s === 'disconnecting') reconnecting = harness.device.connect();
+      });
+      const disconnecting = harness.device.disconnect();
+      await disconnecting;
+      harness.advance(connectTimeMs);
+      await reconnecting;
+      expect(states).toEqual(['disconnecting', 'disconnected', 'connecting', 'connected']);
+      expect(harness.device.getState()).toBe('connected');
+      await harness.device.disconnect();
+    });
+
     it('stops notifying unsubscribed state listeners', async () => {
       const harness = createHarness();
       const removed = jest.fn();
@@ -227,6 +244,29 @@ export function describeDeviceConnectionContract(
         harness.advance(1000);
         expect(received).toBe(1);
         expect(channel!.source.getStatus()).toBe('error');
+      });
+
+      it('refuses a channel restart attempted from its own error listener during connection loss', async () => {
+        const harness = createHarness();
+        await connect(harness);
+        const [channel] = harness.device.getChannels();
+        const samples: RawSensorSample[] = [];
+        channel!.source.subscribe((s) => samples.push(s));
+        await channel!.source.start();
+        harness.advance(200);
+        let retry: Promise<unknown> | null = null;
+        channel!.source.subscribeStatus((s) => {
+          if (s === 'error' && retry === null) retry = channel!.source.start().then(() => 'started', (e: unknown) => e);
+        });
+
+        harness.loseConnection!();
+        const outcome = await retry;
+        expect(outcome).toBeInstanceOf(SensorStartError);
+        const count = samples.length;
+        harness.advance(1000);
+        expect(samples).toHaveLength(count);
+        expect(channel!.source.getStatus()).toBe('error');
+        expect(harness.device.getState()).toBe('failed');
       });
 
       it('fails a channel whose start() is still pending when the connection is lost', async () => {

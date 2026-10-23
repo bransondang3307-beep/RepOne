@@ -12,9 +12,15 @@ function device(options: Partial<ConstructorParameters<typeof SimulatedDevice>[0
   });
 }
 
+/** The container slice the store needs, as the composition root builds it for the simulated device. */
+const simulatedContainer = (simulated: SimulatedDevice) => ({
+  device: simulated,
+  simulateConnectionLoss: () => simulated.simulateConnectionLoss('connection loss simulated from the app'),
+});
+
 describe('deviceConnectionStore', () => {
   it('mirrors the device through connect and disconnect', async () => {
-    const store = createDeviceConnectionStore({ device: device() });
+    const store = createDeviceConnectionStore(simulatedContainer(device()));
     const seen: ConnectionState[] = [];
     store.subscribe((s) => seen.push(s.connectionState));
     expect(store.getState()).toMatchObject({
@@ -32,7 +38,9 @@ describe('deviceConnectionStore', () => {
   });
 
   it('shows a refused connect as failed with its reason, without throwing', async () => {
-    const store = createDeviceConnectionStore({ device: device({ refuseConnect: { code: 'unavailable', message: 'Port busy (simulated)' } }) });
+    const store = createDeviceConnectionStore(
+      simulatedContainer(device({ refuseConnect: { code: 'unavailable', message: 'Port busy (simulated)' } })),
+    );
     await expect(store.getState().connect()).resolves.toBeUndefined();
     expect(store.getState()).toMatchObject({
       connectionState: 'failed',
@@ -41,12 +49,26 @@ describe('deviceConnectionStore', () => {
   });
 
   it('shows a lost connection with its reason and clears it on reconnect', async () => {
-    const simulated = device();
-    const store = createDeviceConnectionStore({ device: simulated });
+    const store = createDeviceConnectionStore(simulatedContainer(device()));
     await store.getState().connect();
-    simulated.simulateConnectionLoss();
+    store.getState().simulateConnectionLoss();
     expect(store.getState()).toMatchObject({ connectionState: 'failed', error: { code: 'connection_lost' } });
     await store.getState().connect();
     expect(store.getState()).toMatchObject({ connectionState: 'connected', error: null });
+  });
+
+  it('offers the simulate-connection-loss control only when the container provides it', async () => {
+    const simulated = createDeviceConnectionStore(simulatedContainer(device()));
+    expect(simulated.getState().canSimulateConnectionLoss).toBe(true);
+    await simulated.getState().connect();
+    simulated.getState().simulateConnectionLoss();
+    expect(simulated.getState().error).toEqual({ code: 'connection_lost', message: 'connection loss simulated from the app' });
+
+    // A real device's container has no test hook: the control is hidden and the action does nothing.
+    const real = createDeviceConnectionStore({ device: device(), simulateConnectionLoss: null });
+    expect(real.getState().canSimulateConnectionLoss).toBe(false);
+    await real.getState().connect();
+    real.getState().simulateConnectionLoss();
+    expect(real.getState().connectionState).toBe('connected');
   });
 });

@@ -5,92 +5,123 @@
 | **Agent** | Claude Code |
 | **Date** | 2026-10-23 |
 | **Task** | RO-012 (`TASKS.md`), Milestone 2, part 4 of 4 |
-| **Branch** | `claude/RO-012-app-device`, **stacked on part 3** (PR #16) → part 2 (PR #15) → part 1 (PR #14) |
-| **Commits** | `e128124` RO-012: app takes its sensor from a (simulated) device connection; connection panel (part 4) · then a commit recording the PR link |
+| **Branch** | `claude/RO-012-app-device`, **stacked on part 3** (PR #16) → part 2 (PR #15) → part 1 (PR #14). It contains every fix from those PRs (merge commits `9a3c219`, `9932487`) |
+| **Commits** | `e128124` part 4 · `afdf647` PR link · `9a3c219` merge of part 3's round 1 · `9932487` merge of part 3's round 2 · then the owner-decision commit (SHA in PR #17) |
 | **Pull request** | [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17), stacked: it targets `claude/RO-012-device-connection` until PR #16 merges |
-| **Status** | implemented; verified locally (tests, typecheck, Expo exports); awaiting Codex review and the **owner's Expo Go check** |
+| **Status** | implemented; verified locally (tests, typecheck, Expo exports); Codex review on the final commit; awaiting the **owner's Expo Go check** |
 
 ## Objective
 Wire ADR 0007 §4 into the app. Sessions get their sensor through a `DeviceConnection` (simulated for now), the
-home screen shows the connection, and losing the connection mid-set ends the set honestly.
+home screen shows the connection, and losing the connection mid-set ends the set honestly. The owner's decisions of
+2026-10-23 are also applied here.
 
-## What changed
-- **Composition root (`apps/mobile/src/application/createAppContainer.ts`):**
-  - `AppContainer.device` is a single-IMU `SimulatedDevice` (`simulated-device-01`, channel `simulated-imu-01`). Its
-    script, rate and noise are the same as the previous demo sensor.
-  - `getSessionSensor()` replaces `createSensor()`: it connects the device if needed and returns its channel's source.
-  - `assembleContainer(repositories, clock, { scheduler, seed })` lets tests drive the device deterministically.
-- **`features/rep-tracking`:** `startSimulatedSet()` takes its sensor from `getSessionSensor()`, so it connects
-  automatically. The flow is still one tap: "Start simulated set".
-- **New feature `features/device-connection`:**
-  - a store that mirrors the device's state and failure reason. Its actions never throw; a failure shows as `failed`
-    with the reason.
-  - a `useDeviceConnection` hook, created once per container like `useLiveSession`.
-  - `DeviceConnectionPanel`: "Sensor: Simulated device", the state (Not connected / Connecting… / Connected /
-    Disconnecting… / Connection failed), the reason, and a Connect / Disconnect / Reconnect button. It is locked
-    while a set records or saves.
-- **Home route (`app/index.tsx`):** the panel sits above the set card. **No other UI changed.** The warning-badge row
-  (RO-023, P3) is untouched.
-- **Docs:** ADR 0007 §4 (app integration implemented); `docs/architecture.md` (module G, data flow); `TASKS.md`
-  (RO-012 row and plan, PR #16 linked); this handoff.
-- **Unchanged:** contracts, rep detection, units, the database schema and the provenance badge. All texts are
+## Owner decisions applied (2026-10-23)
+1. **`source_id` stays the sensor identity, and distinct sensors cannot collide within a session.**
+   - New `combineChannels(channels)` in `@repone/sensor-contracts`:
+     - it throws `ChannelCollisionError` if two channels share a `source_id`, before anything is recorded. That
+       covers two devices with the same id, and the same device combined twice;
+     - it drops and counts any sample that arrives on one channel carrying another `source_id`.
+   - `getSessionSensor()` checks the device's channels with it before every set.
+   - The two-IMU end-to-end test (rep-engine) records through it.
+   - ADR 0007 §2 and `docs/hardware-protocol.md` §1 and §4 record the rule, and that adapters derive `source_id` from
+     something unique to the physical sensor.
+2. **A "Simulate connection loss" test control, for the simulated device only.**
+   - `AppContainer.simulateConnectionLoss` is set only for the simulated device (`null` for real devices).
+   - The store exposes `canSimulateConnectionLoss`, and the panel shows a dashed, yellow control: **"Simulate
+     connection loss — Test control · simulated device only"**.
+   - It is enabled whenever the device is connected, mid-set included.
+   - The resulting message reads "…(connection loss simulated from the app)…".
+3. **The synthetic motion stays repeatable:** one seed per app start, so sets in one run repeat the same stream.
+
+## What changed (part 4 overall)
+- **Composition root:**
+  - `AppContainer.device` is a single-IMU `SimulatedDevice` (`simulated-device-01`, channel `simulated-imu-01`), with
+    the same script, rate and noise as the previous demo sensor.
+  - `getSessionSensor()` connects it if needed, checks its channels, and returns the channel's source.
+  - `simulateConnectionLoss` is the test hook.
+  - `assembleContainer(…, { scheduler, seed })` lets tests drive the device.
+- **`features/rep-tracking`:** starting a set connects automatically, so it is still one tap.
+- **`features/device-connection` (new):** a store and hook that mirror the device's state and reason (actions never
+  throw), and `DeviceConnectionPanel` with the transport, state, reason, Connect / Disconnect / Reconnect (locked
+  while a set records) and the test control.
+- **Home route:** the panel sits above the set card. **No other UI changed.** The warning-badge row (RO-023, P3) is
+  untouched.
+- **`@repone/sensor-contracts`:** `combineChannels`, `ChannelCollisionError`, `SessionChannels` (new `src/channels.ts`).
+- **Unchanged:** the rep detection algorithm, units, the database schema and the provenance badge. All texts are
   brand-free.
 
-## Files changed
-- `apps/mobile/src/application/createAppContainer.ts` — modified
-- `apps/mobile/src/features/rep-tracking/liveSessionStore.ts` and its `__tests__/liveSessionStore.test.ts` — modified
-- `apps/mobile/src/features/device-connection/{index.ts,deviceConnectionStore.ts,useDeviceConnection.ts,components/DeviceConnectionPanel.tsx,__tests__/deviceConnectionStore.test.ts}` — added
-- `apps/mobile/app/index.tsx` — modified (one import, one panel line)
-- `docs/decisions/0007-…`, `docs/architecture.md`, `TASKS.md` — modified
-- `docs/handoffs/2026-10-23-claude-RO-012-app-device.md` — added
-
-## Tests and checks (exact results)
-New and changed tests (all synthetic):
-
-| Test | Asserts |
+## Tests and checks (exact results, final commit)
+| Test / command | Result |
 |---|---|
-| The live-session store through the real composition root | Driven by a `ManualScheduler`; the recorded session has `source_id: simulated-imu-01` and `source_kind: simulated` |
-| Starting a set | Connects the device |
-| Connection loss after 5 s | The set ends in `error` (`connection_lost`, 250 samples saved), the device is `failed`, and the next set reconnects and records |
-| `deviceConnectionStore` | Mirrors connect and disconnect; a refused connect shows `failed` with its reason without throwing; a lost connection shows its reason and clears on reconnect |
-
-| Command | Result |
-|---|---|
-| `npm run verify` (Linux, Node 22.22.0) | exit 0. Boundaries OK (**70** files, no circular imports; the new feature follows the feature rules); workflow policy OK; typecheck OK; Jest **123/123**: mobile **28** (was 23), rep-engine 27, sensor-contracts 64, workout-domain 4 |
+| `combineChannels` (4 tests) | pass. Rejects colliding devices (nothing started), the same device twice, and empty input. Combines distinct devices (50 + 50 samples, each under its own id). Drops and counts a mislabelling channel's samples |
+| Live-session store through the real composition root | pass. Normal set; auto-connect; loss via the **app's** test hook ends the set in `error` with the exact message (250 samples saved); the next set reconnects |
+| `deviceConnectionStore` (4 tests) | pass. Includes "test control only when provided; no-op for a real device" |
+| `npm run verify` (Linux, Node 22.22.0) | exit 0. Boundaries OK (72 files, no circular imports); workflow policy OK; typecheck OK; Jest **143/143**: mobile 29, rep-engine 27, sensor-contracts 83, workout-domain 4 |
 | `npm run test:scripts` | 62/62 |
 | `npx expo export --platform android` / `ios` | both exit 0. Hermes bundles 2.8 MB / 2.4 MB |
-| **Expo Go on a device** | **not run.** It needs the owner's phone (steps below) |
+| **Expo Go on a device** | **owner**: steps below |
 
-## Owner check in Expo Go (acceptance for Milestone 2's app part)
-1. Check out the branch and run `npm ci`, then `cd apps/mobile && npx expo start`, and scan the QR code.
-2. The home screen shows **"Sensor: Simulated device — Not connected"** above the set card.
-3. Tap **Start simulated set**:
-   - the panel turns **Connected**;
-   - reps count up as before;
-   - the yellow simulated-data badge is still shown.
-4. **Stop set:** the set is saved and appears in History.
-5. While idle, **Disconnect**, then **Connect**: the states change. The button is disabled while a set records.
-6. Losing the connection mid-set can't be triggered on the phone without the optional control (see the question
-   below); it is covered by tests.
+## Owner check in Expo Go
+**Launch** on the Windows laptop, in a *new* folder. Leave `C:\Users\Admin\Documents\RepOne`, Antigravity's checkout,
+untouched.
+
+```powershell
+cd C:\Users\Admin\Documents
+git clone https://github.com/bransondang3307-beep/RepOne.git RepOne-m2-check
+cd RepOne-m2-check
+git switch claude/RO-012-app-device
+git log -1 --format=%H        # must print the final commit SHA given in PR #17
+npm ci                        # if PowerShell blocks npm scripts, use npm.cmd ci
+cd apps\mobile
+npx expo start                # npx.cmd expo start if needed
+```
+
+- Use Node 22 or 24; you have v24.
+- The iPhone and the laptop must be on the same Wi-Fi.
+- Scan the QR code with the iPhone **Camera** app; it opens in **Expo Go**, which must be up to date for SDK 57.
+- If the phone can't reach the laptop, stop the server and run `npx expo start --tunnel`. It may offer to install
+  `@expo/ngrok`, which is free.
+
+**Checklist** (all data is simulated):
+1. **Start screen.** The panel shows "Sensor: Simulated device · Not connected", plus the dimmed yellow "Simulate
+   connection loss · Test control · simulated device only".
+2. **Normal recording.**
+   - Optionally type a machine label, then tap **Start simulated set**.
+   - The panel turns **Connected**, the status reads **Recording**, reps count up, and the yellow "Simulated data"
+     badge is visible. Its clipping is the known RO-023 issue.
+   - After about 20 s tap **Stop set**: the status reads **Set saved**.
+3. **History.** Tap **View history**: the set is listed with its label and rep counts. Go back.
+4. **Idle disconnect and reconnect.**
+   - Tap **New set**, then **Disconnect**: the panel reads Not connected.
+   - Tap **Connect**: it reads Connected.
+   - While a set records, Connect/Disconnect is disabled.
+5. **Mid-set connection loss.**
+   - Tap **Start simulated set**. After a few reps tap **Simulate connection loss**.
+   - The status reads **Error**, with "The sensor connection was lost (connection loss simulated from the app). The N
+     samples received before the failure were saved."
+   - The panel reads **Connection failed**, with the reason and **Reconnect**.
+   - **History** lists this partial set with the reps counted before the loss.
+6. **Another set afterwards.**
+   - Tap **New set**, then **Start simulated set**: the panel reconnects by itself and reps count again.
+   - **Stop set**: it is saved.
+   - With the repeatable demo stream, the reps follow the same pattern as the first set; that is expected.
+
+Report any step that differs (a screenshot helps), especially steps 5 and 6.
 
 ## Decisions / ADRs
-- ADR 0007 §4, app integration (Proposed). It auto-connects on "Start", to keep the one-tap flow.
+- ADR 0007 §2 (owner decision: `source_id` identity, no collisions) and §4 (app integration, test control,
+  repeatable stream). Proposed until merged.
 
 ## Known limitations / risks
-- **Stacked.** Merge order is #14 → #15 → #16 → this PR.
-- **Same demo stream each set.** The simulated device keeps one seed per app start, so sets in one session repeat the
-  same synthetic stream. Before, each set got a new random seed. This is synthetic data either way; say if you want
-  per-set variety back.
-- **Single channel.** The app records one channel. Multi-channel recording in the app needs the Milestone 3 schema
-  (the channel on rep events).
-- **No real device.** USB and BLE adapters are future work under the same contract.
+- **Stacked.** Merge order is #14 → #15 → #16 → #17. Each is retargeted to `main` as the one below merges.
+- **Single channel in the app.** The app records one channel. Multi-channel recording needs Milestone 3's schema
+  (the channel on rep events); the collision rule is already enforced at the session boundary.
+- **Simulator only.** No real device; USB and BLE adapters are future work under the same contracts.
 
 ## Next steps
-1. **Codex:** review the app wiring and the new feature.
-2. **Owner:** the Expo Go check above; merge decisions in stack order.
-3. After merges: a status follow-up marks RO-012 done once its criteria are verified.
+1. **Codex:** the final review of PR #17's head.
+2. **Owner:** the Expo Go check above; then merge decisions in stack order.
+3. After the merges: a status follow-up marks RO-012 done once its criteria are verified.
 
 ## Questions for the owner
-- Add a clearly labelled **"Simulate connection loss"** control (simulated device only), so the failure path can be
-  checked on the phone?
-- Do you want each set to vary again (a new seed per set) rather than per app start?
+- none (the three decisions of 2026-10-23 are applied)

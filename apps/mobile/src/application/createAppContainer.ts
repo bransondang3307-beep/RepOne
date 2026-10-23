@@ -2,6 +2,7 @@ import { RotationalRepDetector } from '@repone/rep-engine';
 import {
   DEMO_LOOP_SCRIPT,
   SimulatedDevice,
+  combineChannels,
   createSyntheticCalibration,
   systemClock,
   type Clock,
@@ -23,8 +24,16 @@ export interface AppContainer {
    * adapters plug in here later; nothing downstream depends on which one is used.
    */
   readonly device: DeviceConnection;
-  /** Connects the device if needed and returns the source for the next session: its first channel. */
+  /**
+   * Connects the device if needed and returns the source for the next session: its first channel. The device's
+   * channels are checked first, so two sensors can never share a `source_id` within a session (ADR 0007 §2).
+   */
   readonly getSessionSensor: () => Promise<SensorSource>;
+  /**
+   * Test control: drops the simulated device's connection, to exercise the failure path on a phone. Present only
+   * for the simulated device; null for real devices.
+   */
+  readonly simulateConnectionLoss: (() => void) | null;
   readonly getCalibration: () => RepCalibration;
 }
 
@@ -72,10 +81,10 @@ export function assembleContainer(
     device,
     getSessionSensor: async () => {
       await device.connect();
-      const [channel] = device.getChannels();
-      if (!channel) throw new Error('The sensor device offers no channel');
-      return channel.source;
+      const [channel] = combineChannels(device.getChannels()).channels;
+      return channel!.source;
     },
+    simulateConnectionLoss: () => device.simulateConnectionLoss('connection loss simulated from the app'),
     getCalibration: () => createSyntheticCalibration(clock.now()),
   };
 }

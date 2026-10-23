@@ -1,4 +1,3 @@
-import { SimulatedDevice } from '@repone/sensor-contracts';
 import { ManualScheduler } from '@repone/sensor-contracts/testing';
 import { createInMemoryRepositories } from '@repone/workout-domain';
 import { assembleContainer } from '../../../application/createAppContainer';
@@ -59,10 +58,12 @@ describe('liveSessionStore', () => {
     await store.getState().startSimulatedSet();
     scheduler.advance(5000);
 
-    (container.device as SimulatedDevice).simulateConnectionLoss();
+    container.simulateConnectionLoss!();
     const final = await settled(store);
     expect(final).toMatchObject({ status: 'error', samplesReceived: 250, sensorError: { code: 'connection_lost' } });
-    expect(final.error).toContain('The sensor connection was lost');
+    expect(final.error).toBe(
+      'The sensor connection was lost (connection loss simulated from the app). The 250 samples received before the failure were saved.',
+    );
     expect(container.device.getState()).toBe('failed');
 
     store.getState().dismissResult();

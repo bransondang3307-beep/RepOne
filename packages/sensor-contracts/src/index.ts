@@ -24,6 +24,7 @@ export type {
   DeviceTransport,
 } from './device';
 export { DeviceConnectError } from './device';
+export { ChannelCollisionError, combineChannels, type SessionChannels } from './channels';
 export { BaseSensorSource } from './BaseSensorSource';
 
 // Derived-event, detector and calibration contracts (source of truth §7 "Derived event")

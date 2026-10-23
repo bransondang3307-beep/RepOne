@@ -2,6 +2,7 @@ import {
   DEMO_FULL_ROM_RAD,
   LABELLED_SET_SCRIPT,
   SimulatedDevice,
+  combineChannels,
   createSyntheticCalibration,
   generateTrace,
   type MotionScript,
@@ -44,11 +45,10 @@ async function recordDevice(channels: readonly SimulatedChannelSpec[]) {
     ]),
   });
   const events: ChannelRepEvent[] = [];
-  const onSample = (s: RawSensorSample) => events.push(...engine.push(s));
-  for (const { source } of device.getChannels()) {
-    source.subscribe(onSample);
-    await source.start();
-  }
+  // The session goes through combineChannels: distinct source_ids, each sample attributed to its own channel.
+  const session = combineChannels(device.getChannels());
+  session.subscribe((s: RawSensorSample) => events.push(...engine.push(s)));
+  for (const { source } of session.channels) await source.start();
   scheduler.advance(60_000);
   return { device, of: (id: string) => events.filter((e) => e.source_id === id).map((e) => e.event) };
 }

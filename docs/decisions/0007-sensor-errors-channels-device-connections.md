@@ -106,6 +106,20 @@ continuous streams.
   - a consumer that combines channels routes samples by `source_id`, as the part 2 wrapper does.
 - **Channel independence.** A gap, failure or noise on one channel must not affect another channel's samples or
   reps. Tests assert this.
+- **Owner decision, 2026-10-23: `source_id` stays the sensor identity, and distinct sensors must not collide within
+  a session.** This is enforced at every level:
+  - **Device:** its channels have distinct `source_id`s. `SimulatedDevice` rejects duplicates, and the device suite
+    asserts it.
+  - **Channel:** every sample a channel delivers carries that channel's `source_id` (device suite).
+  - **Session:** `combineChannels` (`@repone/sensor-contracts`) combines channels from one or more devices.
+    - It throws `ChannelCollisionError` if two channels share a `source_id`, before anything is recorded. That covers
+      two devices with the same id, and the same device twice.
+    - It drops and counts (`misattributedSampleCounts()`) any sample that arrives on one channel carrying another
+      `source_id`, so a sample is never attributed to the wrong sensor.
+    - The app checks the device's channels with it before every set. The two-IMU end-to-end test records through it.
+  - **Adapters:** real adapters derive `source_id` from something unique to the physical sensor, such as a board
+    serial or a device address plus a channel index. Never from a product name, and never from a position label
+    alone (`docs/hardware-protocol.md` §1).
 
 ## Decision 3 — Per-channel rep-engine wrapper (implemented, RO-012 part 2)
 
@@ -173,9 +187,15 @@ continuous streams.
     It is locked while a set records or saves.
   - **Losing the connection mid-set** ends the set in `error` with the samples saved so far (Decision 1). The panel
     shows `failed` with the reason, and the next set reconnects.
-  - **Not included: a "simulate connection loss" control in the app.** It awaits the owner's decision, so on the
-    phone the failure path is covered by tests only.
-  - The owner checks the rest in Expo Go.
+  - **"Simulate connection loss" test control** (owner decision, 2026-10-23).
+    - It exists only for the simulated device: `AppContainer.simulateConnectionLoss` is `null` for a real device, and
+      the control is then hidden.
+    - It is labelled "Simulate connection loss — Test control · simulated device only", in the warning colours.
+    - It is enabled whenever the device is connected, mid-set included. The resulting message says the loss was
+      simulated.
+  - **Repeatable demo stream** (owner decision, 2026-10-23). The synthetic motion uses one seed per app start, so
+    sets within a run repeat the same stream.
+  - The owner checks it all in Expo Go.
 - **Discovery and pairing UI** are out of scope until a real transport exists.
 
 ## Out of scope for Milestone 2

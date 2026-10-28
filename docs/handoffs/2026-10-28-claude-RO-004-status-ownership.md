@@ -80,6 +80,17 @@ Docs only: no code tests are required. The checks were run anyway; exact results
 | `npm ci` + `npm run verify` (Linux, Node 22.22.0) | in the PR description |
 | Trial merges with the other open PRs that touch these files | in the PR description |
 
+## Review round 1
+- **Codex on `2cca7bd`** (review 5687656528): one **[P2]**, "Align the handoff guide with the status-PR exemption"
+  (`AGENTS.md:87`).
+  - Step 9 lets a status-update PR use `[no-handoff]`, but `docs/handoffs/README.md` allowed it only for trivial
+    changes.
+  - **Fixed** in the round-1 commit: the README now allows `[no-handoff]` for trivial changes and for status-update
+    PRs whose work PRs' handoffs already cover them, and says such a PR may add its own handoff instead.
+  - CI is unchanged. Its `handoff` job already skips on any `[no-handoff]` title, and its error hint appears only
+    when a PR has neither a handoff nor that marker.
+- Fix rounds used: 1/2. The re-review result is recorded on PR #19.
+
 ## Decisions / ADRs
 - ADR 0004 is Accepted, with Decision 4 amended (owner decisions of 2026-10-15 and 2026-10-28).
 - `REPONE_SOURCE_OF_TRUTH.md` is not changed. Its §10 role line for ChatGPT ("prioritization, agent coordination")

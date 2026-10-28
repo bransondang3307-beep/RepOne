@@ -12,8 +12,11 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 - **Commit IDs:** list the branch commits. If the handoff is written before the final commit,
   add it in a follow-up commit on the same branch so the recorded IDs stay correct.
 - **CI check:** pull requests must add or update a file here (the `handoff` job in
-  `.github/workflows/ci.yml`). Put `[no-handoff]` in the PR title only for trivial changes
-  such as typo fixes, and say why in the PR description.
+  `.github/workflows/ci.yml`). Put `[no-handoff]` in the PR title only in two cases, and say why in the PR
+  description:
+  - trivial changes, such as typo fixes;
+  - a status-update PR whose merged work PRs' handoffs already cover it (`AGENTS.md` §3 step 9). A status-update
+    PR may instead add its own handoff, e.g. when it covers several tasks or an exception.
 - Handoffs are history: do not rewrite old ones; correct them with a new handoff.
 
 ## Index (newest first)

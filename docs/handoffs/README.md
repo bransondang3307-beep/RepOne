@@ -23,11 +23,15 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 
 | Date | Agent | Task | File |
 |---|---|---|---|
-| 2026-10-28 | Claude Code | RO-003 / RO-004 status update: PR #13 and PR #19 merged, PR #2 closed; `PROJECT_STATUS.md` refreshed | [2026-10-28-claude-RO-003-RO-004-status.md](2026-10-28-claude-RO-003-RO-004-status.md) |
+| 2026-10-28 | Claude Code | Milestone 1 closeout batch, consolidated status update (PRs #13, #19, #9, #8, #6, #7 merged; PR #2 closed); handoff to ChatGPT | [2026-10-28-claude-RO-003-m1-closeout-status.md](2026-10-28-claude-RO-003-m1-closeout-status.md) |
 | 2026-10-28 | Claude Code | RO-004 follow-up: status-update ownership (owner decision 2026-10-28), ADR 0004 Accepted; supersedes PR #2 | [2026-10-28-claude-RO-004-status-ownership.md](2026-10-28-claude-RO-004-status-ownership.md) |
 | 2026-10-23 | Claude Code | Milestone 1 closeout (RO-003…RO-007, RO-023) | [2026-10-23-claude-RO-003-m1-closeout.md](2026-10-23-claude-RO-003-m1-closeout.md) |
 | 2026-10-22 | Claude Code | RO-019 / RO-022 post-merge status update | [2026-10-22-claude-RO-019-RO-022-status.md](2026-10-22-claude-RO-019-RO-022-status.md) |
 | 2026-10-17 | Claude Code | RO-019 zero-cost Claude Code ↔ Codex workflow | [2026-10-17-claude-RO-019-zero-cost.md](2026-10-17-claude-RO-019-zero-cost.md) |
+| 2026-10-16 | Codex | RO-004 follow-up: Antigravity onboarding (refreshed 2026-10-28) | [2026-10-16-codex-RO-004-antigravity.md](2026-10-16-codex-RO-004-antigravity.md) |
+| 2026-10-16 | Gemini | RO-011 Milestone 1 architecture review | [2026-10-16-gemini-RO-011.md](2026-10-16-gemini-RO-011.md) |
+| 2026-10-16 | Claude Code | RO-020 rebrandable naming rule and ADR 0006 (refreshed 2026-10-28) | [2026-10-16-claude-RO-020.md](2026-10-16-claude-RO-020.md) |
+| 2026-10-16 | Claude Code | RO-021 Windows path fix: native-Windows evidence (refreshed 2026-10-28) | [2026-10-16-claude-RO-021.md](2026-10-16-claude-RO-021.md) |
 | 2026-10-16 | Claude Code | RO-022 Windows CI job | [2026-10-16-claude-RO-022.md](2026-10-16-claude-RO-022.md) |
 | 2026-10-15 | Claude Code | RO-005 Milestone 1 PR | [2026-10-15-claude-RO-005.md](2026-10-15-claude-RO-005.md) |
 | 2026-10-15 | Claude Code | RO-004 multi-agent sync setup | [2026-10-15-claude-RO-004.md](2026-10-15-claude-RO-004.md) |

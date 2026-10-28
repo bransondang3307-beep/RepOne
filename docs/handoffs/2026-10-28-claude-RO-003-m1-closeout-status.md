@@ -101,7 +101,7 @@ PR's verify result and CI are in its description.
 - **The follow-up tasks need prioritisation.** They are recorded with proposed owners and priorities; ChatGPT
   proposes changes and the owner decides.
 - **`PROJECT_STATUS.md` describes `main` @ `b1c6ac1`.** Any later merge makes it stale.
-- **Milestone 2 is paused, with work open.** PRs #14–#17 have clean Codex reviews and green CI on their heads (as of
+- **Milestone 2 is active again (pause lifted later on 2026-10-28), with work open.** PRs #14–#17 have clean Codex reviews and green CI on their heads (as of
   2026-10-23/28), and #14 merges cleanly with `main`. None is merged.
 
 ## Handoff to ChatGPT (roadmap coordination)
@@ -129,10 +129,12 @@ ChatGPT: read `AGENTS.md`, `PROJECT_STATUS.md` and `TASKS.md` on `main` after th
 - **RO-023** (P3): its fix ships with PR #17, so it waits for Milestone 2.
 
 **Decisions only the owner can make.**
-1. When to resume Milestone 2. Then PRs #14 → #17 merge in order, after the owner's Expo Go check of #17's head.
+1. ~~When to resume Milestone 2.~~ Decided later on 2026-10-28: the pause is lifted, and Milestone 2 is the top
+   priority. PRs #14 → #17 merge in order, each authorised by the owner, after the owner's Expo Go check of #17's head.
 2. RO-010.
 3. RO-009.
-4. The priority of RO-024 against resuming Milestone 2. RO-024 is independent and small.
+4. ~~The priority of RO-024 against resuming Milestone 2.~~ Milestone 2 comes first (owner's priority order). RO-024
+   is independent and small.
 
 **Owner's manual items** (cloud sessions cannot do them):
 - the archive tag `archive/RO-019-api-loop-v1` on `af8acd9`;
@@ -158,6 +160,22 @@ The owner forwarded Antigravity's report on PR #7. Claude Code checked it agains
   suite on Linux only.
 - **Recorded in:** `PROJECT_STATUS.md` ("Verified on `main`", "Implemented but not verified", change log), and in
   the PR #7 entry of the `TASKS.md` RO-004 section.
+
+**Milestone 2 pause lifted.** The owner's update put Milestone 2 first, and the owner then confirmed that the pause
+recorded earlier on 2026-10-28 is lifted. Merges still need the owner's authorisation, one PR at a time.
+- **Native Windows check of #17's head `3de7aa3`, the top of the stack** (Lenovo laptop, Node v24.22.0, npm 11.19.1;
+  Claude Code). `npm.cmd ci`, then `npm.cmd run verify`, exited 0:
+  - boundaries OK (74 files);
+  - workflow policy OK;
+  - typecheck OK;
+  - scripts 62/62;
+  - Jest 165/165 (31 · 27 · 103 · 4).
+- The whole stack merges with `main` @ `b1c6ac1` without conflicts.
+- PR #17 and this PR both edit `TASKS.md`; whichever merges second needs a small conflict fix.
+- Not edited here, to avoid adding to that conflict:
+  - the RO-012 row in `TASKS.md`, which PR #17 updates;
+  - `ANTIGRAVITY.md` and `docs/agents/ANTIGRAVITY.md` on `main`, which still say Milestone 2 is paused. They belong
+    to the separate agent-roles docs update the owner has yet to approve.
 
 ## Next steps
 1. **Codex:** review PR #20's head. **Owner:** merge it once CI and the review cover that head. The owner's

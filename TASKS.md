@@ -138,7 +138,7 @@
     1. Windows path separators: **historical**, fixed by RO-021 (`cd884fc`).
     2. Infrastructure adapters share one layer, and `application/` may skip the adapter index: **still present**
        (latent) → **RO-025**.
-    3. Contract-suite gaps: **still present on `main`**; addressed in RO-012's PR #14 (paused).
+    3. Contract-suite gaps: **still present on `main`**; addressed in RO-012's PR #14 (open; not merged).
     4. Ownership table and routes note: **still present** → **RO-008**.
     5. Display brand → **RO-024**. Brand-neutral H0 header → **RO-016** scope note.
     6. Simulation in the root barrel (§3.2) → **RO-026**.
@@ -281,7 +281,7 @@
   - the guard test fails on a planted literal and passes on the change;
   - `npm run verify` passes; Codex review;
   - the owner's Expo Go check shows the same visible name as before.
-- **Depends on:** RO-020 merged. It is independent of Milestone 2 (RO-012, paused). Not started in the Milestone 1
+- **Depends on:** RO-020 merged. It is independent of Milestone 2 (RO-012, open). Not started in the Milestone 1
   closeout batch.
 
 ### RO-025 — Boundary-checker hardening (RO-011 finding 2; recorded 2026-10-28 at the owner's direction)
@@ -296,7 +296,7 @@
   - the repository passes;
   - `npm run verify`; CI on Linux and Windows; Codex review.
 - **When:** before a second infrastructure adapter (BLE or serial) lands. It is latent today: `database` is the only
-  adapter, and the paused RO-012 PRs add none.
+  adapter, and the open RO-012 PRs add none.
 
 ### RO-026 — Where simulation lives (RO-011 §3.2; recorded 2026-10-28 at the owner's direction)
 - **Question:** keep simulation (simulated and replay sources, synthetic scripts and, after RO-012, the simulated

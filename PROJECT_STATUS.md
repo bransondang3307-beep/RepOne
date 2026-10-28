@@ -11,7 +11,7 @@
 | **Last updated** | 2026-10-28 by Claude Code: the Milestone 1 closeout batch, as directed by the owner (PRs #13, #19, #9, #8, #6 and #7 merged; PR #2 closed as superseded) |
 | **`main` at** | `b1c6ac1` — "Merge PR #7: RO-004 Antigravity onboarding for the Lenovo Windows laptop (Codex; refreshed, docs only)" |
 | **CI on `main`** | GitHub Actions `CI` on every push and PR: Linux `verify` (boundaries, workflow policy, typecheck, tests) and a Windows job (boundary checker + script tests); handoff check on PRs. Last run on `main`: [40768087759](https://github.com/bransondang3307-beep/RepOne/actions/runs/40768087759) on `b1c6ac1` — Linux ✅, Windows ✅ (the handoff check runs on PRs only) |
-| **Current phase** | Sprint 1. **Milestone 1 is closed out,** including all its open follow-up PRs: merged, reviewed and device-checked (RO-003…RO-007), architecture-reviewed (RO-011), with the Windows fix recorded (RO-021) and the naming rule in place (RO-020). The remaining follow-up *tasks* are listed below. **Milestone 2 (RO-012) is paused, with its work open:** four stacked PRs (#14–#17), none merged; it resumes only on the owner's go-ahead. Sprint 2 **not started**. |
+| **Current phase** | Sprint 1. **Milestone 1 is closed out,** including all its open follow-up PRs: merged, reviewed and device-checked (RO-003…RO-007), architecture-reviewed (RO-011), with the Windows fix recorded (RO-021) and the naming rule in place (RO-020). The remaining follow-up *tasks* are listed below. **Milestone 2 (RO-012) is active again, and the owner's top priority:** the owner lifted the pause on 2026-10-28 (later the same day). Its four stacked PRs (#14–#17) are still open, none merged; the owner authorises each merge. Sprint 2 **not started**. |
 | **Hardware** | No real sensor connected to the software yet (source of truth §2). All rep data is simulated. |
 | **AI cost** | **$0 additional AI API spending** (owner rule, ADR 0005): subscriptions only, no AI API keys or paid AI services; enforced in CI by `npm run check:workflows` |
 
@@ -108,7 +108,7 @@ and the owner's device check, and are tracked in `TASKS.md`.
 |---|---|---|---|
 | Ownership table in `docs/architecture.md` §6, and the `apps/mobile/AGENTS.md` routes note (RO-011 finding 4) | RO-008 | `todo` (docs) | Claude Code |
 | Record the `apps/` + `packages/` layout in source of truth §6? | RO-010 | `todo` | Owner decision (ChatGPT prepares) |
-| Simulated-data warning badge clips on iPhone | **RO-023** | `todo`. The fix is in [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) (separate `RO-023:` commits), part of the paused RO-012 stack | Merges with PR #17; owner's device check |
+| Simulated-data warning badge clips on iPhone | **RO-023** | `todo`. The fix is in [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) (separate `RO-023:` commits), part of the open RO-012 stack | Merges with PR #17; owner's device check |
 | Brand configuration for display names (ADR 0006 follow-up; RO-011 finding 5) | **RO-024** | `todo`, P2 (code) | Claude Code, once assigned |
 | Boundary-checker hardening: per-adapter infrastructure layers, index-only `application/` imports (RO-011 finding 2) | **RO-025** | `todo`, P3 | Claude Code, before a second infrastructure adapter lands |
 | Where simulation lives: root barrel vs a `./simulation` subpath (RO-011 §3.2) | **RO-026** | `todo`, P3 | Gemini proposes, owner decides; after RO-012 merges |
@@ -121,15 +121,15 @@ PRs are RO-012's.
 
 | PR / branch | What it contributes | Still needed? | Recommended action |
 |---|---|---|---|
-| [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14) → [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15) → [PR #16](https://github.com/bransondang3307-beep/RepOne/pull/16) → [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) (Claude Code, stacked) | **RO-012, Milestone 2**, resumed by the owner on 2026-10-23: sensor error states (ADR 0007, Proposed), per-channel rep engine, `DeviceConnection` and `SimulatedDevice`, and app integration. PR #17 also has the RO-023 badge fix. Heads: `eb4e8de` · `1132dc3` · `605e12c` · `3de7aa3` | **Yes.** Codex found no major issues on each head (#16 after four fix rounds, rounds 3 and 4 owner-approved), and CI passed on each head. #14 targets `main` and merges cleanly with `b1c6ac1`; #15–#17 target the branch below them. **Paused by the owner (2026-10-28):** no merges or further RO-012 work until the owner's go-ahead. The owner's Expo Go check of #17's head is not reported yet | When the owner resumes Milestone 2: merge in order #14 → #15 → #16 → #17, retargeting each to `main` as the one below merges |
+| [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14) → [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15) → [PR #16](https://github.com/bransondang3307-beep/RepOne/pull/16) → [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) (Claude Code, stacked) | **RO-012, Milestone 2**, resumed by the owner on 2026-10-23: sensor error states (ADR 0007, Proposed), per-channel rep engine, `DeviceConnection` and `SimulatedDevice`, and app integration. PR #17 also has the RO-023 badge fix. Heads: `eb4e8de` · `1132dc3` · `605e12c` · `3de7aa3` | **Yes.** Codex found no major issues on each head (#16 after four fix rounds, rounds 3 and 4 owner-approved), and CI passed on each head. #14 targets `main` and merges cleanly with `b1c6ac1`; #15–#17 target the branch below them. The owner paused it on 2026-10-28 and **lifted the pause later that day**. Native Windows `npm run verify` on #17's head `3de7aa3` (Lenovo laptop, Node v24.22.0, 2026-10-28; Claude Code): exit 0, scripts 62/62, Jest 165/165, boundaries OK (74 files). The whole stack merges with `b1c6ac1` without conflicts. The owner's Expo Go check of #17's head is not reported yet | After the owner's Expo Go check of `3de7aa3`: merge in order #14 → #15 → #16 → #17, each authorised by the owner, retargeting each to `main` as the one below merges. Whichever of #17 and PR #20 merges second has a small `TASKS.md` conflict to resolve |
 | `claude/RO-019-claude-codex-loop` @ `af8acd9` | Archive of the original API loop (PR #4, closed unmerged) | Kept on purpose (ADR 0005 §6) | Owner: archive tag (see Next steps) |
 | `claude/EXP-001-autofix-experiment` @ `9629bab` | [PR #18](https://github.com/bransondang3307-beep/RepOne/pull/18), the owner-authorised Auto-fix trigger experiment (2026-10-23), **closed unmerged**. Result: a Codex review comment on its own woke the Auto-fix-subscribed Claude Code session, which fixed the finding. Auto-fix is off again; workflow §10 is unchanged | Kept as evidence (owner, 2026-10-23), with its handoff on the branch | None |
 | `claude/RO-004-owner-decision` @ `15740e4` | [PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2), closed unmerged as superseded by PR #19 | Kept as history | None |
 | `claude/RO-022-preview-{40d4a22,30e2dd3,6f48f1d,ro019}` | Temporary RO-022 CI previews | No | Owner deletes; harmless meanwhile |
 | Branches of merged or closed PRs: `sprint-1-alignment`, `claude/RO-004-agent-sync`, `claude/RO-019-pause`, `claude/RO-019-zero-cost-workflow`, `claude/RO-022-windows-ci`, `claude/RO-019-RO-022-status-done`, `claude/RO-003-m1-closeout`, `claude/RO-004-status-ownership`, `claude/RO-021-windows-path-repro`, `gemini/RO-011-milestone-1-arch-review`, `claude/RO-020-rebrandable-naming`, `codex/RO-004-antigravity-onboarding` | Nothing beyond what merged (PR #5, from `claude/RO-019-pause`, closed unmerged) | No | Owner may delete them; harmless meanwhile |
 
-**Recommended order:** no other PR is open. The next work is task-based (below). The RO-012 stack (#14 → #17)
-merges only when the owner resumes Milestone 2.
+**Recommended order:** the RO-012 stack first (#14 → #17), after the owner's Expo Go check of #17's head. The other
+next work is task-based (below).
 
 ## Active milestone
 
@@ -145,34 +145,36 @@ merges only when the owner resumes Milestone 2.
 - **RO-019** and **RO-022** are **done**. They are process and CI improvements made between Milestones 1 and 2.
 - **RO-004 follow-ups merged:** status-update ownership and ADR 0004 Accepted (PR #19, `2959751`); Antigravity
   onboarding (PR #7, `b1c6ac1`).
-- **Milestone 2 (RO-012): paused, with its work open.**
+- **Milestone 2 (RO-012): active, the owner's top priority; its work is open.**
   - The owner resumed it on 2026-10-23. It was delivered in four stacked PRs, #14–#17 (see "Open branches / PRs").
   - None is merged, so none of it counts as done.
-  - On 2026-10-28 the owner asked to keep it paused: no merges or further RO-012 work until the owner's go-ahead.
+  - On 2026-10-28 the owner paused it, then lifted the pause later that day, in the AI-ecosystem update.
+  - Remaining: the owner's Expo Go check of #17's head, then the owner-authorised merges in order.
   - Milestones 3–5 (RO-013…RO-015) follow in order, each after the previous one merges.
 
 ## Blockers
 
 | Blocker | Blocks | Owner |
 |---|---|---|
-| Owner go-ahead to resume Milestone 2 | Merging RO-012 (PRs #14–#17), then RO-013…RO-015 | Owner |
+| Owner's Expo Go check of PR #17's head `3de7aa3`, then a merge authorisation per PR | Merging RO-012 (PRs #14–#17), then RO-013…RO-015 | Owner |
 | No real sensor data yet | Any accuracy claim; detector tuning | Owner (hardware, RO-018, source of truth §11) |
 | Device runs (Expo Go) need the owner's phone; cloud sessions cannot run them | Device acceptance for each milestone, including PR #17's head (RO-012 and RO-023) | Owner |
 | Branch protection unavailable (private repo on GitHub Free). "PR + review before merge" is a process rule, not enforced | Workflow enforcement | Owner (optional: GitHub Pro or public repo) |
 
 ## Next steps (priority order — details in `TASKS.md`)
 
-1. **ChatGPT / owner:** prioritise and assign the follow-up tasks. Suggested:
+1. **RO-012 (Milestone 2), the owner's top priority:** the owner's Expo Go check of #17's head `3de7aa3`; then merge
+   #14 → #17 in order, each authorised by the owner, with CI and a Codex review on each final head.
+2. **ChatGPT / owner:** prioritise and assign the follow-up tasks. Suggested:
    - RO-008 (Claude Code, docs);
    - RO-024 (Claude Code, code);
    - RO-010 (owner decision);
    - RO-025 and RO-026 at P3;
    - RO-016 (Gemini; including the header note) and RO-018 (owner hardware) are also ready.
-2. **Owner:** manual items this environment cannot do:
+3. **Owner:** manual items this environment cannot do:
    - create the archive tag `archive/RO-019-api-loop-v1` on `af8acd9` (ADR 0005 §6);
    - delete the four `claude/RO-022-preview-*` branches, and optionally the merged and closed branches listed above;
    - keep the account $0 settings: GitHub Actions budget $0; no Codex credits or Claude extra usage (ADR 0005).
-3. **RO-012 (Milestone 2)** when the owner resumes it: merge #14 → #17 in order, after the Expo Go check of #17's head.
 
 ## Known limitations (carried forward)
 
@@ -194,4 +196,4 @@ merges only when the owner resumes Milestone 2.
 | 2026-10-23 | Milestone 1 closeout on `main` @ `9b8b81a`: RO-003…RO-007 done; RO-023 recorded; remaining Milestone 1 work and the open-PR assessment added; Milestone 2 (RO-012) still paused | Claude Code (Milestone 1 closeout, at the owner's request) |
 | 2026-10-28 | Status-update rule (owner decision of 2026-10-28) and ADR 0004 → Accepted, in PR #19, which supersedes PR #2; PR #2's assessment corrected. Only the rule text and these rows changed: the snapshot at the top still describes `main` @ `9b8b81a` | Claude Code (RO-004 follow-up, at the owner's direction) |
 | 2026-10-28 | Reflects `main` @ `b1c6ac1`, the Milestone 1 closeout batch: PRs #13, #19, #9, #8, #6 and #7 merged with CI green on `main` after each; PR #2 closed as superseded. RO-011, RO-020 and RO-021 done; follow-up tasks RO-024…RO-026 and an RO-016 scope note recorded. Snapshot, evidence, follow-up tasks, open-PR list, milestone, blockers and next steps refreshed. Milestone 2 (RO-012) still paused | Claude Code (its own work, plus RO-011 under the owner-directed closeout exception) |
-| 2026-10-28 | Added Antigravity's native Windows verification of `b1c6ac1` (PR #7's merge), with Claude Code's independent re-run on the same laptop. No merge or task-state changes | Claude Code (owner's ecosystem update, 2026-10-28) |
+| 2026-10-28 | Added Antigravity's native Windows verification of `b1c6ac1` (PR #7's merge), with Claude Code's independent re-run on the same laptop. The owner lifted the Milestone 2 pause; RO-012 is first in next steps, with a native Windows check of #17's head. No merges or task-state changes | Claude Code (owner's ecosystem update, 2026-10-28) |

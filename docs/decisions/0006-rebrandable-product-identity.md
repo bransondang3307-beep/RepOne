@@ -1,8 +1,9 @@
 # ADR 0006 — Rebrandable product identity
 
 - **Date:** 2026-10-16
-- **Status:** Accepted (owner directive, 2026-10-16) — rule recorded; existing UI strings centralised in a follow-up task
-- **Numbering:** 0003 (`sprint-1-alignment`), 0005 (RO-019 branch) and 0004 (`main`) are taken; this is 0006.
+- **Status:** Accepted (owner directive, 2026-10-16). The rule is recorded here; the existing UI strings are centralised
+  by the follow-up task **RO-024** (recorded 2026-10-28).
+- **Numbering:** 0001–0005 are on `main`, and 0007 is used by RO-012's open PR #14 (Proposed); this is 0006.
 
 ## Context
 
@@ -10,7 +11,9 @@
 core functionality: user-facing names are centralised, branding is not hardcoded across the application, and
 existing package identifiers and repository paths are **not** renamed until explicitly instructed.
 
-Inventory of the name in code (excluding docs and tests), 2026-10-16, on `main` and the Milestone 1 branch:
+Inventory of the name in code (excluding docs and tests), taken 2026-10-16 and re-checked 2026-10-28 on `main` @
+`4951a37`. It is unchanged; the paused RO-012 PRs (#14–#17) add no occurrences, and their new identifiers are neutral
+(for example `simulated-device-01`).
 
 | Kind | Occurrences | Rebrand impact |
 |---|---|---|
@@ -19,7 +22,8 @@ Inventory of the name in code (excluding docs and tests), 2026-10-16, on `main` 
 | Expo `slug` / URL `scheme` | `repone` | `scheme` is used by deep links; changing it breaks existing links |
 | Local database file | `repone.db` | Renaming without a migration loses users' local workouts |
 | Document names / comments | `REPONE_SOURCE_OF_TRUTH.md` and references to it | Docs only |
-| Unmerged branches | RO-019 marker `repone-ai-loop:v1` (PR #4); draft H0 header `# repone h0 v1` in `docs/hardware-protocol.md` (PR #3) | Wire/state formats — neutralise before they are used for real |
+| Draft wire format | H0 header `# repone h0 v1` in `docs/hardware-protocol.md` (on `main` since PR #3; a draft, not implemented) | Neutralise before it is used for real: RO-016 (H0 serial schema) |
+| Archived branch | RO-019 marker `repone-ai-loop:v1` on `claude/RO-019-claude-codex-loop` (PR #4, closed unmerged; ADR 0005) | None while archived; not on `main` |
 
 Core packages contain no user-facing branding; domain types and services already use generic names
 (`WorkoutSessionController`, `RotationalRepDetector`, `SensorSource`).
@@ -55,5 +59,17 @@ Core packages contain no user-facing branding; domain types and services already
 - Identifier renames remain possible but deliberate, because some (scheme, database file, store identifiers) affect
   installed users.
 - Agents follow the rule via `AGENTS.md` §5 (loaded by `CLAUDE.md` and `GEMINI.md`, referenced by ChatGPT's instructions).
-- The two existing user-facing strings are moved behind the brand configuration **after PR #3 merges**, to avoid
-  invalidating its approved review and because the brand module belongs in PR #3's `src/shared/` layer.
+- The two existing user-facing strings are moved behind the brand configuration by **RO-024**. That was deferred
+  until PR #3 merged, to avoid invalidating its approved review, and because the brand module belongs in PR #3's
+  `src/shared/` layer. PR #3 merged on 2026-10-17 (`cd884fc`).
+
+## Follow-up (recorded 2026-10-28, owner-directed)
+
+**RO-024 — Brand configuration for display names** (Claude Code, P2, code). It implements Decisions 2 and 4:
+- `apps/mobile/src/shared/brand.ts`, data-only, exported from `src/shared/index.ts`;
+- `app.json` → `app.config.ts`, reading the display name from it. `slug`, `scheme` and the database file are
+  unchanged;
+- the home-screen title read from it;
+- a guard test that fails when user-facing source contains the product name outside the brand configuration.
+
+It is not started here. The draft H0 header is RO-016's concern (Decision 3).

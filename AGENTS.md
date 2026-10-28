@@ -104,7 +104,8 @@ Describe software as **implemented** (code exists), **verified** (tests/checks e
 - Do not change the rep-counting algorithm, sensor units, or data contracts without an assigned task and an ADR.
 - Breaking interface changes: ADR in `docs/decisions/` + note in the PR + review by every affected owner.
 - **Rebrandable naming (owner rule, 2026-10-16; ADR 0006):** "RepOne" is a temporary development name. Never
-  hardcode the product name in user-facing text — read it from the app's single brand configuration. Keep core
+  hardcode the product name in user-facing text — read it from the app's single brand configuration (planned
+  `apps/mobile/src/shared/brand.ts`, task RO-024; until it exists, add no new occurrences). Keep core
   packages and domain logic brand-free, and give new identifiers neutral names (code symbols, storage keys, file
   names, protocol/wire fields, device names, event names). Do **not** rename existing identifiers (`@repone/*`
   packages, repository and paths, `repone` slug/scheme, `repone.db`, `REPONE_SOURCE_OF_TRUTH.md`) until the owner

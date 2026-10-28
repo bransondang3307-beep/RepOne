@@ -82,3 +82,29 @@ not done. No existing task is reassigned or marked complete.
 ## Questions for the owner
 
 None required to review the documentation. Laptop/phone evidence remains to be collected.
+
+## Refresh, 2026-10-28 (Claude Code, at the owner's direction)
+Everything above is Codex's 2026-10-16 record and is kept as written. As part of the owner's Milestone 1 closeout
+batch, Claude Code merged `main` @ `2959751` into this branch and refreshed the three guides against it. No new
+files, and no changes to shared policy files.
+
+**What changed:**
+- **Architecture:** Milestone 1 is merged (PR #3, `cd884fc`, ADR 0003). The guides now describe the current
+  package and layer layout, and say that Milestone 2 (RO-012) is paused with PRs #14–#17 unmerged.
+- **Workflow:**
+  - `npm run verify` exists, so the typecheck + test fallback is removed;
+  - the Codex review hand-off is linked;
+  - status updates follow `AGENTS.md` §3 step 9, the owner's decision of 2026-10-28, which replaces the reference to
+    PR #2.
+- **Safety:** the paused-RO-019 / PR #4 text is replaced by the $0 AI API rule (ADR 0005, `check:workflows`).
+  PR #4 is closed unmerged and archived.
+- **Setup guide:**
+  - CI Node versions are Linux 22 and Windows 24;
+  - the guides are read from `main`;
+  - Expo Go checks are generic, using the commit a PR names. RO-007 is noted as passed on 2026-10-16;
+  - next steps are current.
+- **Kept, because they are still accurate:** explicit attachment of `ANTIGRAVITY.md`, the `src/app/` vs
+  `apps/mobile/app/` discrepancy (RO-008), the safety boundaries, the hardware steps and the role rules.
+
+**Checks:** docs only; `npm run verify` result and link check are in the PR description. The laptop setup is still
+unverified; nothing here is evidence that Antigravity or Expo Go works on it.

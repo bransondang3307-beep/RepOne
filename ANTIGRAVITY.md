@@ -5,7 +5,7 @@ Start with [Windows setup](docs/agents/ANTIGRAVITY_WINDOWS_SETUP.md), then read 
 
 `AGENTS.md` remains the canonical shared policy. This file does not replace it,
 `CLAUDE.md`, `GEMINI.md`, or `docs/agents/CHATGPT.md`. Codex already uses `AGENTS.md`;
-there is no separate `CODEX.md` on the inspected `main`.
+there is no separate `CODEX.md` on `main`.
 
 **Activation:** `ANTIGRAVITY.md` is a manual entry point, not a documented automatic
 rule filename. Open the repository root in Antigravity and explicitly attach/read
@@ -19,6 +19,7 @@ role by using a particular model. Default to Gemini's research/design scope;
 implementation requires an explicit owner assignment naming the task and files.
 Owner merges and physical device/hardware tests remain with the owner.
 
-Prepared 2026-10-16 as an owner-requested RO-004 onboarding follow-up. Existing
-agent policies, task rows, architecture, runtime configuration, and milestones
-are unchanged. This guide is not evidence that the laptop or Expo Go is working.
+Prepared 2026-10-16 as an owner-requested RO-004 onboarding follow-up, and refreshed
+2026-10-28 against `main` @ `2959751`. Existing agent policies, task rows, architecture,
+runtime configuration, and milestones are unchanged. This guide is not evidence that
+the laptop or Expo Go is working.

@@ -41,19 +41,20 @@ Code and executed tests establish implementation, not a handoff's aspirations.
 
 ## Architecture and milestone guardrails
 
-At inspected `main` `75e2814`, `apps/mobile` uses Expo Router, Zustand, expo-sqlite
-and `@repone/core` through its public API. Core is pure TypeScript with injected
-drivers/clock/scheduler/IDs. Keep units and provenance explicit. No new framework,
-dependency migration, detector tuning, sensor contract change, or native project
-generation is part of onboarding.
+As of `main` @ `2959751` (2026-10-28), Milestone 1 is merged (PR #3, `cd884fc`;
+ADR 0003). The pure-TypeScript packages are `@repone/sensor-contracts`,
+`@repone/rep-engine` and `@repone/workout-domain`. `apps/mobile` uses Expo Router
+routes in `apps/mobile/app/` and the `src/application`, `src/features`, `src/shared`
+and `src/infrastructure` layers, with Zustand and expo-sqlite. `npm run
+check:boundaries` enforces the module boundaries. Keep units and provenance
+explicit. No new framework, dependency migration, detector tuning, sensor contract
+change, or native project generation is part of onboarding.
 
-PR #3 (`sprint-1-alignment`) proposes/implements the split into `sensor-contracts`,
-`rep-engine`, `workout-domain` and the mobile application/features/shared/
-infrastructure layers. It was still open at inspection. Preserve its direction
-and inspect its ADR 0003 when working on that branch; do not treat it as merged
-or reproduce its restructure on another branch. RO-008 addresses its ownership
-table separately. Milestones 2–5 are Sprint 1 alignment work, gated by previous
-merges and owner approval; Sprint 2 has not started.
+RO-008 addresses the ownership table in `docs/architecture.md` §6 separately.
+Milestones 2–5 are Sprint 1 alignment work, gated by previous merges and owner
+approval. **Milestone 2 (RO-012) is paused by the owner:** its stacked PRs #14–#17
+are open and unmerged. Do not treat them as merged, build on them, or merge them.
+Sprint 2 has not started.
 
 Rep data remains simulated. No verified real sensor-to-app path, hardware accuracy,
 or owner Expo Go success is established by these documents. Keep those gates open.
@@ -66,7 +67,7 @@ or owner Expo Go success is established by these documents. Keep those gates ope
   task board already owned by another open PR.
 - Create the assigned agent's task branch from `origin/main`, unless explicitly
   assigned a different base. Never commit to `main`. Prefix commits with the task ID.
-- Run `npm run verify` if defined, otherwise `npm run typecheck` then `npm test`.
+- Run `npm run verify` (module boundaries, workflow policy, typecheck and tests).
   In PowerShell, check each exit code and stop after failure. Record commands,
   counts, failures, and environment. Docs-only changes follow `AGENTS.md`'s docs
   exception; configuration changes require its additional test check.
@@ -75,11 +76,13 @@ or owner Expo Go success is established by these documents. Keep those gates ope
 - Inspect the diff, stage only assigned paths, push the branch, and open a PR to
   `main` using `.github/pull_request_template.md`. Record the PR URL in the handoff
   and only your task row when it is safe to update it. Code PRs require independent
-  Codex or owner review and green CI before the owner merges.
-- Never mark unmerged work `done`. After merge and green CI on `main`, follow the
-  current shared status-update procedure. PR #2 records the owner's decision that
-  each agent opens its own status PR and ChatGPT coordinates the roadmap. Preserve
-  that decision; do not update other agents' rows or silently reconcile stale status.
+  Codex or owner review and green CI before the owner merges. The Codex review
+  hand-off is in `docs/automation/claude-codex-workflow.md`.
+- Never mark unmerged work `done`. After merge and green CI on `main`, follow
+  `AGENTS.md` §3 step 9 (owner decision of 2026-10-28): the agent that completed the
+  work opens its own status-update PR. Only Claude Code may also record the owner's
+  device checks, Codex review tasks and closeouts the owner explicitly directs.
+  Do not update other agents' rows or silently reconcile stale status.
 
 Use exactly `todo`, `in-progress`, `in-review`, `done`, `blocked` for task status.
 Report objective, files changed, actual checks/results, risks, and next task.
@@ -94,10 +97,11 @@ Report objective, files changed, actual checks/results, risks, and next task.
   settings. Authenticate in the official sign-in UI; do not paste passwords into chat.
 - No API keys, paid automation, deployments, EAS publishing, firmware flashing, or
   production migrations are authorized by this setup task.
-- RO-019 / PR #4 is paused per the owner's decision, also recorded in open PR #5.
-  Do not enable `AI_LOOP_MODE`, add loop secrets, resume the loop, or merge PR #4.
-  Resume gate: real sensor movement reaches the mobile app and rep counting works;
-  then owner confirmation plus exact-head CI and outstanding safeguard/state reviews.
+- **Zero additional AI API cost** (owner rule, ADR 0005; `AGENTS.md` §5). Development
+  uses subscriptions only; for Antigravity that means signing in with the owner's
+  Google account. Never add AI API keys or tokens, paid AI services, AI actions or
+  AI SDK dependencies. `npm run check:workflows` enforces this in CI. The old
+  API-powered review loop (PR #4) was closed unmerged and is archived; do not revive it.
 - Hardware stays on a controlled unloaded rig. Verify components and voltage before
   wiring, disconnect USB while wiring, and do not attach prototypes to active gym equipment.
 
@@ -109,7 +113,8 @@ docs/agents/ANTIGRAVITY.md explicitly, then the current shared files in AGENTS.m
 reading order and relevant open PRs. Start with a read-only setup audit: report the
 actual repository path, dirty files, branch/SHA, Node/npm/Git versions, package
 scripts, merged vs unmerged architecture, and the next assigned task. Preserve
-Claude/Codex/Gemini/ChatGPT roles, RO-007 owner Expo Go testing, and the RO-019 pause.
-Do not install, edit code, switch a dirty checkout, resume automation, or merge.
+Claude/Codex/Gemini/ChatGPT roles, owner-only device testing, the $0 AI API rule,
+and the Milestone 2 (RO-012) pause. Do not install, edit code, switch a dirty
+checkout, add automation, or merge.
 Give me the next setup command justified by what you actually observed.
 ```

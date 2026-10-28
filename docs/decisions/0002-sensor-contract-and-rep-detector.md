@@ -12,7 +12,7 @@ device-relative, not wall-clock; wall-clock fields are explicitly named `*_epoch
 `SensorSource` (start / stop / subscribe / subscribeStatus, plus `kind` and `provenance`) is the
 only hardware boundary. Implemented: `SimulatedSensorSource` (live, seeded synthetic motion) and
 `ReplaySensorSource` (immediate or real-time replay). A shared Jest contract suite runs against
-every implementation; USB-serial / BLE sources must pass the same suite.
+every implementation (`describeSensorSourceContract` from `@repone/sensor-contracts/testing`); USB-serial / BLE sources must pass the same suite. Package locations updated by ADR 0003.
 
 ## Provenance
 

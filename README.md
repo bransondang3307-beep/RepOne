@@ -3,7 +3,7 @@
 Portable gym-machine rep-tracking device + companion mobile app. Read
 [`REPONE_SOURCE_OF_TRUTH.md`](./REPONE_SOURCE_OF_TRUTH.md) and [`AGENTS.md`](./AGENTS.md) first.
 
-## Actual state (Sprint 1 — 2026-10-15)
+## Actual state (Sprint 1, Milestone 1 of the alignment plan — 2026-10-15)
 
 | Area | State |
 |---|---|
@@ -20,30 +20,39 @@ All rep counts currently shown in the app come from **simulated data** and are l
 
 ## Layout
 
-See [ADR 0001](docs/decisions/0001-app-stack-and-monorepo-layout.md).
+See [`docs/architecture.md`](docs/architecture.md) and [ADR 0003](docs/decisions/0003-full-spec-module-layout.md).
 
 ```
-apps/mobile/     Expo app — UI, Zustand store, composition root, expo-sqlite adapter
-packages/core/   Pure TypeScript domain logic (no React Native) — sensors, simulation,
-                 detection, evaluation, persistence, session orchestration
-docs/decisions/  Architecture decision records
+apps/mobile/
+  app/                  Routes (Expo Router)
+  src/application/      Composition root + application services (WorkoutSessionController)
+  src/features/         rep-tracking, workouts (exercises, machines, device-connection: planned)
+  src/shared/           Feature-agnostic components + theme
+  src/infrastructure/   database (expo-sqlite adapter, migrations)
+packages/
+  sensor-contracts/     Sensor + derived-event contracts, deterministic simulation
+  rep-engine/           Pure TS rep detection, calibration, evaluation
+  workout-domain/       Workout models + repository interfaces
+docs/                   architecture.md, hardware-protocol.md, decisions/
+scripts/                check-boundaries.mjs
 ```
 
 ## Getting started
 
-Requires Node 22+ (core tests use the built-in `node:sqlite`).
+Requires Node 22+ (SQLite tests use the built-in `node:sqlite`).
 
 ```bash
 npm install
-npm test             # core + mobile Jest suites
-npm run typecheck    # tsc --noEmit in every workspace
+npm run verify       # module boundaries + workflow policy (no AI APIs) + typecheck + all tests
 cd apps/mobile && npx expo start   # run in Expo Go / simulator
 ```
 
 ## Architecture rules
 
-- `apps/mobile` imports `@repone/core` only through its public `src/index.ts`.
-- Core receives its dependencies (SQL driver, clock, scheduler, ID generator, detector factory).
-- Any new sensor (USB serial, BLE) implements `SensorSource` and must pass
-  `packages/core/test/sensorSources.test.ts`; any new store must pass `repositories.test.ts`.
+- Dependency direction: UI → application services → domain + rep engine → contracts;
+  infrastructure implements contracts. Enforced by `npm run check:boundaries`.
+- Packages are imported only through their public entry (`@repone/<name>`); test utilities via
+  `@repone/<name>/testing` in tests only.
+- Any new sensor (USB serial, BLE) must pass `describeSensorSourceContract`; any new store must
+  pass `describeRepositoriesContract`.
 - Units live in field/column names (`_m_s2`, `_rad_s`, `_rad`, `_ms`, `_epoch_ms`).

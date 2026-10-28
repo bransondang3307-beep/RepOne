@@ -2,7 +2,8 @@
 
 > Shared task board for all agents. Rules (`AGENTS.md` §3–4):
 > - Work only on tasks assigned to you; branch `<agent>/<TASK-ID>-<slug>`; commits start with the task ID.
-> - Edit only your own task's row/section; ChatGPT or the owner add and assign tasks.
+> - Edit only your own task's row/section, except as `AGENTS.md` §3 step 9 allows. ChatGPT proposes new tasks and assignments; the owner, or an agent acting at the owner's direction, commits them.
+> - After your work PR merges, set your row to `done` in your own status-update PR (`AGENTS.md` §3 step 9).
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
 > - Next free ID: **RO-024** (RO-020: PR #6 · RO-021: PR #9 · RO-023: iPhone warning-badge clipping).
@@ -60,8 +61,10 @@
   - CI on `main` has been green since: run [38807737485](https://github.com/bransondang3307-beep/RepOne/actions/runs/38807737485) after the merge, and every later
     `main` run.
   - `CLAUDE.md` imports `@AGENTS.md`, and `GEMINI.md` imports `@./AGENTS.md`.
-  - Two follow-ups are still open and are not part of these criteria: [PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2) (status-update ownership;
-    it also sets ADR 0004 to Accepted) and [PR #7](https://github.com/bransondang3307-beep/RepOne/pull/7) (Antigravity onboarding, Codex).
+  - Two follow-ups are still open and are not part of these criteria:
+    - [PR #19](https://github.com/bransondang3307-beep/RepOne/pull/19): status-update ownership (owner decision of 2026-10-28) and ADR 0004 → Accepted. It supersedes
+      [PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2).
+    - [PR #7](https://github.com/bransondang3307-beep/RepOne/pull/7): Antigravity onboarding (Codex).
 
 ### RO-005 — Open PR for `sprint-1-alignment`
 - **Files:** none changed beyond merging `main` into the branch if needed (+ its handoff).

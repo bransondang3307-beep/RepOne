@@ -30,7 +30,7 @@ Code and test results beat any document about what is *implemented*. Report conf
 | **Claude Code** | Main software developer | Implements tasks, integrates modules, writes tests for its changes, opens PRs, writes handoffs | Merge its own PR without review; change contracts without an ADR |
 | **OpenAI Codex** | Testing, debugging, code review | Reviews every code PR, adds/strengthens tests, reproduces and fixes bugs on its own branch | Rewrite features under review; change behaviour without a task |
 | **Gemini** | Research, architecture, design | Sensor/hardware research, architecture and UX critique, proposes ADRs (status *Proposed*) and design docs | Edit `packages/` or `apps/` code unless a task assigns it |
-| **ChatGPT** | Project management, coordination | Maintains task priorities and assignments, drafts `TASKS.md` / `PROJECT_STATUS.md` updates, resolves sequencing, prepares agent prompts | Push code (it proposes edits; the owner or Claude Code commits them) |
+| **ChatGPT** | Project management, roadmap coordination | Sets priorities and sequencing, proposes new tasks, assignments and other roadmap changes, prepares agent prompts, checks that status-update PRs match the merged work | Push code (the owner, or an agent acting at the owner's direction, commits its roadmap proposals); write status updates |
 | **Owner** (human) | Final authority | Approves scope/architecture, merges PRs, physical hardware and device testing | — |
 
 Ownership of paths is assigned per task in `TASKS.md` ("Files" column). One agent per file at a time.
@@ -78,10 +78,20 @@ and again on each `@codex review` comment). The full hand-off: [`docs/automation
    [`docs/automation/claude-codex-workflow.md`](docs/automation/claude-codex-workflow.md) — Codex reviews on GitHub,
    `@codex review` after each fix push, at most two fix rounds, CI and the review must cover the head commit.
 8. **Merge.** The owner merges (or explicitly delegates merging).
-9. **Update status after merge only.** Once merged and CI on `main` is green, a follow-up PR
-   (by the task's agent, or ChatGPT's drafted text committed by the owner/Claude Code) sets the task
-   to `done` with the merge commit and updates `PROJECT_STATUS.md`. Unmerged work is listed only under
-   "Open branches / PRs", never as completed.
+9. **Status update, after merge only** (owner decisions of 2026-10-15 and 2026-10-28; ADR 0004). Once the work
+   PR is merged and CI on `main` is green:
+   - **By default, the agent that completed the work opens its own status-update PR.** It sets its `TASKS.md`
+     row(s) to `done` with the merge commit and the work PR's link. It also moves the matching `PROJECT_STATUS.md`
+     entries from "Open branches / PRs" to the merged sections, with the evidence.
+   - One status-update PR may cover several of that agent's tasks, and it may include a handoff. Without one,
+     put `[no-handoff]` in its title.
+   - **Exceptions.** Claude Code may record three kinds of status that are not its own: the owner's device checks,
+     Codex review tasks, and closeouts the owner explicitly directs. Each links its supporting evidence. Only these
+     exceptions let one agent change another agent's (or the owner's) task status.
+   - Sync with the latest `origin/main` first. If another status-update PR changed the same section, keep both
+     entries; never delete another agent's row.
+   - ChatGPT does not write status updates. Unmerged work is listed only under "Open branches / PRs", never as
+     completed.
 
 ## 4. Status vocabulary
 
@@ -99,4 +109,6 @@ Describe software as **implemented** (code exists), **verified** (tests/checks e
   Code (Claude Pro), Codex (ChatGPT Plus), Gemini (Google AI Pro). Never add AI API keys or tokens, paid AI services,
   AI actions or AI SDK dependencies; `npm run check:workflows` enforces this in CI. Changing it needs the owner and an ADR.
 - Do not edit files another agent's open PR is changing; coordinate via `TASKS.md` / the owner.
-- Keep `TASKS.md` edits to your own task row(s); new tasks are added by ChatGPT/owner (or proposed in your handoff).
+- Keep `TASKS.md` edits to your own task row(s), apart from the status-update exceptions in §3 step 9.
+- New tasks, priorities and assignments are roadmap changes. ChatGPT proposes them, and the owner, or an agent
+  acting at the owner's direction, commits them. Agents may propose tasks in their handoffs.

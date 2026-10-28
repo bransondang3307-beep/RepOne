@@ -1,11 +1,8 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useWorkout } from '../src/state/WorkoutStoreProvider';
-import { PrimaryButton } from '../src/ui/components/PrimaryButton';
-import { ProvenanceBadge } from '../src/ui/components/ProvenanceBadge';
-import { RepCounter } from '../src/ui/components/RepCounter';
-import { colors, spacing } from '../src/ui/theme/tokens';
+import { RepCounter, useLiveSession } from '../src/features/rep-tracking';
+import { PrimaryButton, ProvenanceBadge, colors, spacing } from '../src/shared';
 
 const STATUS_TEXT = {
   idle: 'Ready',
@@ -17,10 +14,10 @@ const STATUS_TEXT = {
 } as const;
 
 export default function WorkoutScreen() {
-  const session = useWorkout((s) => s.session);
-  const startSimulatedSet = useWorkout((s) => s.startSimulatedSet);
-  const stop = useWorkout((s) => s.stop);
-  const dismissResult = useWorkout((s) => s.dismissResult);
+  const session = useLiveSession((s) => s.session);
+  const startSimulatedSet = useLiveSession((s) => s.startSimulatedSet);
+  const stop = useLiveSession((s) => s.stop);
+  const dismissResult = useLiveSession((s) => s.dismissResult);
   const [machineLabel, setMachineLabel] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
 

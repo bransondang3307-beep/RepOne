@@ -19,4 +19,5 @@ All shared project rules, context order, roles and the synchronization workflow 
     *proposed*.
 - **Do not** edit `packages/` or `apps/` unless a task explicitly assigns those files to Gemini.
 - Never present vendor marketing or unvalidated numbers as measured RepOne results.
-- Same workflow as everyone: branch `gemini/<TASK-ID>-<slug>`, handoff file, PR to `main`.
+- Same workflow as everyone: branch `gemini/<TASK-ID>-<slug>`, handoff file, PR to `main`. After it merges, open
+  your own status-update PR (`AGENTS.md` §3 step 9).

@@ -19,7 +19,7 @@
 | RO-005 | Open PR for `sprint-1-alignment` → `main` | Claude Code | P1 | done | RO-004 | [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) — merged `cd884fc` |
 | RO-006 | Review Milestone 1 PR | Codex | P1 | done | RO-005 | Reviews on [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) — approved `6f48f1d` |
 | RO-007 | Run Milestone 1 app in Expo Go | Owner | P1 | done | — | [Result on PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3#issuecomment-6227338609) — passed (iPhone, simulated data) |
-| RO-008 | Update `docs/architecture.md` §6 ownership to `AGENTS.md` roles | Claude Code | P2 | todo | RO-003 merged | — |
+| RO-008 | Update `docs/architecture.md` §6 ownership to `AGENTS.md` roles; correct the routes location note | Claude Code | P2 | todo | RO-003 merged | — |
 | RO-009 | Choose a project license | Owner | P3 | todo | — | — |
 | RO-010 | Decide whether to record the app layout in source of truth §6 | Owner (ChatGPT prepares) | P3 | todo | RO-003 merged | — |
 | RO-011 | Architecture review of Milestone 1 layout (ADR 0003) | Gemini | P2 | todo | RO-005 | — |
@@ -31,6 +31,7 @@
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
 | RO-019 | Claude Code ↔ Codex workflow at zero additional AI API cost (replaces the archived API loop, PR #4) | Claude Code | P1 | done | — | [PR #11](https://github.com/bransondang3307-beep/RepOne/pull/11) — merged `acb9857` |
+| RO-021 | Reproduce + fix RO-011 finding 1: Windows path separators in the boundary checker | Claude Code | P1 | done | RO-011 ([PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8)) | fix: [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) — merged `cd884fc`; record: [PR #9](https://github.com/bransondang3307-beep/RepOne/pull/9) |
 | RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | done | RO-021 | [PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10) — merged `8a70565` |
 | RO-023 | Simulated-data warning badge clips on iPhone (record only; not fixed yet) | Claude Code | P3 | todo | — | — |
 
@@ -101,11 +102,14 @@
   PR #3 head from `40d4a22` to `6f48f1d` and at the merge `cd884fc`, so the check covers the merged app code. The badge
   clipping noted in the result is recorded as RO-023.
 
-### RO-008 — Update ownership table
-- **Files:** `docs/architecture.md` §6.
+### RO-008 — Update ownership table (docs only)
+- **Files:** `docs/architecture.md` §6; `apps/mobile/AGENTS.md` (routes line).
 - **Description:** Milestone 1's table follows the original brief (Codex owning `rep-engine`); `AGENTS.md` §2 now
   defines roles (Codex = testing/debugging/review). Align the table; per-task ownership lives in `TASKS.md`.
-- **Completion criteria:** table matches `AGENTS.md` §2; PR merged.
+  Owner, 2026-10-16 (from RO-011 finding 4): also state that the actual Expo Router routes live in `apps/mobile/app/`
+  (`apps/mobile/AGENTS.md` still says `src/app/` on `main` @ `2959751`). Not in scope: infrastructure isolation,
+  expanded sensor contracts, naming changes (separately approved tasks); the Windows path fix is RO-021.
+- **Completion criteria:** table matches `AGENTS.md` §2; routes location stated as `apps/mobile/app/`; PR merged.
 
 ### RO-009 / RO-010 — Owner decisions
 - RO-009: choose a license (none committed; Expo template license was removed). Criteria: `LICENSE` file merged.
@@ -161,6 +165,30 @@
     `claude/RO-019-claude-codex-loop` is at `af8acd9`.
   - Still open (owner, outside the completion criteria): the archive tag `archive/RO-019-api-loop-v1` (ADR 0005 §6) does
     not exist yet. This environment's GitHub proxy refuses tag pushes.
+
+### RO-021 — Windows path separators in the boundary checker (owner-authorized follow-up to RO-011)
+- **Assigned:** owner, 2026-10-16. A narrow follow-up to RO-011 finding 1 ([PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8)):
+  `scripts/check-boundaries.mjs` classified layers with `/`, but `path.relative()` returns `\` on Windows.
+- **Files:** `scripts/check-boundaries.mjs`, `scripts/check-boundaries.test.mjs`,
+  `scripts/test-support/simulate-windows-paths.mjs`, changed in PR #3. Separate from RO-008, which is docs only.
+- **Scope:** normalize repo-relative paths to `/`, with no change to the dependency rules, plus a regression test.
+  Not in scope: infrastructure-adapter isolation, sensor-contract expansion and naming (RO-011 findings 2–5 go to
+  separately approved tasks).
+- **Completion criteria:**
+  - the finding is reproduced on native Windows before the fix, and passes after it;
+  - the regression test fails on the old checker;
+  - Codex reviews the PR #3 revision that contains the fix;
+  - CI is green on that revision.
+- **Done. The fix merged 2026-10-17 (UTC) as `cd884fc`** ([PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3), final head `6f48f1d`). The record
+  is [PR #9](https://github.com/bransondang3307-beep/RepOne/pull/9), with the evidence in `docs/handoffs/2026-10-16-claude-RO-021.md`.
+  - **Native Windows:** run [38933126592](https://github.com/bransondang3307-beep/RepOne/actions/runs/38933126592) reproduced the bug on `40d4a22`. Injected
+    violations were missed, and `npm run verify` exited 1. Run [38933872724](https://github.com/bransondang3307-beep/RepOne/actions/runs/38933872724) passed on
+    `6f48f1d` (Node 22 and 24): checker tests 8/8, `npm run verify` exit 0.
+  - **Regression test:** `6f48f1d`'s test file against the `40d4a22` checker gives 7/8. Test 8 fails, so Linux CI
+    catches the old checker.
+  - **Review and CI:** Codex approved PR #3's final head `6f48f1d` (RO-006). PR #3 CI run
+    [38933844181](https://github.com/bransondang3307-beep/RepOne/actions/runs/38933844181) succeeded on `6f48f1d`.
+  - Native Windows coverage is permanent through RO-022 (below).
 
 ### RO-022 — Windows CI job for the boundary checker (owner-approved, 2026-10-16)
 - **Why:** RepOne is developed on Windows machines, and RO-021's bugs (the checker's path separators, then its own

@@ -5,7 +5,7 @@
 > - Edit only your own task's row/section; ChatGPT or the owner add and assign tasks.
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-023** (RO-019: merged `acb9857` · RO-020: PR #6 · RO-021: PR #9 · RO-022: merged `8a70565`).
+> - Next free ID: **RO-024** (RO-020: PR #6 · RO-021: PR #9 · RO-023: iPhone warning-badge clipping).
 
 ## Board
 
@@ -13,11 +13,11 @@
 |---|---|---|---|---|---|---|
 | RO-001 | Sprint 1 foundation (core + Expo app) | Claude Code | — | done | — | `main` @ `1b7e5b9` (pushed directly; pre-workflow) |
 | RO-002 | Publish repository to private GitHub | Claude Code | — | done | RO-001 | `main` @ `d9a7274` |
-| RO-003 | Milestone 1: align module layout with full Sprint 1 brief | Claude Code | P1 | in-review | — | `sprint-1-alignment` — [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) |
-| RO-004 | Multi-agent synchronization setup | Claude Code | P1 | in-review | — | `claude/RO-004-agent-sync` — [PR #1](https://github.com/bransondang3307-beep/RepOne/pull/1) |
-| RO-005 | Open PR for `sprint-1-alignment` → `main` | Claude Code | P1 | in-review | RO-004 | `sprint-1-alignment` — [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) |
-| RO-006 | Review Milestone 1 PR | Codex | P1 | todo | RO-005 | — |
-| RO-007 | Run Milestone 1 app in Expo Go | Owner | P1 | todo | — | — |
+| RO-003 | Milestone 1: align module layout with full Sprint 1 brief | Claude Code | P1 | done | — | [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) — merged `cd884fc` |
+| RO-004 | Multi-agent synchronization setup | Claude Code | P1 | done | — | [PR #1](https://github.com/bransondang3307-beep/RepOne/pull/1) — merged `75e2814` |
+| RO-005 | Open PR for `sprint-1-alignment` → `main` | Claude Code | P1 | done | RO-004 | [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) — merged `cd884fc` |
+| RO-006 | Review Milestone 1 PR | Codex | P1 | done | RO-005 | Reviews on [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) — approved `6f48f1d` |
+| RO-007 | Run Milestone 1 app in Expo Go | Owner | P1 | done | — | [Result on PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3#issuecomment-6227338609) — passed (iPhone, simulated data) |
 | RO-008 | Update `docs/architecture.md` §6 ownership to `AGENTS.md` roles | Claude Code | P2 | todo | RO-003 merged | — |
 | RO-009 | Choose a project license | Owner | P3 | todo | — | — |
 | RO-010 | Decide whether to record the app layout in source of truth §6 | Owner (ChatGPT prepares) | P3 | todo | RO-003 merged | — |
@@ -31,6 +31,7 @@
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
 | RO-019 | Claude Code ↔ Codex workflow at zero additional AI API cost (replaces the archived API loop, PR #4) | Claude Code | P1 | done | — | [PR #11](https://github.com/bransondang3307-beep/RepOne/pull/11) — merged `acb9857` |
 | RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | done | RO-021 | [PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10) — merged `8a70565` |
+| RO-023 | Simulated-data warning badge clips on iPhone (record only; not fixed yet) | Claude Code | P3 | todo | — | — |
 
 ## Task details
 
@@ -39,6 +40,15 @@
 - **Description:** restructure only; no behaviour change. Already implemented on `sprint-1-alignment` @ `6e79ee3`.
 - **Completion criteria:** PR merged; CI green; `npm run verify` passes (boundaries, typecheck, 46/46 tests);
   owner confirms the app runs in Expo Go (RO-007); Codex review approved (RO-006).
+- **Done — merged 2026-10-17 (UTC) as `cd884fc`** ([PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3), head `6f48f1d`). Every criterion is met:
+  - CI green: PR run [38933844181](https://github.com/bransondang3307-beep/RepOne/actions/runs/38933844181) on `6f48f1d`, and `main` run
+    [38986550607](https://github.com/bransondang3307-beep/RepOne/actions/runs/38986550607) on `cd884fc`.
+  - `npm run verify` at `cd884fc`, re-run 2026-10-23 (Node 22.22.0, after `npm ci`), exit 0:
+    - boundaries OK (58 files);
+    - checker tests 8/8;
+    - typecheck OK;
+    - Jest 48/48. That is 48 rather than 46 because the RO-006 fix `2dae11b` added SQLite integration tests.
+  - Owner Expo Go check passed (RO-007) and Codex approved (RO-006); see below.
 
 ### RO-004 — Multi-agent synchronization setup
 - **Files:** `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `docs/agents/CHATGPT.md`, `PROJECT_STATUS.md`, `TASKS.md`,
@@ -46,20 +56,47 @@
 - **Description:** shared instructions, tracker, task board, handoff system, PR template and CI so all agents
   work from the same context. No code, test or algorithm changes.
 - **Completion criteria:** PR merged; CI workflow runs green on `main`; `CLAUDE.md`/`GEMINI.md` load `AGENTS.md`.
+- **Done — merged 2026-10-15 (UTC) as `75e2814`** ([PR #1](https://github.com/bransondang3307-beep/RepOne/pull/1)).
+  - CI on `main` has been green since: run [38807737485](https://github.com/bransondang3307-beep/RepOne/actions/runs/38807737485) after the merge, and every later
+    `main` run.
+  - `CLAUDE.md` imports `@AGENTS.md`, and `GEMINI.md` imports `@./AGENTS.md`.
+  - Two follow-ups are still open and are not part of these criteria: [PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2) (status-update ownership;
+    it also sets ADR 0004 to Accepted) and [PR #7](https://github.com/bransondang3307-beep/RepOne/pull/7) (Antigravity onboarding, Codex).
 
 ### RO-005 — Open PR for `sprint-1-alignment`
 - **Files:** none changed beyond merging `main` into the branch if needed (+ its handoff).
 - **Completion criteria:** PR open against `main` using the PR template, CI result reported, handoff added.
+- **Done.** [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) was opened against `main` with the PR template's sections, and CI results were reported on it (run
+  38933844181 for the final head). Its handoff, `docs/handoffs/2026-10-15-claude-RO-005.md`, is on `main`. Merged as `cd884fc`.
 
 ### RO-006 — Review Milestone 1 PR (Codex)
 - **Files:** review only; fixes go on `codex/RO-006-…` branches or as PR suggestions.
 - **Description:** check module boundaries vs `docs/architecture.md`, that no behaviour changed (same tests),
   contract suites, and the boundary checker's rules. Run `npm run verify` independently.
 - **Completion criteria:** written review on the PR with the exact test output; blocking issues listed or approval given.
+- **Done.** Codex wrote three reviews on [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3), each with its own test output:
+  - [Review 1](https://github.com/bransondang3307-beep/RepOne/pull/3#pullrequestreview-5540804748) on `1ef8f6f`: changes requested, two P2s (workspace-import
+    cycles in the boundary checker; a lost controller × SQLite integration test). Both were fixed in `2dae11b`.
+  - [Review 2](https://github.com/bransondang3307-beep/RepOne/pull/3#pullrequestreview-5541144246): **approved** `40d4a22`.
+  - [Review 3](https://github.com/bransondang3307-beep/RepOne/pull/3#pullrequestreview-5551033324): **approved** the final head `6f48f1d` after the RO-021
+    Windows fix, with native-Windows results.
+  - They are COMMENT reviews under the owner's GitHub account, which Codex used as its connected identity. GitHub does
+    not let a PR's author approve or request changes, so the verdict is in the text.
+  - The Codex GitHub integration also reported "Didn't find any major issues" at `6f48f1d`.
 
 ### RO-007 — Run Milestone 1 app in Expo Go (Owner)
 - **Steps:** `git checkout sprint-1-alignment && npm install && cd apps/mobile && npx expo start`, scan QR code.
 - **Completion criteria:** start a simulated set, reps count up, stop, set appears in History; result noted on the RO-005 PR.
+- **Done — passed 2026-10-16** ([the owner's result on PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3#issuecomment-6227338609)). On an iPhone in
+  Expo Go:
+  - the app launched;
+  - a simulated set counted reps (8 full, 3 partial, 1,800 samples);
+  - stopping saved the set, it appeared in History, and it stayed there after the app was restarted.
+
+  This validates the **simulated** workflow and on-device persistence only, **not** sensor performance or real
+  rep-detection accuracy. The comment names the branch, not a commit. `apps/` and `packages/` are identical at every
+  PR #3 head from `40d4a22` to `6f48f1d` and at the merge `cd884fc`, so the check covers the merged app code. The badge
+  clipping noted in the result is recorded as RO-023.
 
 ### RO-008 — Update ownership table
 - **Files:** `docs/architecture.md` §6.
@@ -138,3 +175,23 @@
     on the RO-021 bugs; [38935889064](https://github.com/bransondang3307-beep/RepOne/actions/runs/38935889064) passed on the fix.
   - Codex reviewed `2b09895` with no findings.
   - After the merge, CI on `main` passed on both Linux and Windows (run [39701367400](https://github.com/bransondang3307-beep/RepOne/actions/runs/39701367400)).
+
+### RO-023 — Simulated-data warning badge clips on iPhone (recorded 2026-10-23; not fixed yet)
+- **Found in:** RO-007, the owner's iPhone Expo Go check (2026-10-16): "the yellow simulated-data warning
+  overflows/clips at the screen edge". The owner rated it minor and non-blocking for Milestone 1.
+- **Why it matters:** the badge reads "Simulated data — not a real measurement". It is the label that stops synthetic
+  rep counts from being mistaken for real ones (`AGENTS.md` §4), so its full text must stay visible.
+- **Files (expected):**
+  - `apps/mobile/src/shared/components/ProvenanceBadge.tsx`;
+  - the home-screen row that holds it, in `apps/mobile/app/index.tsx`.
+- **Likely cause** (from the code; not yet confirmed on a device): the badge sits beside the status text in a
+  `flexDirection: 'row'` with `justifyContent: 'space-between'`, and neither can shrink or wrap.
+- **Completion criteria:**
+  - on the owner's iPhone in Expo Go, the whole warning text is visible (wrapped or resized, never clipped) in every
+    session state;
+  - provenance values and their labels are unchanged;
+  - `npm run verify` passes;
+  - the owner confirms on the device, and the result is noted on the PR.
+- **Scope:** UI layout only; no change to provenance, sensor contracts or rep counting. It does not depend on
+  Milestone 2 (RO-012, paused). Priority P3 follows the owner's "minor, non-blocking" note; the owner or ChatGPT may
+  raise it.

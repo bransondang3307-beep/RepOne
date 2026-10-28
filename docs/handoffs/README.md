@@ -18,6 +18,7 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 
 | Date | Agent | Task | File |
 |---|---|---|---|
+| 2026-10-23 | Claude Code | Milestone 1 closeout (RO-003…RO-007, RO-023) | [2026-10-23-claude-RO-003-m1-closeout.md](2026-10-23-claude-RO-003-m1-closeout.md) |
 | 2026-10-22 | Claude Code | RO-019 / RO-022 post-merge status update | [2026-10-22-claude-RO-019-RO-022-status.md](2026-10-22-claude-RO-019-RO-022-status.md) |
 | 2026-10-17 | Claude Code | RO-019 zero-cost Claude Code ↔ Codex workflow | [2026-10-17-claude-RO-019-zero-cost.md](2026-10-17-claude-RO-019-zero-cost.md) |
 | 2026-10-16 | Claude Code | RO-022 Windows CI job | [2026-10-16-claude-RO-022.md](2026-10-16-claude-RO-022.md) |

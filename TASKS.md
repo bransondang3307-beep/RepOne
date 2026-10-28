@@ -6,7 +6,7 @@
 > - After your work PR merges, set your row to `done` in your own status-update PR (`AGENTS.md` §3 step 9).
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-024** (RO-020: PR #6 · RO-021: PR #9 · RO-023: iPhone warning-badge clipping).
+> - Next free ID: **RO-025**.
 
 ## Board
 
@@ -31,9 +31,11 @@
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
 | RO-018 | H0 hardware bring-up: verify parts, I²C scan, stream raw IMU | Owner | P2 | todo | — | — |
 | RO-019 | Claude Code ↔ Codex workflow at zero additional AI API cost (replaces the archived API loop, PR #4) | Claude Code | P1 | done | — | [PR #11](https://github.com/bransondang3307-beep/RepOne/pull/11) — merged `acb9857` |
+| RO-020 | Rebrandable naming rule (`AGENTS.md` §5) and ADR 0006 | Claude Code | P2 | in-review | — | [PR #6](https://github.com/bransondang3307-beep/RepOne/pull/6) |
 | RO-021 | Reproduce + fix RO-011 finding 1: Windows path separators in the boundary checker | Claude Code | P1 | done | RO-011 ([PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8)) | fix: [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) — merged `cd884fc`; record: [PR #9](https://github.com/bransondang3307-beep/RepOne/pull/9) |
 | RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | done | RO-021 | [PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10) — merged `8a70565` |
 | RO-023 | Simulated-data warning badge clips on iPhone (record only; not fixed yet) | Claude Code | P3 | todo | — | — |
+| RO-024 | Brand configuration for display names (ADR 0006 follow-up) | Claude Code | P2 | todo | RO-020 merged | — |
 
 ## Task details
 
@@ -166,6 +168,14 @@
   - Still open (owner, outside the completion criteria): the archive tag `archive/RO-019-api-loop-v1` (ADR 0005 §6) does
     not exist yet. This environment's GitHub proxy refuses tag pushes.
 
+### RO-020 — Rebrandable naming rule and ADR 0006 (owner directive, 2026-10-16)
+- **Files:** `AGENTS.md` §5 (the rule), `docs/decisions/0006-rebrandable-product-identity.md`, the handoff.
+- **Description:** "RepOne" is a temporary name. User-facing names come from one brand configuration, core
+  functionality stays brand-free, new identifiers are neutral, and existing identifiers are not renamed until the
+  owner instructs it. Docs only; the code change is RO-024.
+- **Completion criteria:** the rule and ADR merged; the name inventory re-checked against `main`; RO-024 recorded.
+- **PR:** [PR #6](https://github.com/bransondang3307-beep/RepOne/pull/6).
+
 ### RO-021 — Windows path separators in the boundary checker (owner-authorized follow-up to RO-011)
 - **Assigned:** owner, 2026-10-16. A narrow follow-up to RO-011 finding 1 ([PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8)):
   `scripts/check-boundaries.mjs` classified layers with `/`, but `path.relative()` returns `\` on Windows.
@@ -226,3 +236,22 @@
 - **Scope:** UI layout only; no change to provenance, sensor contracts or rep counting. It does not depend on
   Milestone 2 (RO-012, paused). Priority P3 follows the owner's "minor, non-blocking" note; the owner or ChatGPT may
   raise it.
+
+### RO-024 — Brand configuration for display names (ADR 0006 follow-up; recorded 2026-10-28 at the owner's direction)
+- **Files (expected):**
+  - `apps/mobile/src/shared/brand.ts` (new, data-only) and `apps/mobile/src/shared/index.ts`;
+  - `apps/mobile/app.json` → `apps/mobile/app.config.ts`;
+  - `apps/mobile/app/_layout.tsx`;
+  - a guard test.
+- **Scope:** ADR 0006 Decisions 2 and 4. The display name (and a short name) comes from one place, both for the home
+  title and for the installed app's name.
+  - The guard test fails when a user-facing source file contains the product name outside the brand configuration.
+  - Not in scope: renaming `@repone/*`, the `repone` slug or scheme, `repone.db` or any path (owner instruction
+    needed); the draft H0 header (RO-016).
+- **Completion criteria:**
+  - no literal product name in UI code outside `brand.ts`;
+  - the guard test fails on a planted literal and passes on the change;
+  - `npm run verify` passes; Codex review;
+  - the owner's Expo Go check shows the same visible name as before.
+- **Depends on:** RO-020 merged. It is independent of Milestone 2 (RO-012, paused). Not started in the Milestone 1
+  closeout batch.

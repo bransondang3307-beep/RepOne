@@ -2,7 +2,9 @@
 
 > **Rule:** "Verified on `main`" lists only work that is **merged into `main` and verified**, with the
 > evidence. Unmerged work goes under "Open branches / PRs". Update this file in a PR only after the
-> change it describes has merged (`AGENTS.md` §3 step 9). Status words: see `AGENTS.md` §4.
+> change it describes has merged. By default the agent that completed the work does so; Claude Code may also
+> record the owner's device checks, Codex review tasks and owner-directed closeouts (`AGENTS.md` §3 step 9).
+> Status words: see `AGENTS.md` §4.
 
 | | |
 |---|---|
@@ -83,16 +85,17 @@ Milestone 2 resumes.
 | Ownership table in `docs/architecture.md` §6 | RO-008 | `todo`; its dependency (RO-003 merged) is met | Claude Code (docs) |
 | Record the `apps/` + `packages/` layout in source of truth §6? | RO-010 | `todo`; its dependency is met | Owner decision (ChatGPT prepares) |
 | Simulated-data warning badge clips on iPhone | **RO-023** (recorded 2026-10-23) | `todo`; not fixed yet | Claude Code; owner device check |
-| ADR 0004 still says "Proposed" although PR #1 merged | RO-004 follow-up — [PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2) | The fix is in PR #2, which conflicts with `main` | With the owner's decision on PR #2 |
+| ADR 0004 still says "Proposed" although PR #1 merged | RO-004 follow-up — [PR #19](https://github.com/bransondang3307-beep/RepOne/pull/19) (supersedes [PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2)) | Fixed in PR #19, together with the owner's status-update decision of 2026-10-28; not merged yet | Codex review, then owner merge |
 
 ## Open branches / PRs (not merged — not counted as done)
 
-Assessed 2026-10-23 against `main` @ `9b8b81a`. None has a Codex or owner review yet; all were opened on 2026-10-15
-or 2026-10-16. They were not modified.
+Assessed 2026-10-23 against `main` @ `9b8b81a`; the PR #2 and PR #19 rows were updated on 2026-10-28. Apart from
+PR #19, none has a Codex or owner review yet; those were opened on 2026-10-15 or 2026-10-16 and were not modified.
 
 | PR / branch | What it contributes | Still needed? | Recommended action |
 |---|---|---|---|
-| [PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2) `claude/RO-004-owner-decision` (Claude Code) | Owner decision of 2026-10-15: each agent opens its own status-update PR, and ChatGPT only coordinates the roadmap (`AGENTS.md` §2, §3 step 9, §5; `CLAUDE.md`, `GEMINI.md`, `docs/agents/CHATGPT.md`, PR template, handoff index). Also sets ADR 0004 to Accepted | **Partly.** The ADR 0004 status fix is still needed. The rule never merged, and recent owner-directed status PRs (#12, this closeout) did not follow it. It conflicts with `main` in shared files RO-019 changed | **Owner decides** whether the rule stands. If yes, Claude Code re-applies it on a fresh branch from `main` (a rebase would conflict throughout). If no, close it as superseded and fix ADR 0004's status in a small docs PR |
+| [PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2) `claude/RO-004-owner-decision` (Claude Code) | The 2026-10-15 version of the status-update rule, and ADR 0004 → Accepted | **No: superseded by [PR #19](https://github.com/bransondang3307-beep/RepOne/pull/19)** (2026-10-28), which carries the owner's refined rule and the ADR fix, rebuilt from current `main`. *Correction:* the 2026-10-23 note here said a rebase would conflict throughout. A trial merge on 2026-10-28 conflicted in one `docs/handoffs/README.md` index row only | Owner closes it unmerged once PR #19 merges |
+| [PR #19](https://github.com/bransondang3307-beep/RepOne/pull/19) `claude/RO-004-status-ownership` (Claude Code) | Owner decision of 2026-10-28, in `AGENTS.md` §2, §3 step 9 and §5, `CLAUDE.md`, `GEMINI.md`, `docs/agents/CHATGPT.md`, the PR template, the `TASKS.md` header and the handoff naming rule. The agent that completed the work opens its own status-update PR; Claude Code may record the owner's device checks, Codex review tasks and owner-directed closeouts, with evidence; ChatGPT proposes roadmap changes, committed by the owner or an agent at the owner's direction. Also ADR 0004 → Accepted. Docs only | **Yes** | Codex review of the head, then owner merge; then close PR #2 |
 | [PR #6](https://github.com/bransondang3307-beep/RepOne/pull/6) `claude/RO-020-rebrandable-naming` (Claude Code) | `AGENTS.md` §5 rebrandable-naming rule and ADR 0006 (owner directive 2026-10-16): name inventory, brand-config plan, neutral protocol and device identifiers | **Yes.** Nothing on `main` covers it. Its inventory still matches `main` (2 user-facing strings: `app.json` name and the home title in `app/_layout.tsx`). It merges cleanly. RO-020 has no `TASKS.md` row yet, and the deferred brand-config code is now unblocked | `@codex review`, then owner merge; add the RO-020 row and a code task for the brand config before Milestone 2 adds UI text |
 | [PR #7](https://github.com/bransondang3307-beep/RepOne/pull/7) `codex/RO-004-antigravity-onboarding` (Codex) | Antigravity entry point and Lenovo Windows onboarding (4 docs) | **Yes, if Antigravity stays in use** (PR #8 was written there). It is stale: it describes `main` @ `75e2814` (RO-019 "paused", RO-007 pending on `sprint-1-alignment`, `verify` absent). It does not mention the $0 rule, `check:workflows` or the Codex review hand-off, and it adds nothing that conflicts with them | Codex refreshes it against `main`, then review and merge. Not urgent |
 | [PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8) `gemini/RO-011-milestone-1-arch-review` (Gemini) | RO-011's deliverable: the Milestone 1 architecture review (0 blockers) and its handoff | **Yes.** It is RO-011's only output. It is a dated review of `40d4a22`, so the pre-merge wording is acceptable as history. It adds new files only | Owner or `@codex review`; merge as a dated record; then RO-011's status update and triage of findings 2–5 |
@@ -102,7 +105,8 @@ or 2026-10-16. They were not modified.
 
 **Recommended order:**
 1. **This closeout PR.** It is the baseline the other PRs update against.
-2. **PR #2: owner decision.** It defines who writes status updates, which affects how #8 and #9 are closed out.
+2. **PR #19**, which replaces PR #2 (the owner decided on 2026-10-28). It defines who writes status updates, which
+   affects how #8 and #9 are closed out. Close PR #2 after PR #19 merges.
 3. **PR #9.** Refresh it and mark RO-021 `done`. It is small, and it is Claude Code's.
 4. **PR #8.** Merge the review, then triage its findings before Milestone 2.
 5. **PR #6.** Merge the naming rule before Milestone 2 adds user-facing text.
@@ -132,7 +136,7 @@ or 2026-10-16. They were not modified.
 ## Next steps (priority order — details in `TASKS.md`)
 
 1. **Owner:** review and merge this closeout PR.
-2. **Open PRs,** in the recommended order above. Start with the owner's decision on PR #2.
+2. **Open PRs,** in the recommended order above. Start with PR #19, which replaces PR #2.
 3. **Milestone 1 follow-ups:**
    - RO-023 (badge clipping; needs the owner's device check);
    - RO-008 (ownership table);
@@ -162,3 +166,4 @@ or 2026-10-16. They were not modified.
 | 2026-10-15 | File created; reflects `main` @ `d9a7274` | Claude Code (RO-004) |
 | 2026-10-22 | Reflects `main` @ `8a70565`: PRs #1, #3, #11 and #10 merged; RO-019 and RO-022 done; Milestone 2 (RO-012) paused | Claude Code (RO-019 / RO-022 status) |
 | 2026-10-23 | Milestone 1 closeout on `main` @ `9b8b81a`: RO-003…RO-007 done; RO-023 recorded; remaining Milestone 1 work and the open-PR assessment added; Milestone 2 (RO-012) still paused | Claude Code (Milestone 1 closeout, at the owner's request) |
+| 2026-10-28 | Status-update rule (owner decision of 2026-10-28) and ADR 0004 → Accepted, in PR #19, which supersedes PR #2; PR #2's assessment corrected. Only the rule text and these rows changed: the snapshot at the top still describes `main` @ `9b8b81a` | Claude Code (RO-004 follow-up, at the owner's direction) |

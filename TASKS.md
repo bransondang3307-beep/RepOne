@@ -61,10 +61,11 @@
   - CI on `main` has been green since: run [38807737485](https://github.com/bransondang3307-beep/RepOne/actions/runs/38807737485) after the merge, and every later
     `main` run.
   - `CLAUDE.md` imports `@AGENTS.md`, and `GEMINI.md` imports `@./AGENTS.md`.
-  - Two follow-ups are still open and are not part of these criteria:
-    - [PR #19](https://github.com/bransondang3307-beep/RepOne/pull/19): status-update ownership (owner decision of 2026-10-28) and ADR 0004 → Accepted. It supersedes
-      [PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2).
-    - [PR #7](https://github.com/bransondang3307-beep/RepOne/pull/7): Antigravity onboarding (Codex).
+  - Follow-ups, not part of these criteria:
+    - [PR #19](https://github.com/bransondang3307-beep/RepOne/pull/19): status-update ownership (owner decision of 2026-10-28) and ADR 0004 → Accepted.
+      **Merged 2026-10-28 as `2959751`**; CI on `main` passed (run [40762889708](https://github.com/bransondang3307-beep/RepOne/actions/runs/40762889708)).
+      It superseded [PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2), which was closed unmerged the same day.
+    - [PR #7](https://github.com/bransondang3307-beep/RepOne/pull/7): Antigravity onboarding (Codex), still open.
 
 ### RO-005 — Open PR for `sprint-1-alignment`
 - **Files:** none changed beyond merging `main` into the branch if needed (+ its handoff).

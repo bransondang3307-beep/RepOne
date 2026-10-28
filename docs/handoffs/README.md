@@ -23,6 +23,7 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 
 | Date | Agent | Task | File |
 |---|---|---|---|
+| 2026-10-28 | Claude Code | RO-003 / RO-004 status update: PR #13 and PR #19 merged, PR #2 closed; `PROJECT_STATUS.md` refreshed | [2026-10-28-claude-RO-003-RO-004-status.md](2026-10-28-claude-RO-003-RO-004-status.md) |
 | 2026-10-28 | Claude Code | RO-004 follow-up: status-update ownership (owner decision 2026-10-28), ADR 0004 Accepted; supersedes PR #2 | [2026-10-28-claude-RO-004-status-ownership.md](2026-10-28-claude-RO-004-status-ownership.md) |
 | 2026-10-23 | Claude Code | Milestone 1 closeout (RO-003…RO-007, RO-023) | [2026-10-23-claude-RO-003-m1-closeout.md](2026-10-23-claude-RO-003-m1-closeout.md) |
 | 2026-10-22 | Claude Code | RO-019 / RO-022 post-merge status update | [2026-10-22-claude-RO-019-RO-022-status.md](2026-10-22-claude-RO-019-RO-022-status.md) |

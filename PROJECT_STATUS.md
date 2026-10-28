@@ -56,6 +56,12 @@ Evidence:
   - Typecheck OK.
   - Script tests **62/62**.
   - Jest **48/48**: `@repone/mobile` 15, `@repone/rep-engine` 16, `@repone/sensor-contracts` 13, `@repone/workout-domain` 4.
+- **Native Windows, the owner's Lenovo laptop, `main` @ `b1c6ac1`, 2026-10-28.** Node v24.22.0, npm 11.19.1,
+  `npm.cmd ci`, then `npm.cmd run verify` (exit 0): boundaries OK (58 files), workflow policy OK, typecheck OK in all
+  four workspaces, script tests **62/62**, Jest **48/48** (15 · 16 · 13 · 4).
+  - Antigravity reported this result after PR #7 merged; its temporary worktree was removed.
+  - Claude Code re-ran it independently on the same laptop, in a detached worktree of `b1c6ac1`, with the same result.
+  - This is a local run, not CI. It does not repeat the iPhone check (RO-007) and adds no hardware evidence.
 - **Milestone 1 at its merge commit `cd884fc`,** re-run on 2026-10-23: `npm run verify` exit 0. Boundaries OK, checker
   tests 8/8, typecheck OK, Jest 48/48.
 - **CI.** Run 40768087759 on `b1c6ac1` passed on both Linux (Node 22) and Windows (Node 24). So did every earlier
@@ -89,7 +95,9 @@ Evidence:
 
 **Implemented but not verified:**
 - No Android device run is recorded. Only `expo export` bundles were built, in RO-005.
-- The full `npm run verify` (typecheck + Jest) runs on Linux only. The Windows CI job covers `scripts/` only.
+- In CI, the full `npm run verify` (typecheck + Jest) runs on Linux only; the Windows CI job covers `scripts/` only.
+  The full suite has passed natively on Windows only in local runs (above), so a Windows regression in typecheck or
+  Jest would not fail CI.
 
 ## Milestone 1 follow-up tasks
 
@@ -186,3 +194,4 @@ merges only when the owner resumes Milestone 2.
 | 2026-10-23 | Milestone 1 closeout on `main` @ `9b8b81a`: RO-003…RO-007 done; RO-023 recorded; remaining Milestone 1 work and the open-PR assessment added; Milestone 2 (RO-012) still paused | Claude Code (Milestone 1 closeout, at the owner's request) |
 | 2026-10-28 | Status-update rule (owner decision of 2026-10-28) and ADR 0004 → Accepted, in PR #19, which supersedes PR #2; PR #2's assessment corrected. Only the rule text and these rows changed: the snapshot at the top still describes `main` @ `9b8b81a` | Claude Code (RO-004 follow-up, at the owner's direction) |
 | 2026-10-28 | Reflects `main` @ `b1c6ac1`, the Milestone 1 closeout batch: PRs #13, #19, #9, #8, #6 and #7 merged with CI green on `main` after each; PR #2 closed as superseded. RO-011, RO-020 and RO-021 done; follow-up tasks RO-024…RO-026 and an RO-016 scope note recorded. Snapshot, evidence, follow-up tasks, open-PR list, milestone, blockers and next steps refreshed. Milestone 2 (RO-012) still paused | Claude Code (its own work, plus RO-011 under the owner-directed closeout exception) |
+| 2026-10-28 | Added Antigravity's native Windows verification of `b1c6ac1` (PR #7's merge), with Claude Code's independent re-run on the same laptop. No merge or task-state changes | Claude Code (owner's ecosystem update, 2026-10-28) |

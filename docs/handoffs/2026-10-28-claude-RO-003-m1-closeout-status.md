@@ -8,7 +8,7 @@
 | **Branch** | `claude/RO-003-RO-004-status` (first based on `main` @ `2959751`; `main` @ `b1c6ac1` merged in) |
 | **Commits** | `9ea7ae1` first status update (PRs #13 and #19) · `81a18ec` merge of `main` @ `b1c6ac1` · then the consolidating commit (its SHA is in PR #20) |
 | **Pull request** | [PR #20](https://github.com/bransondang3307-beep/RepOne/pull/20) |
-| **Status** | implemented; checks run; Codex review and merge per the owner's batch authorization |
+| **Status** | implemented; checks run; Codex review pending on the head; the owner merges (explicit authorization per merge) |
 
 ## Objective
 The owner asked Claude Code to handle the remaining Milestone 1 closeout as one batch:
@@ -142,7 +142,25 @@ ChatGPT: read `AGENTS.md`, `PROJECT_STATUS.md` and `TASKS.md` on `main` after th
 **Please don't:** mark anything `done` without a merged PR, edit other agents' rows, or treat the RO-012 PRs as
 merged.
 
+## Addendum — Antigravity's PR #7 Windows report, reconciled (2026-10-28, later)
+The owner forwarded Antigravity's report on PR #7. Claude Code checked it against GitHub and git:
+- **Head, merge and CI: match.** PR #7's head is `a46e5d417cd1b430c5f48ce9920a7b0fe62b22dc`. The merge
+  `b1c6ac11378dd9f464b91362880c4cde8d0011e8` is on `main`, with the head as its second parent. The `main` CI run
+  is 40768087759, already recorded above.
+- **Native Windows: reproduced.** Claude Code re-ran the check on the same Lenovo laptop (Node v24.22.0, npm 11.19.1),
+  in a detached worktree of `b1c6ac1`. `npm.cmd ci`, then `npm.cmd run verify`, exited 0:
+  - boundaries OK (58 files);
+  - workflow policy OK;
+  - typecheck OK (4 workspaces);
+  - scripts 62/62;
+  - Jest 48/48.
+- **Not covered:** the iPhone check was not repeated, and all sensor data is still simulated. CI still runs the full
+  suite on Linux only.
+- **Recorded in:** `PROJECT_STATUS.md` ("Verified on `main`", "Implemented but not verified", change log), and in
+  the PR #7 entry of the `TASKS.md` RO-004 section.
+
 ## Next steps
-1. **Codex:** review PR #20's head. **Claude Code:** merge it per the owner's batch authorization once CI and the
-   review are green, then check `main` CI.
+1. **Codex:** review PR #20's head. **Owner:** merge it once CI and the review cover that head. The owner's
+   ecosystem update (2026-10-28, later) replaced the batch authorization: Claude Code merges nothing without the
+   owner's explicit authorization of that merge. Then check `main` CI.
 2. **ChatGPT:** the handoff above. **Owner:** the decisions above.

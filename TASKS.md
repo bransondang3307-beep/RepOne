@@ -71,7 +71,9 @@
       **Merged 2026-10-28 as `2959751`**; CI on `main` passed (run [40762889708](https://github.com/bransondang3307-beep/RepOne/actions/runs/40762889708)).
       It superseded [PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2), which was closed unmerged the same day.
     - [PR #7](https://github.com/bransondang3307-beep/RepOne/pull/7): Antigravity onboarding (Codex), refreshed by Claude Code at the owner's direction.
-      **Merged 2026-10-28 as `b1c6ac1`**; CI on `main` passed (run [40768087759](https://github.com/bransondang3307-beep/RepOne/actions/runs/40768087759)).
+      **Merged 2026-10-28 as `b1c6ac1`** (head `a46e5d4`); CI on `main` passed (run [40768087759](https://github.com/bransondang3307-beep/RepOne/actions/runs/40768087759)).
+      Antigravity then ran `npm.cmd ci` and `npm.cmd run verify` on `b1c6ac1` on the Lenovo laptop (Node v24.22.0,
+      npm 11.19.1): exit 0, scripts 62/62, Jest 48/48. Claude Code reproduced the result on the same laptop.
 
 ### RO-005 — Open PR for `sprint-1-alignment`
 - **Files:** none changed beyond merging `main` into the branch if needed (+ its handoff).

@@ -6,7 +6,7 @@
 > - After your work PR merges, set your row to `done` in your own status-update PR (`AGENTS.md` §3 step 9).
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-025**.
+> - Next free ID: **RO-026**.
 
 ## Board
 
@@ -36,6 +36,7 @@
 | RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | done | RO-021 | [PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10) — merged `8a70565` |
 | RO-023 | Simulated-data warning badge clips on iPhone (record only; not fixed yet) | Claude Code | P3 | todo | — | — |
 | RO-024 | Brand configuration for display names (ADR 0006 follow-up) | Claude Code | P2 | todo | RO-020 merged | — |
+| RO-025 | Dependency security remediation (`npm audit`): smallest compatible updates, no `--force` | Claude Code | P1 | in-review | — | `claude/RO-025-dependency-security` |
 
 ## Task details
 
@@ -255,3 +256,16 @@
   - the owner's Expo Go check shows the same visible name as before.
 - **Depends on:** RO-020 merged. It is independent of Milestone 2 (RO-012, paused). Not started in the Milestone 1
   closeout batch.
+
+### RO-025 — Dependency security remediation (recorded 2026-10-28 at the owner's direction)
+- **Why:** `npm audit` on `main` @ `b1c6ac1` reported 23 vulnerabilities (13 low, 6 moderate, 4 high); 15 with
+  `--omit=dev`, including all 4 high.
+- **Files:** `apps/mobile/package.json`, `package-lock.json`; this row, the handoff.
+- **Scope:** the smallest compatible updates within Expo SDK 57. Not in scope: `npm audit fix --force`, major-version
+  changes, downgrading Expo, overrides that Expo does not support, application features.
+- **Completion criteria:**
+  - before/after audit counts, with each unresolved finding's severity, reachability and production/dev impact;
+  - `npm ci`, `npm run verify`, `npm run test` and the Expo checks pass; Codex review;
+  - the owner's Expo Go check still launches the app (simulated data).
+- **Follow-up:** the remaining zod, deepmerge and decode-uri-component findings have no fix within SDK 57; see the
+  handoff `docs/handoffs/2026-10-28-claude-RO-025.md`.

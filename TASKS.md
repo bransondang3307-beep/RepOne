@@ -261,9 +261,13 @@
   - provenance values and their labels are unchanged;
   - `npm run verify` passes;
   - the owner confirms on the device, and the result is noted on the PR.
-- **Scope:** UI layout only; no change to provenance, sensor contracts or rep counting. It does not depend on
-  Milestone 2 (RO-012, paused). Priority P3 follows the owner's "minor, non-blocking" note; the owner or ChatGPT may
-  raise it.
+- **Scope:** UI layout only; no change to provenance, sensor contracts or rep counting. Priority P3 follows the
+  owner's "minor, non-blocking" note; the owner or ChatGPT may raise it.
+- **Status:** the fix ships in [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17), in separate
+  `RO-023:` commits, as part of Milestone 2.
+  - The owner lifted the Milestone 2 pause on 2026-10-28, and confirmed it on 2026-10-29.
+  - PRs #14–#17 are **not merged** yet, and the owner's device check of #17's head is **pending**. RO-023 stays `todo`
+    until PR #17 merges and the device check passes.
 
 ### RO-024 — Brand configuration for display names (ADR 0006 follow-up; recorded 2026-10-28 at the owner's direction)
 - **Files (expected):**

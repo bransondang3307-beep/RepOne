@@ -6,7 +6,7 @@
 | **Date** | 2026-10-28 |
 | **Task** | The owner's Milestone 1 closeout batch (2026-10-28), recorded as one status update (`AGENTS.md` §3 step 9). It covers Claude Code's own work (RO-003 closeout, RO-004 follow-ups, RO-020, RO-021) and RO-011 under the owner-directed closeout exception |
 | **Branch** | `claude/RO-003-RO-004-status` (first based on `main` @ `2959751`; `main` @ `b1c6ac1` merged in) |
-| **Commits** | `9ea7ae1` first status update (PRs #13 and #19) · `81a18ec` merge of `main` @ `b1c6ac1` · then the consolidating commit (its SHA is in PR #20) |
+| **Commits** | `9ea7ae1` first status update (PRs #13 and #19) · `81a18ec` merge of `main` @ `b1c6ac1` · `cf6aa33` consolidating commit · `0b904d5`, `30e9667` from the owner's laptop session · then the 2026-10-29 fix for Codex's P2 on Milestone 2 consistency (its SHA is in PR #20) |
 | **Pull request** | [PR #20](https://github.com/bransondang3307-beep/RepOne/pull/20) |
 | **Status** | implemented; checks run; Codex review pending on the head; the owner merges (explicit authorization per merge) |
 
@@ -18,7 +18,9 @@ The owner asked Claude Code to handle the remaining Milestone 1 closeout as one 
 4. refresh PR #7 (Antigravity onboarding);
 5. one consolidated status update.
 
-The owner authorised merging those PRs, each pinned to a reviewed, green head. Milestone 2 (RO-012) stays paused.
+The owner authorised merging those PRs, each pinned to a reviewed, green head. At the time of the batch instruction,
+Milestone 2 (RO-012) stayed paused. The owner lifted the pause later on 2026-10-28 (see "Milestone 2 pause lifted"
+below).
 
 ## Results (all on 2026-10-28, UTC)
 | PR | What | Head reviewed (Codex: no major issues) | Merge commit | `main` CI after merge |
@@ -56,7 +58,8 @@ The owner authorised merging those PRs, each pinned to a reviewed, green head. M
   - a Follow-up section for RO-024; the `AGENTS.md` rule names the planned `brand.ts`;
   - RO-020 and RO-024 rows; next free ID set.
 - **#7 (Codex's onboarding), refreshed by Claude Code at the owner's direction; no shared policy files changed:**
-  - Milestone 1 merged, with the current layout; Milestone 2 paused;
+  - Milestone 1 merged, with the current layout; Milestone 2 paused (true when the guides were refreshed; see the
+    pause-lift below);
   - `npm run verify`;
   - status updates per `AGENTS.md` §3 step 9;
   - the $0 AI API rule, in place of the old RO-019 pause text;
@@ -77,7 +80,7 @@ The owner authorised merging those PRs, each pinned to a reviewed, green head. M
 |---|---|---|
 | 1. Windows path separators | historical: fixed in `cd884fc` | RO-021 (done) |
 | 2. Infrastructure adapters share one layer; `application/` may skip the adapter index | still present, latent (one adapter today) | **RO-025** (new, P3) |
-| 3. Contract-suite gaps | still present on `main`; fixed in PR #14 (paused) | RO-012 |
+| 3. Contract-suite gaps | still present on `main`; fixed in PR #14 (open, not merged) | RO-012 |
 | 4. Ownership table; routes note | still present | RO-008 |
 | 5. Display brand literals; `# repone h0 v1` header | still present | **RO-024** (new, P2); RO-016 scope note |
 | §3.2 Simulation in the contracts package's root barrel | still present (RO-012 grows it) | **RO-026** (new, P3, decision first) |
@@ -162,7 +165,8 @@ The owner forwarded Antigravity's report on PR #7. Claude Code checked it agains
   the PR #7 entry of the `TASKS.md` RO-004 section.
 
 **Milestone 2 pause lifted.** The owner's update put Milestone 2 first, and the owner then confirmed that the pause
-recorded earlier on 2026-10-28 is lifted. Merges still need the owner's authorisation, one PR at a time.
+recorded earlier on 2026-10-28 is lifted. The owner confirmed it again directly in the cloud session that owns this
+branch on 2026-10-29. Merges still need the owner's authorisation, one PR at a time.
 - **Native Windows check of #17's head `3de7aa3`, the top of the stack** (Lenovo laptop, Node v24.22.0, npm 11.19.1;
   Claude Code). `npm.cmd ci`, then `npm.cmd run verify`, exited 0:
   - boundaries OK (74 files);

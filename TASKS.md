@@ -36,7 +36,7 @@
 | RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | done | RO-021 | [PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10) — merged `8a70565` |
 | RO-023 | Simulated-data warning badge clips on iPhone (record only; not fixed yet) | Claude Code | P3 | todo | — | — |
 | RO-024 | Brand configuration for display names (ADR 0006 follow-up) | Claude Code | P2 | todo | RO-020 merged | — |
-| RO-025 | Dependency security remediation (`npm audit`): smallest compatible updates, no `--force` | Claude Code | P1 | in-review | — | `claude/RO-025-dependency-security` |
+| RO-025 | Dependency security remediation (`npm audit`): smallest compatible updates, no `--force` | Claude Code | P1 | in-review | — | [PR #22](https://github.com/bransondang3307-beep/RepOne/pull/22) |
 
 ## Task details
 

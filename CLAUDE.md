@@ -19,3 +19,6 @@ All shared project rules, context order, roles and the synchronization workflow 
   per round, reply `Fixed in <sha>` (or why not) to each finding, `npm run verify`, then comment `@codex review`;
   stop after two fix rounds. Use your Claude subscription only — never an `ANTHROPIC_API_KEY`. Auto-fix stays off.
 - **Never** mark a task `done` or edit `PROJECT_STATUS.md` "Verified on main" before the PR is merged.
+- **Status updates:** after the merge and green CI on `main`, open your own status-update PR (`AGENTS.md` §3
+  step 9). You may also record the owner's device checks, Codex review tasks and closeouts the owner explicitly
+  directs, each with its evidence.

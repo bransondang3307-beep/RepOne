@@ -23,7 +23,7 @@
 - [ ] Code PR: Codex review requested (or owner review) — automatic on open; comment `@codex review` after each
       fix push. Reviewed head SHA: `_______` · fix rounds used: _/2
 - [ ] `TASKS.md`: only this task's row changed (→ `in-review` + PR link)
-- [ ] `PROJECT_STATUS.md` **not** marked done here — updated after merge
+- [ ] `PROJECT_STATUS.md` **not** marked done here — a status-update PR does that after merge (`AGENTS.md` §3 step 9)
 
 ## Next steps / owner questions
 -

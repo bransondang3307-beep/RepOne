@@ -49,7 +49,8 @@ Simulation must keep working, and the app must never fall back to it silently.
     - It loads it **lazily, only if present**. In Expo Go it returns null, because importing the library there
       throws.
     - It maps UUIDs to lowercase, values to bytes, and properties.
-    - It asks for Android runtime permissions; iOS asks by itself.
+    - It asks for Android runtime permissions; iOS asks by itself. `prepare()` waits up to 5 s for a definite radio
+      state, because iOS reports `unknown` until the user answers the permission prompt.
 - **`apps/mobile/src/application/sensorSelection.ts`:** the explicit choice between simulated and Bluetooth.
   - Choosing Bluetooth without a sensor gives a device that refuses to connect with "Choose a sensor first", so there
     is **never a fallback** to simulation.
@@ -92,14 +93,14 @@ Simulation must keep working, and the app must never fall back to it silently.
 ## Tests and checks (exact results)
 | Command | Result |
 |---|---|
-| `npx jest` in `apps/mobile` | **113/113** (was 31). Adds: the device contract suite ×2 (instant; 200 ms connect with 2 channels), the sensor-source contract on a BLE channel (independent harnesses), BLE-specific failure, identity and hygiene tests, the native-binding mapping (mocked module), selection and store tests, and two end-to-end sets through the app's container |
+| `npx jest` in `apps/mobile` | **115/115** (was 31). Adds: the device contract suite ×2 (instant; 200 ms connect with 2 channels), the sensor-source contract on a BLE channel (independent harnesses), BLE-specific failure, identity and hygiene tests, the native-binding mapping (mocked module), selection and store tests, and two end-to-end sets through the app's container |
 | Mutation checks | Removing the mid-batch stop: 4 tests fail. Ignoring stream restarts: 1 fails. Both restored |
 | `npx tsc --noEmit` (mobile) | OK |
 | `npx expo config --type prebuild` | OK; the plugin resolves |
 | `CI=1 EXPO_OFFLINE=1 npx expo prebuild --no-install --clean`, with a placeholder bundle id (discarded) | OK. `Info.plist` has `NSBluetoothAlwaysUsageDescription`; `AndroidManifest.xml` has `BLUETOOTH_SCAN` with `neverForLocation` |
 | `EXPO_OFFLINE=1 npx expo install --check` | "Dependencies are up to date" (offline mode is unreliable, as Expo warns) |
 | `npx expo export --platform ios` / `android` | both exit 0 |
-| `npm run verify` (Node 22.22.0) | exit 0. Boundaries OK (94 files); workflow policy OK; typecheck OK; script tests 67/67; Jest 323/323 (mobile 113, rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 4), after merging part 2 round 1 |
+| `npm run verify` (Node 22.22.0) | exit 0. Boundaries OK (94 files); workflow policy OK; typecheck OK; script tests 67/67; Jest 325/325 (mobile 115, rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 4), with the iOS radio-state fix |
 | `npm run test:firmware` | protocol 62/62; MPU-6050 driver 16/16 (fake Wire bus) |
 
 **Not tested:**

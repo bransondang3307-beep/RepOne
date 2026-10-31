@@ -6,7 +6,7 @@
 > - After your work PR merges, set your row to `done` in your own status-update PR (`AGENTS.md` §3 step 9).
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-027**.
+> - Next free ID: **RO-030**.
 
 ## Board
 
@@ -23,8 +23,8 @@
 | RO-009 | Choose a project license | Owner | P3 | todo | — | — |
 | RO-010 | Decide whether to record the app layout in source of truth §6 | Owner (ChatGPT prepares) | P3 | todo | RO-003 merged | — |
 | RO-011 | Architecture review of Milestone 1 layout (ADR 0003) | Gemini | P2 | done | RO-005 | [PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8) — merged `f41309c` |
-| RO-012 | Alignment Milestone 2: contracts, multi-channel engine wrapper, device connectivity | Claude Code | P2 | in-progress | RO-003 merged, owner go-ahead (both met 2026-10-23) | Part 1: [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14) · part 2: [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15) · part 3: [PR #16](https://github.com/bransondang3307-beep/RepOne/pull/16) · part 4: [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) |
-| RO-013 | Alignment Milestone 3: workout domain + persistence | Claude Code | P2 | todo | RO-012 | — |
+| RO-012 | Alignment Milestone 2: contracts, multi-channel engine wrapper, device connectivity | Claude Code | P2 | done | RO-003 merged, owner go-ahead (both met 2026-10-23) | [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14) `9a42cf0` · [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15) `9b93b32` · [PR #16](https://github.com/bransondang3307-beep/RepOne/pull/16) `058bfe4` · [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) `f1df6b2` — all merged |
+| RO-013 | Alignment Milestone 3: workout domain + persistence | Claude Code | P2 | todo | RO-012 (done); owner go-ahead | Plan: [`docs/plans/RO-013-milestone-3-plan.md`](docs/plans/RO-013-milestone-3-plan.md) |
 | RO-014 | Alignment Milestone 4: mobile UI | Claude Code | P2 | todo | RO-013 | — |
 | RO-015 | Alignment Milestone 5: integration + Sprint 1 close-out | Claude Code + Codex | P2 | todo | RO-014 | — |
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
@@ -34,10 +34,13 @@
 | RO-020 | Rebrandable naming rule (`AGENTS.md` §5) and ADR 0006 | Claude Code | P2 | done | — | [PR #6](https://github.com/bransondang3307-beep/RepOne/pull/6) — merged `81ccca6` |
 | RO-021 | Reproduce + fix RO-011 finding 1: Windows path separators in the boundary checker | Claude Code | P1 | done | RO-011 ([PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8)) | fix: [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) — merged `cd884fc`; record: [PR #9](https://github.com/bransondang3307-beep/RepOne/pull/9) |
 | RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | done | RO-021 | [PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10) — merged `8a70565` |
-| RO-023 | Simulated-data warning badge clips on iPhone (record only; not fixed yet) | Claude Code | P3 | todo | — | — |
+| RO-023 | Simulated-data warning badge clips on iPhone | Claude Code | P3 | done | — | [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) — merged `f1df6b2`; owner device check passed 2026-10-30 |
 | RO-024 | Brand configuration for display names (ADR 0006 follow-up) | Claude Code | P2 | todo | RO-020 merged | — |
 | RO-025 | Boundary-checker hardening: per-adapter infrastructure layers; `application/` imports infrastructure only via its index (RO-011 finding 2) | Claude Code | P3 | todo | before a second `src/infrastructure/<adapter>` lands | — |
 | RO-026 | Decide where simulation lives: root barrel vs a `./simulation` subpath export (RO-011 §3.2) | Gemini (proposal) → owner decides | P3 | todo | RO-012 merged | — |
+| RO-027 | Dependency security: targeted Expo SDK 57 patch (`expo` 57.0.31, `expo-router` 57.0.29, `node-forge` 1.4.2) | Claude Code | P1 | done | — | [PR #21](https://github.com/bransondang3307-beep/RepOne/pull/21) — merged `4d6ce0c` |
+| RO-028 | iOS: home and History content starts under the translucent navigation header | Claude Code | P2 | todo | — | — |
+| RO-029 | Real-sensor pipeline over BLE: wire protocol, codec, firmware, iPhone BLE adapter (owner-directed) | Claude Code | P1 | in-progress | RO-012 (done); RO-025 before the BLE adapter lands | — |
 
 ## Task details
 
@@ -147,7 +150,23 @@
 ### RO-012 … RO-015 — Alignment Milestones 2–5 (part of Sprint 1, not Sprint 2)
 - **RO-012 (M2):** sensor error states, multi-channel samples, per-channel engine wrapper (no algorithm change),
   device-connection interface + simulated device. Criteria: contract + channel-independence tests pass; boundaries OK.
-  - **Resumed by the owner on 2026-10-23.** Designed in ADR 0007 (Proposed) and delivered in four PRs:
+  - **Done.** Merged 2026-10-31, in order, each pinned to a head with a clean Codex review and green CI, with CI on
+    `main` passing after every merge:
+    - [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14) → `9a42cf096b9632b0a14f0b8511a99154109ec5e0`
+      (run [41148049113](https://github.com/bransondang3307-beep/RepOne/actions/runs/41148049113));
+    - [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15) → `9b93b32f62fde0b1782724fe79b1740ffbced2d7`
+      (run [41148218361](https://github.com/bransondang3307-beep/RepOne/actions/runs/41148218361));
+    - [PR #16](https://github.com/bransondang3307-beep/RepOne/pull/16) → `058bfe4f2bdb865098da3758fc646a2afd3d3338`
+      (run [41148386831](https://github.com/bransondang3307-beep/RepOne/actions/runs/41148386831));
+    - [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) → `f1df6b2e7ae96abc9a1ea13b1f1639ace5768ac1`
+      (run [41148527229](https://github.com/bransondang3307-beep/RepOne/actions/runs/41148527229)).
+  - **Owner device check, 2026-10-30:** all seven checklist steps passed in Expo Go on an iPhone. The check ran on
+    integration candidate `fe41d47` (this stack's top `cb0e025` + RO-027's `75dcf5a`). After the merges, `main`'s code
+    and lockfile equal that candidate. Evidence:
+    [comment on PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17#issuecomment-6536155158). The owner
+    also noted that the top of the home screen starts under the title bar; it predates RO-012 and is **RO-028**.
+  - **ADR 0007 Accepted** by the owner on 2026-10-30 ("I accept ADR 0007's documented Milestone 2 design").
+  - Delivered in four PRs:
     1. Sensor error states and reasons, contract-suite hardening, session failure handling.
        [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14).
     2. Channels (`source_id` per IMU) and the per-channel rep-engine wrapper, with channel-independence tests.
@@ -160,12 +179,16 @@
     - `source_id` stays the sensor identity, with no collisions within a session (`combineChannels`).
     - A "Simulate connection loss" test control is added, for the simulated device only.
     - The synthetic motion stays repeatable (one seed per app start).
-  - Not in RO-012: real USB/BLE adapters, the H0 wire format (RO-016) and schema changes (RO-013).
+  - Not in RO-012: real USB/BLE adapters (now RO-029), the H0 wire format (RO-016) and schema changes (RO-013).
   - The badge fix (RO-023) ships in PR #17 at the owner's request (2026-10-23), as separate `RO-023:` commits. Its
     task row was added by PR #13 (merged as `ad7e047`).
 - **RO-013 (M3):** Workout → Exercise → Set → Reps; user-entered resistance (labelled, never "measured");
   machine–exercise links; lifecycle start/pause/resume/finish with validation; SQLite migration. Full reps count
   toward a set, partials logged (ADR 0003). Criteria: domain + persistence tests pass.
+  - **Plan:** [`docs/plans/RO-013-milestone-3-plan.md`](docs/plans/RO-013-milestone-3-plan.md) (2026-10-30): design, two-PR
+    delivery, six owner decisions and the migration acceptance criteria. Not started.
+  - **Owner direction, 2026-10-31:** the real-sensor BLE pipeline (RO-029) goes ahead of further workout and UI
+    milestones.
 - **RO-014 (M4):** home dashboard, exercise selection, pause/reset via application services. Criteria: typecheck,
   tests, Android/iOS export; owner Expo Go check.
 - **RO-015 (M5):** boundary validation, full test run, Expo Go, docs + Sprint 1 summary. Codex runs the independent review.
@@ -279,11 +302,11 @@
   - the owner confirms on the device, and the result is noted on the PR.
 - **Scope:** UI layout only; no change to provenance, sensor contracts or rep counting. Priority P3 follows the
   owner's "minor, non-blocking" note; the owner or ChatGPT may raise it.
-- **Status:** the fix ships in [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17), in separate
-  `RO-023:` commits, as part of Milestone 2.
-  - The owner lifted the Milestone 2 pause on 2026-10-28, and confirmed it on 2026-10-29.
-  - PRs #14–#17 are **not merged** yet, and the owner's device check of #17's head is **pending**. RO-023 stays `todo`
-    until PR #17 merges and the device check passes.
+- **Status: done.** The fix shipped in [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17), in separate
+  `RO-023:` commits, merged as `f1df6b2` (2026-10-31).
+  - On 2026-10-30 the owner's device check passed in Expo Go on an iPhone ("Launch and full warning label": pass),
+    on integration candidate `fe41d47`. That candidate's code equals `main` after the merges.
+  - Provenance values and labels are unchanged; `npm run verify` passed on every merged head.
 
 ### RO-024 — Brand configuration for display names (ADR 0006 follow-up; recorded 2026-10-28 at the owner's direction)
 - **Files (expected):**
@@ -315,8 +338,8 @@
   - regression tests show both violations reported, including under the Windows-path simulation;
   - the repository passes;
   - `npm run verify`; CI on Linux and Windows; Codex review.
-- **When:** before a second infrastructure adapter (BLE or serial) lands. It is latent today: `database` is the only
-  adapter, and the open RO-012 PRs add none.
+- **When:** before a second infrastructure adapter (BLE or serial) lands. RO-012 merged without adding one. RO-029's
+  BLE adapter will be the second, so RO-025 lands first, in its own PR (owner direction, 2026-10-31).
 
 ### RO-026 — Where simulation lives (RO-011 §3.2; recorded 2026-10-28 at the owner's direction)
 - **Question:** keep simulation (simulated and replay sources, synthetic scripts and, after RO-012, the simulated
@@ -324,3 +347,62 @@
   separate package), so pure contract consumers import interfaces only?
 - **Owner:** Gemini proposes, with trade-offs; the owner decides. Any change is a separate, approved code task.
 - **When:** after RO-012 merges, since its PRs add to `src/simulation/`. P3; no code until decided.
+
+### RO-027 — Dependency security remediation (owner-directed, 2026-10-29)
+- **Scope:** a targeted Expo SDK 57 patch, with no forced audit fix, no SDK change and no application change:
+  - `expo` `~57.0.31` and `expo-router` `~57.0.29`;
+  - the lockfile regenerated by npm, which brings `node-forge` 1.4.2 and `xcode` 4 (removing `uuid` 7).
+- **Result:** `npm audit` went from 23 findings (4 high) to 19 (3 high); production-only from 15 to 11. The remaining
+  advisories, the native-library mismatch with Expo Go and their practical impact are in
+  [`docs/handoffs/2026-10-29-claude-RO-027-dependency-security.md`](docs/handoffs/2026-10-29-claude-RO-027-dependency-security.md).
+- **Status: done.** [PR #21](https://github.com/bransondang3307-beep/RepOne/pull/21), merged as
+  `4d6ce0c1ddc5200a3683f07efa4e816f3dd60994` (2026-10-31).
+  - Codex reviewed `75dcf5a` with no major issues.
+  - CI on `main` passed after the merge (run [41147866259](https://github.com/bransondang3307-beep/RepOne/actions/runs/41147866259)).
+  - The owner's device check passed on 2026-10-30, on integration candidate `fe41d47`, which contains this exact
+    dependency tree.
+- **Duplicate:** [PR #22](https://github.com/bransondang3307-beep/RepOne/pull/22) (branch
+  `claude/RO-025-dependency-security`, opened 2026-10-29 from another session) makes the same Expo patch. It is
+  superseded by PR #21, and its task ID collides with RO-025. The owner decides whether to close it.
+
+### RO-028 — iOS: content starts under the translucent navigation header (owner report, 2026-10-30)
+- **Found in:** the owner's device check of candidate `fe41d47`. The top of the home screen (the sensor panel) sits
+  behind the status bar and the frosted "RepOne" title bar; the owner's screenshot shows it.
+- **Cause (from the code and the screenshot):** the screens' scroll views (`ScrollView` on home, `FlatList` on
+  History) don't adjust their content inset. iOS lays the screen out under the translucent header, so the content
+  starts at the top of the display. The layout predates RO-012.
+- **Files:** `apps/mobile/app/index.tsx`, `apps/mobile/app/history.tsx`, a regression test.
+- **Completion criteria:**
+  - on the owner's iPhone, the first content of both screens starts below the title bar and stays readable when
+    scrolled back to the top;
+  - Android is unchanged;
+  - `npm run verify`; Codex review; the owner's device check.
+
+### RO-029 — Real-sensor pipeline over BLE (owner-directed, 2026-10-31)
+- **Goal:** MPU-6050 readings → firmware → versioned BLE packets → iPhone BLE adapter → the existing
+  `DeviceConnection` and session pipeline. Simulation keeps working alongside it.
+- **Constraints (owner):**
+  - The Uno R3 has no Bluetooth, and the wireless board is not chosen. Anything that depends on that board stays
+    isolated and pending.
+  - The detector, thresholds, calibration policy, rep classification and the approved sensor contracts are
+    unchanged; wire units are converted at the transport boundary.
+  - Mock tests are never described as radio connectivity.
+  - No silent fallback to simulation.
+  - No paid services or accounts.
+  - Reviewable PRs only; the owner merges.
+- **Planned PRs:**
+  1. Protocol (a Proposed ADR and a protocol document), a transport-independent codec and golden fixtures.
+  2. Firmware: Uno R3 USB bring-up, plus a portable acquisition and protocol layer for a later BLE board.
+  3. The iPhone BLE `DeviceConnection` adapter, native configuration, the development-build setup and a minimal
+     acceptance UI.
+
+  RO-025 lands before part 3.
+- **Related:**
+  - **RO-016** (Gemini; H0 serial schema research). No research exists yet. RO-029's protocol proposal overlaps its
+    scope, so the owner or ChatGPT should re-scope RO-016, for example to review the proposal against H0 evidence.
+  - **RO-018** (owner; hardware bring-up) provides the physical validation.
+- **Completion criteria:**
+  - the pipeline is implemented and tested as far as the environment allows: codec and adapter tests, firmware
+    compiled;
+  - Codex has reviewed each PR's final head;
+  - hardware and iPhone validation are reported as outstanding until the owner performs them.

@@ -1,15 +1,18 @@
 # ADR 0007 — Milestone 2: sensor error states, channels and device connections
 
 - **Date:** 2026-10-23
-- **Status:** Proposed.
-  - Decision 1 is implemented by RO-012 part 1 (PR #14).
-  - Decision 3, and decision 2 as the rep engine uses it, are implemented by part 2.
-  - Decision 4's contract and simulated device, and decision 2's channel exposure, are implemented by part 3.
-  - Decision 4's app integration is implemented by part 4. The owner's Expo Go check is pending.
-  - The owner accepts it by merging; contract changes also need Codex review (`docs/architecture.md` §6).
+- **Status:** **Accepted** by the owner on 2026-10-30 ("I accept ADR 0007's documented Milestone 2 design"), after
+  the owner's iPhone check passed. It was Proposed from 2026-10-23.
+  - Decision 1 is implemented by RO-012 part 1 (PR #14, merged `9a42cf0`).
+  - Decision 3, and decision 2 as the rep engine uses it, are implemented by part 2 (PR #15, merged `9b93b32`).
+  - Decision 4's contract and simulated device, and decision 2's channel exposure, are implemented by part 3 (PR #16,
+    merged `058bfe4`).
+  - Decision 4's app integration is implemented by part 4 (PR #17, merged `f1df6b2`). The owner's Expo Go check
+    passed on 2026-10-30, on integration candidate `fe41d47`, whose code equals `main` after the merges.
+  - Contract changes still need Codex review (`docs/architecture.md` §6).
 - **Extends:** [ADR 0002](0002-sensor-contract-and-rep-detector.md) (`SensorSource`) and
   [ADR 0003](0003-full-spec-module-layout.md) ("Module G and multi-channel contracts are added in Milestone 2").
-- **Numbering:** ADR 0006 is taken by the rebrandable-naming ADR on open PR #6, so this is 0007.
+- **Numbering:** ADR 0006 is the rebrandable-naming ADR (PR #6, merged `81ccca6`), so this is 0007.
 
 ## Context
 
@@ -32,7 +35,7 @@ On `main` before this ADR, the gaps were:
 - **Failed writes left recording running.** A failed write set the status to `error` while recording continued. The
   status then flipped to `finished` when the user stopped.
 
-The RO-011 architecture review (PR #8, open) independently recommended extending the sensor contract suite. Its
+The RO-011 architecture review (PR #8, merged `f41309c`) independently recommended extending the sensor contract suite. Its
 recommendations were status-listener unsubscription, idempotent `start()`/`stop()`, error transitions, and
 continuous streams.
 
@@ -214,7 +217,7 @@ continuous streams.
       simulated.
   - **Repeatable demo stream** (owner decision, 2026-10-23). The synthetic motion uses one seed per app start, so
     sets within a run repeat the same stream.
-  - The owner checks it all in Expo Go.
+  - The owner checked it all in Expo Go on 2026-10-30; every step passed.
 - **Discovery and pairing UI** are out of scope until a real transport exists.
 
 ## Out of scope for Milestone 2
@@ -228,7 +231,7 @@ continuous streams.
 
 ## Naming
 
-New identifiers are brand-free, following the rebrandable-naming rule proposed in ADR 0006 (PR #6):
+New identifiers are brand-free, following the rebrandable-naming rule of ADR 0006 (Accepted):
 - type names: `SensorError`, `DeviceConnection`, `SimulatedDevice`;
 - error codes;
 - fault messages.

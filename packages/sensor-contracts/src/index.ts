@@ -4,7 +4,15 @@
 export * from './common';
 
 // Raw sensor contract (source of truth §7 "Raw sensor sample")
-export type { RawSensorSample, SensorSource, SensorSourceKind, SensorStatus } from './sensor';
+export type {
+  RawSensorSample,
+  SensorError,
+  SensorErrorCode,
+  SensorSource,
+  SensorSourceKind,
+  SensorStatus,
+} from './sensor';
+export { SensorStartError } from './sensor';
 export { BaseSensorSource } from './BaseSensorSource';
 
 // Derived-event, detector and calibration contracts (source of truth §7 "Derived event")
@@ -23,5 +31,9 @@ export {
   type SyntheticTrace,
 } from './simulation/motion';
 export { DEMO_FULL_ROM_RAD, DEMO_LOOP_SCRIPT, LABELLED_SET_SCRIPT, createSyntheticCalibration } from './simulation/scripts';
-export { SimulatedSensorSource, type SimulatedSensorSourceDeps } from './simulation/SimulatedSensorSource';
+export {
+  SimulatedSensorSource,
+  type SimulatedFault,
+  type SimulatedSensorSourceDeps,
+} from './simulation/SimulatedSensorSource';
 export { ReplaySensorSource, type ReplaySensorSourceDeps } from './simulation/ReplaySensorSource';

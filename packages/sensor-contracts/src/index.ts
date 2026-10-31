@@ -13,6 +13,17 @@ export type {
   SensorStatus,
 } from './sensor';
 export { SensorStartError } from './sensor';
+
+// Device connections (ADR 0007 §4): one SensorSource per channel while connected
+export type {
+  ConnectionError,
+  ConnectionErrorCode,
+  ConnectionState,
+  DeviceChannel,
+  DeviceConnection,
+  DeviceTransport,
+} from './device';
+export { DeviceConnectError } from './device';
 export { BaseSensorSource } from './BaseSensorSource';
 
 // Derived-event, detector and calibration contracts (source of truth §7 "Derived event")
@@ -37,3 +48,8 @@ export {
   type SimulatedSensorSourceDeps,
 } from './simulation/SimulatedSensorSource';
 export { ReplaySensorSource, type ReplaySensorSourceDeps } from './simulation/ReplaySensorSource';
+export {
+  SimulatedDevice,
+  type SimulatedChannelSpec,
+  type SimulatedDeviceOptions,
+} from './simulation/SimulatedDevice';

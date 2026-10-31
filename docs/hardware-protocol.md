@@ -57,10 +57,20 @@ t_ms,ax,ay,az,gx,gy,gz
 
 ## 3. H1 — BLE — *not defined*
 
-Out of scope for Sprint 1; no native Bluetooth dependencies are installed. A future
-`BleSensorSource` (in `apps/mobile/src/infrastructure/bluetooth/`) will implement
-`SensorSource` and the device-connection interface planned for Milestone 2. Packet format,
-MTU/batching, clock sync and battery reporting will be specified with H1 evidence.
+Out of scope for Sprint 1; no native Bluetooth dependencies are installed. A future BLE adapter
+(in `apps/mobile/src/infrastructure/bluetooth/`) will implement `DeviceConnection` (ADR 0007 §4,
+`packages/sensor-contracts/src/device.ts`), with one `SensorSource` per IMU channel. It must pass
+`describeDeviceConnectionContract`, and each channel must pass `describeSensorSourceContract`. Discovery will match
+neutral service identifiers, never a product-name string (ADR 0006, proposed). Packet format, MTU/batching, clock
+sync and battery reporting will be specified with H1 evidence.
+
+Connection failures use `ConnectionError` codes:
+- `unavailable`: not found or refused;
+- `timeout`: connect too slow;
+- `connection_lost`: the link dropped; streaming channels fail with the same code;
+- `unknown`.
+
+The same contract applies to a future USB-serial (H0) adapter.
 
 ## 4. Open questions
 

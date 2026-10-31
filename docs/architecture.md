@@ -25,12 +25,12 @@ Infrastructure implements contract/domain interfaces; only the composition root
 | Module (spec) | Location | Public API | Status |
 |---|---|---|---|
 | A — Sensor contracts | `packages/sensor-contracts/src/{common,sensor,derived}.ts` | `@repone/sensor-contracts` | Implemented, including error states and reasons ([ADR 0007](decisions/0007-sensor-errors-channels-device-connections.md) §1); multi-channel *planned (M2, ADR 0007 §2)* |
-| B — Sensor simulation | `packages/sensor-contracts/src/simulation/` | same package | Implemented, with deterministic scripted faults (ADR 0007 §1) |
+| B — Sensor simulation | `packages/sensor-contracts/src/simulation/` | same package | Implemented, with deterministic scripted faults (ADR 0007 §1) and a multi-channel `SimulatedDevice` (§4) |
 | C — Rep engine | `packages/rep-engine/src/` | `@repone/rep-engine` | Implemented: the rotational detector, plus `MultiChannelRepDetector`, one independent detector per channel (ADR 0007 §3) |
 | D — Workout domain | `packages/workout-domain/src/` | `@repone/workout-domain` | Session + repository ports only; exercises/sets/resistance/lifecycle *planned (M3)* |
 | E — Persistence | `apps/mobile/src/infrastructure/database/` | `infrastructure/database/index.ts` | SQLite adapter + migrations implemented; new tables *planned (M3)* |
 | F — Mobile UI | `apps/mobile/app/`, `src/features/`, `src/shared/` | feature `index.ts` files | Active set + history; dashboard, exercise selection, pause *planned (M4)* |
-| G — Device connectivity | `src/features/device-connection/`, `src/infrastructure/bluetooth/` | — | *Planned (M2, ADR 0007 §4)*: contract + simulated device; no native BLE deps in Sprint 1 |
+| G — Device connectivity | contract `packages/sensor-contracts/src/device.ts`; app `src/features/device-connection/`, `src/infrastructure/<transport>/` | `@repone/sensor-contracts` | `DeviceConnection` contract + `SimulatedDevice` implemented (ADR 0007 §4); app view *planned (M2 part 4)*; no native BLE/serial deps in Sprint 1 |
 | Application services | `apps/mobile/src/application/` | `application/index.ts` | `WorkoutSessionController`, composition root |
 
 Folders from the spec tree that have no code yet (`features/exercises`, `features/machines`,
@@ -81,6 +81,8 @@ container is created once at boot and passed through React context.
   - The sensor suite covers the lifecycle, idempotent `start()`/`stop()` and listener unsubscription.
   - Its options declare continuous sources (`finite: false`) and the minimum sample rate, and supply sources that
     fail mid-stream or at start, which enable the failure tests (ADR 0007 §1).
+  - Device connections pass `describeDeviceConnectionContract` (same `testing` entry, ADR 0007 §4), and each of a
+    device's channels passes the sensor suite.
 - Packages test with ts-jest under Node; the app tests with jest-expo. SQLite repositories are
   tested against Node's `node:sqlite` through the same `SqlDatabase` port used with expo-sqlite.
 - `npm run verify` = boundaries + workflow policy (`npm run check:workflows`: no AI API integrations,

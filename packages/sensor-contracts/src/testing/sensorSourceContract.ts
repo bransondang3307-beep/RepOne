@@ -108,6 +108,92 @@ export function describeSensorSourceContract(
       await once.source.stop();
     });
 
+    it('delivers nothing more once stop() is called from inside a sample listener', async () => {
+      const { source, advance } = createHarness();
+      let received = 0;
+      source.subscribe(() => {
+        received += 1;
+        if (received === 1) void source.stop();
+      });
+      await source.start();
+      advance(1000);
+      expect(received).toBe(1);
+      expect(source.getStatus()).toBe('stopped');
+    });
+
+    it('stays streaming when a `stopped` listener restarts it (an earlier stop never overwrites a newer run)', async () => {
+      const { source, advance } = createHarness();
+      const samples: RawSensorSample[] = [];
+      source.subscribe((s) => samples.push(s));
+      let restart: Promise<void> | null = null;
+      source.subscribeStatus((s) => {
+        if (s === 'stopped' && restart === null) restart = source.start();
+      });
+      await source.start();
+      advance(500);
+      await source.stop();
+      await restart;
+      expect(source.getStatus()).toBe('streaming');
+      const count = samples.length;
+      advance(500);
+      expect(samples.length).toBeGreaterThan(count);
+      await source.stop();
+    });
+
+    it('delivers status changes to every listener in order, even when a listener changes the status', async () => {
+      const { source, advance } = createHarness();
+      let restarted = false;
+      source.subscribeStatus((s) => {
+        if (s === 'stopped' && !restarted) {
+          restarted = true;
+          void source.start();
+        }
+      });
+      const seen: SensorStatus[] = [];
+      source.subscribeStatus((s) => seen.push(s));
+      await source.start();
+      advance(500);
+      await source.stop();
+      await Promise.resolve();
+      advance(200);
+      await source.stop();
+      expect(seen).toEqual(['streaming', 'stopped', 'streaming', 'stopped']);
+    });
+
+    it('keeps delivering to every listener when one throws, and reports the error instead of failing', async () => {
+      const { source, advance } = createHarness();
+      const reported = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      try {
+        let restarted = false;
+        source.subscribeStatus((s) => {
+          if (s === 'stopped' && !restarted) {
+            restarted = true;
+            void source.start();
+          }
+          throw new Error('status listener failure');
+        });
+        const seen: SensorStatus[] = [];
+        source.subscribeStatus((s) => seen.push(s));
+        source.subscribe(() => {
+          throw new Error('sample listener failure');
+        });
+        const samples: RawSensorSample[] = [];
+        source.subscribe((s) => samples.push(s));
+
+        await source.start(); // a listener's failure is not the source's failure
+        advance(500);
+        expect(samples.length).toBeGreaterThan(0);
+        await source.stop();
+        await Promise.resolve();
+        expect(seen).toEqual(['streaming', 'stopped', 'streaming']);
+        expect(source.getStatus()).toBe('streaming');
+        expect(reported).toHaveBeenCalled();
+        await source.stop();
+      } finally {
+        reported.mockRestore();
+      }
+    });
+
     it('treats stop() as a no-op unless streaming', async () => {
       const { source, advance } = createHarness();
       const { statuses } = record(source);

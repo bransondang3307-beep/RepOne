@@ -23,7 +23,7 @@
 | RO-009 | Choose a project license | Owner | P3 | todo | — | — |
 | RO-010 | Decide whether to record the app layout in source of truth §6 | Owner (ChatGPT prepares) | P3 | todo | RO-003 merged | — |
 | RO-011 | Architecture review of Milestone 1 layout (ADR 0003) | Gemini | P2 | done | RO-005 | [PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8) — merged `f41309c` |
-| RO-012 | Alignment Milestone 2: contracts, multi-channel engine wrapper, device connectivity | Claude Code | P2 | in-progress | RO-003 merged, owner go-ahead (both met 2026-10-23) | Part 1: [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14) · part 2: `claude/RO-012-channel-rep-engine` |
+| RO-012 | Alignment Milestone 2: contracts, multi-channel engine wrapper, device connectivity | Claude Code | P2 | in-progress | RO-003 merged, owner go-ahead (both met 2026-10-23) | Part 1: [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14) · part 2: [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15) · part 3: `claude/RO-012-device-connection` |
 | RO-013 | Alignment Milestone 3: workout domain + persistence | Claude Code | P2 | todo | RO-012 | — |
 | RO-014 | Alignment Milestone 4: mobile UI | Claude Code | P2 | todo | RO-013 | — |
 | RO-015 | Alignment Milestone 5: integration + Sprint 1 close-out | Claude Code + Codex | P2 | todo | RO-014 | — |
@@ -151,8 +151,9 @@
     1. Sensor error states and reasons, contract-suite hardening, session failure handling.
        [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14).
     2. Channels (`source_id` per IMU) and the per-channel rep-engine wrapper, with channel-independence tests.
-       Branch `claude/RO-012-channel-rep-engine`, stacked on part 1.
+       [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15), stacked on part 1.
     3. `DeviceConnection` contract, `SimulatedDevice` and the device contract suite.
+       Branch `claude/RO-012-device-connection`, stacked on part 2.
     4. App integration and the `features/device-connection` view; the owner checks it in Expo Go.
   - Not in RO-012: real USB/BLE adapters, the H0 wire format (RO-016), schema changes (RO-013) and the badge fix
     (RO-023, P3).

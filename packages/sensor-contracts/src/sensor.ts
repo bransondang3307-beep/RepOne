@@ -69,10 +69,20 @@ export interface SensorSource {
    * begin; the status is then `error`.
    */
   start(): Promise<void>;
-  /** Stop streaming. A no-op unless streaming: no status change, no event. */
+  /**
+   * Stop streaming. Nothing is delivered after stop() is called, even when it is called from inside a sample
+   * listener mid-batch. A no-op unless streaming: no status change, no event.
+   */
   stop(): Promise<void>;
-  /** Samples are delivered in non-decreasing timestamp order. */
+  /**
+   * Samples are delivered in non-decreasing timestamp order. A listener that throws is reported and skipped; the
+   * other listeners still receive every sample, and the source keeps streaming.
+   */
   subscribe(listener: (sample: RawSensorSample) => void): Unsubscribe;
-  /** Each status change is published once; no-op calls publish nothing. */
+  /**
+   * Each status change is published once, to every listener, in the order the changes happen; no-op calls publish
+   * nothing. A change made by a listener is published after the current one; getStatus() returns the latest. A
+   * listener that throws is reported and skipped; it never stops delivery to the others or fails start()/stop().
+   */
   subscribeStatus(listener: (status: SensorStatus) => void): Unsubscribe;
 }

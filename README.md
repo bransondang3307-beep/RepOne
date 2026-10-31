@@ -33,6 +33,7 @@ packages/
   sensor-contracts/     Sensor + derived-event contracts, deterministic simulation
   rep-engine/           Pure TS rep detection, calibration, evaluation
   workout-domain/       Workout models + repository interfaces
+  sensor-protocol/      IMU stream wire protocol codec (ADR 0008, proposed)
 docs/                   architecture.md, hardware-protocol.md, decisions/
 scripts/                check-boundaries.mjs
 ```

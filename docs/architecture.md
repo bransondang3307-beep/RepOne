@@ -27,6 +27,7 @@ Infrastructure implements contract/domain interfaces; only the composition root
 | A — Sensor contracts | `packages/sensor-contracts/src/{common,sensor,derived}.ts` | `@repone/sensor-contracts` | Implemented, including error states and reasons ([ADR 0007](decisions/0007-sensor-errors-channels-device-connections.md) §1), and channels identified by `source_id`. `combineChannels` rejects colliding sensors within a session (§2) |
 | B — Sensor simulation | `packages/sensor-contracts/src/simulation/` | same package | Implemented, with deterministic scripted faults (ADR 0007 §1) and a multi-channel `SimulatedDevice` (§4) |
 | C — Rep engine | `packages/rep-engine/src/` | `@repone/rep-engine` | Implemented: the rotational detector, plus `MultiChannelRepDetector`, one independent detector per channel (ADR 0007 §3) |
+| A2 — Sensor wire protocol (RO-029) | `packages/sensor-protocol/src/` | `@repone/sensor-protocol` | Implemented, **Proposed** ([ADR 0008](decisions/0008-imu-stream-wire-protocol.md)): packet codec, unit conversion at the transport boundary, stream tracking; golden fixtures shared with firmware. No transport uses it on `main` yet |
 | D — Workout domain | `packages/workout-domain/src/` | `@repone/workout-domain` | Session + repository ports only; exercises/sets/resistance/lifecycle *planned (M3)* |
 | E — Persistence | `apps/mobile/src/infrastructure/database/` | `infrastructure/database/index.ts` | SQLite adapter + migrations implemented; new tables *planned (M3)* |
 | F — Mobile UI | `apps/mobile/app/`, `src/features/`, `src/shared/` | feature `index.ts` files | Active set + history; dashboard, exercise selection, pause *planned (M4)* |
@@ -43,7 +44,7 @@ track empty folders.
 | From | May import | Must not import |
 |---|---|---|
 | `@repone/sensor-contracts` | nothing internal | any `@repone/*`; React, RN, Expo, Zustand, SQLite, BLE |
-| `@repone/rep-engine`, `@repone/workout-domain` | `@repone/sensor-contracts` | each other; platform libraries |
+| `@repone/rep-engine`, `@repone/workout-domain`, `@repone/sensor-protocol` | `@repone/sensor-contracts` | each other; platform libraries |
 | `application/services` | `@repone/*` packages | React/RN/Expo/Zustand, features, shared, infrastructure |
 | `application` (composition root, providers) | packages, services, infrastructure — via each adapter's `index.ts` | features, shared, routes; an adapter's internal files |
 | `features/<x>` | packages, `application` (index), `shared` (index), own files | other features, infrastructure |

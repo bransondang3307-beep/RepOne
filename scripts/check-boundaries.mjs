@@ -105,6 +105,8 @@ function layerOf(rel) {
 /** Public entry of a layer: imports from outside must target its index file. */
 const isLayerIndex = (rel) =>
   /^apps\/mobile\/src\/(application|shared|features\/[^/]+|infrastructure\/[^/]+)\/index\.tsx?$/.test(rel);
+/** An adapter's public entry is exactly its root `index.ts` (adapters hold no UI, so never `index.tsx`; RO-025). */
+const isAdapterIndex = (rel) => /^apps\/mobile\/src\/infrastructure\/[^/]+\/index\.ts$/.test(rel);
 
 const errors = [];
 const graph = new Map();
@@ -178,7 +180,7 @@ for (const file of files) {
       case 'application':
         if (to.kind === 'feature' || to.kind === 'shared' || to.kind === 'route')
           fail(spec, 'application layer must not depend on UI');
-        else if (to.kind === 'infrastructure' && !viaIndex) fail(spec, 'import infrastructure through its index');
+        else if (to.kind === 'infrastructure' && !isAdapterIndex(trel)) fail(spec, 'import infrastructure through its index.ts');
         break;
       case 'infrastructure':
         fail(spec, 'infrastructure adapters may only import packages and their own module');

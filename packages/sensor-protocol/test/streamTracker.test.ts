@@ -102,6 +102,27 @@ describe('StreamTracker', () => {
     expect(samples.map((s) => [s.timestamp_ms, s.quality_flags])).toEqual([[1040, ['sample_gap']]]);
   });
 
+  it('keeps a pending gap across packets: a sample dropped at the end of one packet flags the first sample of the next packet (Codex P1)', () => {
+    const t = tracker();
+    t.accept(packet({ streamStart: true, firstSequence: 0, samples: [wire(1000)] }));
+    const dropped = t.accept(packet({ firstSequence: 1, samples: [wire(990)] }));
+    expect(dropped).toEqual({ samples: [], events: [{ kind: 'time_went_backwards', channel: 0, deviceTimeMs: 990 }] });
+    const next = t.accept(packet({ firstSequence: 2, samples: [wire(1040), wire(1060)] }));
+    expect(next.events).toEqual([]);
+    expect(next.samples.map((s) => [s.timestamp_ms, s.quality_flags])).toEqual([
+      [1040, ['sample_gap']],
+      [1060, []],
+    ]);
+  });
+
+  it('keeps a pending gap across a packet that only carries a lost-samples notice before a dropped sample', () => {
+    const t = tracker();
+    t.accept(packet({ streamStart: true, firstSequence: 0, samples: [wire(1000)] }));
+    t.accept(packet({ firstSequence: 3, samples: [wire(995)] }));
+    const next = t.accept(packet({ firstSequence: 4, samples: [wire(1080)] }));
+    expect(next.samples[0]!.quality_flags).toEqual(['sample_gap']);
+  });
+
   it('flags the sample after a device-reported overflow', () => {
     const t = tracker();
     t.accept(packet({ streamStart: true, firstSequence: 0, samples: [wire(0)] }));

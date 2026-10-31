@@ -25,7 +25,8 @@ adapter (owner direction, 2026-10-31), so this lands first.
     same-layer check now lets an adapter use only its own files.
   - A file directly under `infrastructure/` stays in the infrastructure layer, with an empty name.
   - `application/` (the composition root and providers) may import infrastructure only through
-    `infrastructure/<adapter>/index.ts`. The existing `isLayerIndex()` already recognises those index files.
+    `infrastructure/<adapter>/index.ts`, exactly. A dedicated `isAdapterIndex()` check means `index.tsx` does not
+    count (Codex P1, round 1); other layers keep their `index.ts`/`index.tsx` entry rule.
   - Every other rule is unchanged. Tests may still reach into what they exercise.
 - **`scripts/check-boundaries.test.mjs`:** three regression tests:
   - a clean two-adapter workspace passes: own files, index imports, and a test reaching into another adapter;
@@ -42,9 +43,10 @@ adapter (owner direction, 2026-10-31), so this lands first.
 ## Tests and checks (exact results)
 | Command | Result |
 |---|---|
-| `node --test scripts/check-boundaries.test.mjs` with the fix | 11/11 pass |
+| `node --test scripts/check-boundaries.test.mjs` with the fix | 13/13 pass (after the round-1 fix) |
 | The same tests against the old checker (negative control) | 2 of the 3 new tests fail, as expected. The third (the allowed case) passes on both |
-| `npm run verify` (Node 22.22.0) | exit 0. Boundaries OK (74 files, the real repository passes); workflow policy OK; typecheck OK; script tests **65/65**; Jest 165/165 |
+| `npm run verify` (Node 22.22.0), after the round-1 fix | exit 0. Boundaries OK (74 files, the real repository passes); workflow policy OK; typecheck OK; script tests **67/67**; Jest 165/165 |
+| The `index.tsx` tests against the round-0 checker (negative control) | both fail, as Codex reproduced |
 
 The Windows CI job runs the same script tests natively on Windows.
 

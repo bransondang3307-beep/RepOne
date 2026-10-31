@@ -19,6 +19,8 @@ const SOURCE_DIRS = [
   'packages/rep-engine/test',
   'packages/workout-domain/src',
   'packages/workout-domain/test',
+  'packages/sensor-protocol/src',
+  'packages/sensor-protocol/test',
   'apps/mobile/app',
   'apps/mobile/src',
 ];
@@ -28,6 +30,7 @@ const PACKAGE_DEPS = {
   'sensor-contracts': [],
   'rep-engine': ['sensor-contracts'],
   'workout-domain': ['sensor-contracts'],
+  'sensor-protocol': ['sensor-contracts'],
 };
 /** Platform libraries that must never appear in packages/ or application services. */
 const PLATFORM_LIB = /^(react|react-native|react-dom|zustand|expo|expo-.*|@expo\/.*|.*sqlite.*|.*ble.*|.*bluetooth.*)(\/.*)?$/;

@@ -3,7 +3,8 @@ import type { AppContainer, SessionSnapshot } from '../../application';
 
 export interface LiveSessionState {
   readonly session: SessionSnapshot;
-  startSimulatedSet(machineLabel?: string): Promise<void>;
+  /** Record a set from the chosen sensor (simulated or real); connects it first if needed. */
+  startSet(machineLabel?: string): Promise<void>;
   stop(): Promise<void>;
   dismissResult(): void;
 }
@@ -23,8 +24,8 @@ export function createLiveSessionStore(
   const store = createStore<LiveSessionState>()(() => ({
     session: controller.getSnapshot(),
 
-    async startSimulatedSet(machineLabel) {
-      // Connects the (simulated) device first if it is not connected yet.
+    async startSet(machineLabel) {
+      // Connects the chosen device first if it is not connected yet.
       const sensor = await container.getSessionSensor();
       await controller.start({
         sensor,

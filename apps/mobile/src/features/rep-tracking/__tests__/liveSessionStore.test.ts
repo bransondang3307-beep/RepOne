@@ -45,6 +45,31 @@ describe('liveSessionStore', () => {
     expect(store.getState().session.status).toBe('idle');
   });
 
+  it('keeps a per-rep timeline and the recording start time for the current set, and clears both for a new set', async () => {
+    const scheduler = new ManualScheduler();
+    const container = assembleContainer(createInMemoryRepositories(), { now: () => 1_700_000_000_000 }, { scheduler, seed: 1 });
+    let phoneNow = 5_000;
+    const store = createLiveSessionStore(container, () => phoneNow);
+    expect(store.getState()).toMatchObject({ repTimeline: [], recordingStartedAtMs: null });
+
+    await store.getState().startSimulatedSet();
+    expect(store.getState().recordingStartedAtMs).toBe(5_000);
+    phoneNow = 9_000;
+    scheduler.advance(20_000);
+
+    const { session, repTimeline } = store.getState();
+    expect(repTimeline.length).toBe(session.fullReps + session.partialReps);
+    expect(repTimeline.filter((r) => r.classification === 'full')).toHaveLength(session.fullReps);
+    expect(repTimeline.every((r) => r.peakExcursionRad > 0)).toBe(true);
+    expect(store.getState().recordingStartedAtMs).toBe(5_000);
+
+    await store.getState().stop();
+    expect(store.getState().repTimeline).toBe(repTimeline); // the finished set's strip stays visible
+
+    store.getState().dismissResult();
+    expect(store.getState()).toMatchObject({ repTimeline: [], recordingStartedAtMs: null });
+  });
+
   it('connects the simulated device when a set starts', async () => {
     const { container, store } = setup();
     expect(container.device.getState()).toBe('disconnected');

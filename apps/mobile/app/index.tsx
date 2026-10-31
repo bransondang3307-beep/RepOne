@@ -1,104 +1,72 @@
-import { Link } from 'expo-router';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
 import { DeviceConnectionPanel } from '../src/features/device-connection';
-import { RepCounter, useLiveSession } from '../src/features/rep-tracking';
-import { PrimaryButton, ProvenanceBadge, colors, spacing } from '../src/shared';
+import { useLiveSession } from '../src/features/rep-tracking';
+import { SetCard, TodaySummaryCard, WeeklyRepsCard, useWorkoutHistory } from '../src/features/workouts';
+import { FadeIn, PrimaryButton, PressableScale, Screen, useThemedStyles, type Theme } from '../src/shared';
 
-const STATUS_TEXT = {
-  idle: 'Ready',
-  starting: 'Starting…',
-  recording: 'Recording',
-  stopping: 'Saving…',
-  finished: 'Set saved',
-  error: 'Error',
-} as const;
+/** Enough sets for a week of summaries; the dashboard only aggregates what is stored on this device. */
+const DASHBOARD_HISTORY_LIMIT = 500;
 
-export default function WorkoutScreen() {
-  const session = useLiveSession((s) => s.session);
-  const startSimulatedSet = useLiveSession((s) => s.startSimulatedSet);
-  const stop = useLiveSession((s) => s.stop);
-  const dismissResult = useLiveSession((s) => s.dismissResult);
-  const [machineLabel, setMachineLabel] = useState('');
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const recording = session.status === 'recording';
-  const busy = session.status === 'starting' || session.status === 'stopping';
-  const done = session.status === 'finished' || session.status === 'error';
-
-  const run = (action: () => Promise<void>) => {
-    setActionError(null);
-    action().catch((e: unknown) => setActionError(e instanceof Error ? e.message : String(e)));
-  };
+export default function TodayScreen() {
+  const router = useRouter();
+  const styles = useThemedStyles(makeStyles);
+  const { sessions, error } = useWorkoutHistory(DASHBOARD_HISTORY_LIMIT);
+  const status = useLiveSession((s) => s.session.status);
+  const live = status === 'starting' || status === 'recording' || status === 'stopping';
+  const nowMs = Date.now();
+  const latest = sessions[0];
+  const date = new Date(nowMs).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <DeviceConnectionPanel locked={recording || busy} />
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <Text style={styles.status}>{STATUS_TEXT[session.status]}</Text>
-          <ProvenanceBadge provenance={session.provenance ?? 'simulated'} />
-        </View>
-        <View style={styles.counters}>
-          <RepCounter label="Full reps" value={session.fullReps} emphasis />
-          <RepCounter label="Partial" value={session.partialReps} />
-        </View>
-        <Text style={styles.meta}>
-          {session.samplesReceived} samples · algorithm-derived counts, unvalidated on real hardware
-        </Text>
-      </View>
+    <Screen title="Today" eyebrow={date}>
+      <FadeIn index={0}>
+        <TodaySummaryCard sessions={sessions} nowMs={nowMs} />
+      </FadeIn>
 
-      {!recording && !busy && !done && (
-        <TextInput
-          style={styles.input}
-          placeholder="Machine / exercise (optional)"
-          placeholderTextColor={colors.textMuted}
-          value={machineLabel}
-          onChangeText={setMachineLabel}
-          maxLength={60}
+      <FadeIn index={1}>
+        <PrimaryButton
+          label={live ? 'Back to the live set' : 'Start a set'}
+          icon={live ? 'record' : 'play'}
+          onPress={() => router.navigate('/record')}
         />
+      </FadeIn>
+
+      <FadeIn index={2}>
+        <WeeklyRepsCard sessions={sessions} nowMs={nowMs} />
+      </FadeIn>
+
+      <FadeIn index={3} style={styles.section}>
+        <Text style={styles.sectionTitle} accessibilityRole="header">
+          Sensor
+        </Text>
+        <DeviceConnectionPanel locked={live} showTestControl={false} />
+      </FadeIn>
+
+      {latest && (
+        <FadeIn index={4} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle} accessibilityRole="header">
+              Latest set
+            </Text>
+            <PressableScale accessibilityRole="link" onPress={() => router.navigate('/history')} hitSlop={8}>
+              <Text style={styles.link}>See all</Text>
+            </PressableScale>
+          </View>
+          <SetCard set={latest} />
+        </FadeIn>
       )}
 
-      {recording || busy ? (
-        <PrimaryButton label="Stop set" tone="danger" disabled={busy} onPress={() => run(stop)} />
-      ) : done ? (
-        <PrimaryButton label="New set" onPress={dismissResult} />
-      ) : (
-        <PrimaryButton label="Start simulated set" onPress={() => run(() => startSimulatedSet(machineLabel))} />
-      )}
-
-      {(session.error ?? actionError) && <Text style={styles.error}>{session.error ?? actionError}</Text>}
-
-      <Link href="/history" style={styles.link}>
-        View history
-      </Link>
-    </ScrollView>
+      {error && <Text style={styles.error}>{error}</Text>}
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.md, gap: spacing.md },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  // Wraps so the simulated-data badge moves under the status when both don't fit on one line (RO-023).
-  row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
-  status: { fontSize: 16, fontWeight: '600', color: colors.text, flexShrink: 0 },
-  counters: { flexDirection: 'row', alignItems: 'flex-end', marginTop: spacing.md },
-  meta: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
-  input: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    padding: spacing.md,
-    fontSize: 16,
-    color: colors.text,
-  },
-  error: { color: colors.danger },
-  link: { color: colors.primary, fontSize: 16, textAlign: 'center', paddingVertical: spacing.sm },
-});
+const makeStyles = ({ colors, spacing, typography }: Theme) =>
+  StyleSheet.create({
+    section: { gap: spacing.sm + 2 },
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    sectionTitle: { ...typography.heading, color: colors.text },
+    link: { ...typography.label, color: colors.primaryText },
+    error: { color: colors.danger },
+  });

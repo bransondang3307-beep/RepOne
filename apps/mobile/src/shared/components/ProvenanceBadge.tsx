@@ -1,6 +1,6 @@
 import type { DataProvenance } from '@repone/sensor-contracts';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing } from '../theme/tokens';
+import { useThemedStyles, type Theme } from '../theme/theme';
 
 const LABELS: Record<DataProvenance, string> = {
   simulated: 'Simulated data — not a real measurement',
@@ -13,6 +13,7 @@ const LABELS: Record<DataProvenance, string> = {
  * stay readable: in a narrow row the badge shrinks to the space available and its text wraps; it never truncates.
  */
 export function ProvenanceBadge({ provenance }: { provenance: DataProvenance }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={[styles.badge, provenance !== 'sensor' && styles.warning]}>
       <Text style={[styles.text, provenance !== 'sensor' && styles.warningText]}>{LABELS[provenance]}</Text>
@@ -20,18 +21,19 @@ export function ProvenanceBadge({ provenance }: { provenance: DataProvenance }) 
   );
 }
 
-const styles = StyleSheet.create({
-  badge: {
-    alignSelf: 'flex-start',
-    flexShrink: 1,
-    maxWidth: '100%',
-    // A rounded rectangle still reads as a badge when the label wraps to two lines (a pill would not).
-    borderRadius: 12,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.border,
-  },
-  warning: { backgroundColor: colors.warningBg },
-  text: { fontSize: 12, fontWeight: '600', color: colors.text },
-  warningText: { color: colors.warningText },
-});
+const makeStyles = ({ colors, spacing }: Theme) =>
+  StyleSheet.create({
+    badge: {
+      alignSelf: 'flex-start',
+      flexShrink: 1,
+      maxWidth: '100%',
+      // A rounded rectangle still reads as a badge when the label wraps to two lines (a pill would not).
+      borderRadius: 10,
+      paddingHorizontal: spacing.sm + 2,
+      paddingVertical: spacing.xs + 1,
+      backgroundColor: colors.fullSoft,
+    },
+    warning: { backgroundColor: colors.warningBg },
+    text: { fontSize: 12, fontWeight: '700', color: colors.fullText },
+    warningText: { color: colors.warningText },
+  });

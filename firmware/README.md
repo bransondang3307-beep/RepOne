@@ -13,7 +13,7 @@
 | `lib/Mpu6050Raw/` | Minimal MPU-6050 register access: `WHO_AM_I` check, configuration, raw six-axis burst read | Arduino `Wire` |
 | `uno-usb/` | **Uno R3 USB bring-up** sketch: streams protocol packets as hex lines over USB serial | both libraries |
 | `ble/` | **BLE backend: pending** the owner's board choice. Interface and requirements only | — |
-| `test/host/` | Host tests: the portable layer against the shared golden packets | a C++17 compiler |
+| `test/host/` | Host tests: the portable layer against the shared golden packets; the MPU-6050 driver against a fake `Wire` bus | a C++17 compiler |
 
 Both libraries are standard Arduino libraries: `library.properties` plus a `src/` folder.
 
@@ -62,7 +62,7 @@ In the **Arduino IDE** instead: copy `lib/ImuStreamProtocol` and `lib/Mpu6050Raw
 `libraries` folder, open `uno-usb/uno-usb.ino`, choose *Arduino Uno*, upload, and open the Serial Monitor at 115200
 baud.
 
-The result in this environment: **9,452 bytes of flash (29%) and 600 bytes of RAM (29%)**, with no warnings from
+The result in this environment: **9,462 bytes of flash (29%) and 601 bytes of RAM (29%)**, with no warnings from
 this code. That is a compile only; nothing was flashed.
 
 ## BLE backend (`ble/`): pending
@@ -80,7 +80,10 @@ They:
 - generate a header from `packages/sensor-protocol/fixtures/v1/golden-packets.json` (**synthetic** values);
 - check that the firmware encoder reproduces every golden byte the app's TypeScript codec decodes;
 - check that the GATT UUIDs equal the app's;
-- test `SampleBatcher`: stream start, sequence numbers, the latency flush across the `millis()` wrap, overflow
-  flagging, and stale samples discarded on restart.
+- test `SampleBatcher`: stream start (kept when the transport refuses the first packet), sequence numbers, the latency
+  flush across the `millis()` wrap, overflow flagging, and stale samples discarded on restart;
+- test the MPU-6050 driver against a scripted fake `Wire` bus (`test/host/fake_arduino/`): register addresses and
+  values, repeated-start reads, signed big-endian decoding, temperature skipped, NACK and short-read failures. That
+  is not real I²C.
 
 CI runs them on Linux.

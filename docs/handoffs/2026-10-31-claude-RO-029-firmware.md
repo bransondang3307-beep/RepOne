@@ -58,11 +58,12 @@ Prepare the firmware side of the real-sensor pipeline:
 ## Tests and checks (exact results)
 | Command | Result |
 |---|---|
-| `npm run test:firmware` (g++ 13.3, `-std=c++17 -Wall -Wextra -Werror`) | **58/58 checks** (6 golden sample packets and 2 golden device-info packets reproduced byte for byte; UUIDs match the app) |
+| `npm run test:firmware` (g++ 13.3, `-std=c++17 -Wall -Wextra -Werror`), after review round 1 | Protocol layer **62/62 checks** (6 golden sample packets and 2 golden device-info packets reproduced byte for byte; UUIDs match the app). MPU-6050 driver against a fake `Wire` bus **16/16** |
+| Round-1 regression test (STREAM_START after a refused first packet) on the round-0 code | fails, as Codex reproduced; passes with the fix |
 | The same, before the overflow fix (found by these tests) | 56/57: DEVICE_OVERFLOW landed on the packet *before* the gap. Fixed, and an assertion added |
-| `arduino-cli compile --fqbn arduino:avr:uno --warnings all` (arduino-cli 1.3.1, `arduino:avr` 1.8.6 from git tag `1.8.6` @ `42fa4a1`, avr-gcc 7.3.0 from Ubuntu, universal-ctags 5.9) | **exit 0**. Sketch 9,452 bytes (29% of 32,256); globals 600 bytes (29% of 2,048). The only warnings come from the core's own `new.cpp` |
+| `arduino-cli compile --fqbn arduino:avr:uno --warnings all` (arduino-cli 1.3.1, `arduino:avr` 1.8.6 from git tag `1.8.6` @ `42fa4a1`, avr-gcc 7.3.0 from Ubuntu, universal-ctags 5.9) | **exit 0**. Sketch 9,462 bytes (29% of 32,256); globals 601 bytes (29% of 2,048), after round 1. The only warnings come from the core's own `new.cpp` |
 | `npm run check:workflows` | OK |
-| `npm run verify` (Node 22.22.0) | exit 0. Boundaries OK (85 files); workflow policy OK; typecheck OK; script tests 65/65; Jest 239/239 |
+| `npm run verify` (Node 22.22.0) | exit 0. Boundaries OK (85 files); workflow policy OK; typecheck OK; script tests 67/67; Jest 241/241 (after merging part 1 round 1) |
 
 **Environment notes.** `downloads.arduino.cc` is blocked by this environment's network policy, so the AVR core came
 from its official GitHub repository (tag 1.8.6), and avr-gcc from Ubuntu's `gcc-avr` package (7.3.0, the same

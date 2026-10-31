@@ -29,7 +29,8 @@ left until a board is chosen.
    - read the IMU;
    - `batcher.add()`; when it returns true, or `batcher.due(now)` is true, `take_packet()` and notify it through a
      `PacketSink`;
-   - if the notify queue refuses a packet, call `batcher.mark_overflow()`.
+   - if the notify queue refuses a packet, call `batcher.mark_overflow()` straight away. The next packet then
+     carries DEVICE_OVERFLOW, and STREAM_START again if the refused packet opened the stream.
 5. **When notifications are disabled, or the central disconnects:** call `batcher.end()`. Buffered samples are
    discarded, never sent later.
 6. **Device serial:** the board's factory-unique ID, e.g. its BLE MAC address zero-extended to 8 bytes.

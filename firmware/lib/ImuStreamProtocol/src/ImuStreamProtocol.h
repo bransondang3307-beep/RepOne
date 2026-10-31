@@ -102,8 +102,13 @@ class SampleBatcher {
   bool empty() const { return count_ == 0; }
   // Encode the buffered samples into `out` and clear the buffer. Returns the packet length, or 0 if empty.
   size_t take_packet(uint8_t* out, size_t out_capacity);
-  // The transport lost a taken packet: flag DEVICE_OVERFLOW on the next one (the sequence gap shows the count).
-  void mark_overflow() { overflow_pending_ = true; }
+  // Call right after the transport refused the packet just taken: flag DEVICE_OVERFLOW on the next one (the sequence
+  // gap shows the count). If the lost packet opened the stream, the next one carries STREAM_START again, so the
+  // receiver can still start the stream (it rejects packets until it sees one).
+  void mark_overflow() {
+    overflow_pending_ = true;
+    if (last_taken_started_) start_pending_ = true;
+  }
   uint16_t next_sequence() const { return next_sequence_; }
   uint16_t stream_id() const { return stream_id_; }
 
@@ -122,6 +127,7 @@ class SampleBatcher {
   uint16_t first_sequence_ = 0;
   uint32_t first_time_ms_ = 0;
   bool start_pending_ = false;
+  bool last_taken_started_ = false;    // the packet most recently taken carried STREAM_START
   bool overflow_pending_ = false;      // samples were lost before the first buffered one: flag the next packet
   bool dropped_after_buffer_ = false;  // samples were dropped after the buffered ones: flag the packet after that
 };

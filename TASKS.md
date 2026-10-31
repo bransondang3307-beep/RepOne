@@ -413,7 +413,7 @@
   App Store's Expo Go runs only the newest SDK, so an SDK 57 project no longer opens on the owner's iPhone.
 - **Files:**
   - `apps/mobile/package.json`: Expo SDK 58 versions from `npx expo install expo@^58.0.0` and
-    `npx expo install --fix`;
+    `npx expo install --fix`, plus `react-test-renderer` 19.3.0 (dev), which `jest-expo` 58 no longer brings in;
   - `apps/mobile/app.json`: the `expo-status-bar` config plugin, which the SDK 58 installer added;
   - the root `package.json`: `overrides.react` = the SDK's React (`19.3.0`), so the monorepo installs one React;
   - `package-lock.json`, this row and the handoff.

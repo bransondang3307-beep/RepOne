@@ -17,14 +17,15 @@ owner's iPhone.
 
 ## What changed
 **Expo's upgrade path.** In `apps/mobile`, I ran `npx expo install expo@^58.0.0`, then `npx expo install --fix`, which
-moves every SDK-managed package to the version SDK 58 expects. Then I narrowed `expo` to `~58.0.21`, the same
-tilde style as the old `~57.0.31`.
+moves every SDK-managed package to the version SDK 58 expects. Then I narrowed `expo` to a tilde range, the same
+style as the old `~57.0.31`. Expo published new patches (`expo` 58.0.22) during the work, so a second
+`npx expo install --fix` brought `expo`, `expo-router` and `expo-sqlite` up to them.
 
 | Package | SDK 57 (`main`) | SDK 58 |
 |---|---|---|
-| `expo` | ~57.0.31 | ~58.0.21 |
-| `expo-router` | ~57.0.29 | ~58.0.28 |
-| `expo-constants` / `expo-linking` / `expo-sqlite` / `expo-status-bar` | 57.x | ~58.0.14 / ~58.0.15 / ~58.0.14 / ~58.0.4 |
+| `expo` | ~57.0.31 | ~58.0.22 |
+| `expo-router` | ~57.0.29 | ~58.0.29 |
+| `expo-constants` / `expo-linking` / `expo-sqlite` / `expo-status-bar` | 57.x | ~58.0.14 / ~58.0.15 / ~58.0.15 / ~58.0.4 |
 | `react-native` | 0.86.3 | 0.88.1 |
 | `react` | 19.2.3 | 19.3.0 |
 | `react-native-safe-area-context` / `react-native-screens` | ~5.7.0 / ~4.26.0 | ~5.10.1 / ~4.30.0 |
@@ -40,6 +41,12 @@ tilde style as the old `~57.0.31`.
   - **The override must be bumped with each future SDK upgrade,** to the React version that SDK pins.
 - **The `packages/*` workspaces are unchanged.** They stay on their own Jest 29 + ts-jest setup; only the app moved to
   Jest 30, which `jest-expo` 58 requires.
+- **`react-test-renderer` 19.3.0 added as an app dev dependency.**
+  - `jest-expo` 57 brought it in indirectly (19.2.3 on `main`); `jest-expo` 58 doesn't, so the SDK 58 lockfile had
+    none. `ProvenanceBadge.test.tsx` uses it.
+  - The first verify still passed, but only because Node fell back to the `react-test-renderer` in a parent folder's
+    `node_modules` outside this checkout. A fresh clone or CI would have failed with "Cannot find module".
+  - It is pinned to the React version, as React requires.
 - **No application code changed.**
 
 ## Files changed

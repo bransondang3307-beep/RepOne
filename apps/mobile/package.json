@@ -6,11 +6,11 @@
     "@repone/rep-engine": "*",
     "@repone/sensor-contracts": "*",
     "@repone/workout-domain": "*",
-    "expo": "~58.0.21",
+    "expo": "~58.0.22",
     "expo-constants": "~58.0.14",
     "expo-linking": "~58.0.15",
-    "expo-router": "~58.0.28",
-    "expo-sqlite": "~58.0.14",
+    "expo-router": "~58.0.29",
+    "expo-sqlite": "~58.0.15",
     "expo-status-bar": "~58.0.4",
     "react": "19.3.0",
     "react-native": "0.88.1",
@@ -24,6 +24,7 @@
     "@types/react": "~19.3.0",
     "jest": "~30.5.2",
     "jest-expo": "~58.0.13",
+    "react-test-renderer": "19.3.0",
     "typescript": "~6.0.3"
   },
   "scripts": {

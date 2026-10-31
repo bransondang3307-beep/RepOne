@@ -2,6 +2,7 @@
 // Generates a C++ header from the shared golden packets (packages/sensor-protocol/fixtures/v1, SYNTHETIC values)
 // and from the app's GATT UUIDs, compiles test_imu_protocol.cpp with the host C++ compiler, and runs it. The
 // firmware encoder must reproduce every golden byte that the app's TypeScript codec decodes.
+// It also builds the MPU-6050 driver against a scripted fake Wire bus (test_mpu6050.cpp, fake_arduino/).
 // Needs a C++17 compiler (`c++`, or set CXX). CI runs it on Linux; it is not part of `npm run verify`.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -12,6 +13,8 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..', '..');
 const LIB = join(ROOT, 'firmware', 'lib', 'ImuStreamProtocol', 'src');
+const MPU = join(ROOT, 'firmware', 'lib', 'Mpu6050Raw', 'src');
+const FAKE_ARDUINO = join(HERE, 'fake_arduino');
 const golden = JSON.parse(readFileSync(join(ROOT, 'packages', 'sensor-protocol', 'fixtures', 'v1', 'golden-packets.json'), 'utf8'));
 const constants = readFileSync(join(ROOT, 'packages', 'sensor-protocol', 'src', 'constants.ts'), 'utf8');
 
@@ -58,23 +61,31 @@ static const char* const kAppDeviceInfoUuid = ${cstr(uuid('deviceInfo'))};
 `;
 
 const work = mkdtempSync(join(tmpdir(), 'imu-fw-host-'));
+const cxx = process.env.CXX || 'c++';
+
+/** Compile one test program and run it. Returns its exit status (1 if it could not be built). */
+function buildAndRun(name, sources, includes) {
+  const exe = join(work, process.platform === 'win32' ? `${name}.exe` : name);
+  const args = ['-std=c++17', '-Wall', '-Wextra', '-Werror', ...includes.flatMap((dir) => ['-I', dir]), ...sources, '-o', exe];
+  const build = spawnSync(cxx, args, { stdio: 'inherit' });
+  if (build.error) {
+    console.error(`firmware host tests: cannot run the C++ compiler '${cxx}' (${build.error.message}); set CXX`);
+    return 1;
+  }
+  if (build.status !== 0) {
+    console.error(`firmware host tests: compiling ${name} failed`);
+    return 1;
+  }
+  return spawnSync(exe, [], { stdio: 'inherit' }).status ?? 1;
+}
+
 let status = 1;
 try {
   writeFileSync(join(work, 'golden_fixtures.h'), header);
-  const cxx = process.env.CXX || 'c++';
-  const exe = join(work, process.platform === 'win32' ? 'host_tests.exe' : 'host_tests');
-  const build = spawnSync(
-    cxx,
-    ['-std=c++17', '-Wall', '-Wextra', '-Werror', '-I', LIB, '-I', work, join(HERE, 'test_imu_protocol.cpp'), join(LIB, 'ImuStreamProtocol.cpp'), '-o', exe],
-    { stdio: 'inherit' },
-  );
-  if (build.error) {
-    console.error(`firmware host tests: cannot run the C++ compiler '${cxx}' (${build.error.message}); set CXX`);
-  } else if (build.status !== 0) {
-    console.error('firmware host tests: compilation failed');
-  } else {
-    status = spawnSync(exe, [], { stdio: 'inherit' }).status ?? 1;
-  }
+  const protocol = buildAndRun('protocol_tests', [join(HERE, 'test_imu_protocol.cpp'), join(LIB, 'ImuStreamProtocol.cpp')], [LIB, work]);
+  // The MPU-6050 driver against a scripted fake Wire bus (fake_arduino/), not real I2C.
+  const driver = buildAndRun('mpu6050_tests', [join(HERE, 'test_mpu6050.cpp'), join(MPU, 'Mpu6050Raw.cpp')], [FAKE_ARDUINO, MPU]);
+  status = protocol === 0 && driver === 0 ? 0 : 1;
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

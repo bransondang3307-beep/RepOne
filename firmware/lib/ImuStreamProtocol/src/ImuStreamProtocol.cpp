@@ -108,6 +108,7 @@ bool SampleBatcher::begin(uint16_t stream_id, uint8_t channel, uint8_t accel_ran
   next_sequence_ = 0;
   first_sequence_ = 0;
   start_pending_ = true;
+  last_taken_started_ = false;
   overflow_pending_ = false;
   dropped_after_buffer_ = false;
   active_ = true;
@@ -146,6 +147,7 @@ size_t SampleBatcher::take_packet(uint8_t* out, size_t out_capacity) {
                                           first_sequence_, buffer_, count_);
   if (len == 0) return 0;
   count_ = 0;
+  last_taken_started_ = start_pending_;
   start_pending_ = false;
   overflow_pending_ = dropped_after_buffer_;
   dropped_after_buffer_ = false;

@@ -139,6 +139,32 @@ void test_batcher_overflow_marks_gap() {
   check(out[6] == 3, "the dropped sample's sequence number (2) is skipped");
 }
 
+// Codex P1 on PR #27: a refused first packet must not lose STREAM_START, or the receiver drops the whole stream.
+void test_refused_first_packet_keeps_stream_start() {
+  imu::RawSample storage[1];
+  imu::SampleBatcher b(storage, 1);
+  b.begin(9, 0, 0, 0, 1, 0);
+  uint8_t out[imu::kMaxPacketBytes];
+  b.add(sample(0));
+  b.take_packet(out, sizeof out);  // the transport refuses it
+  b.mark_overflow();
+  b.add(sample(20));
+  size_t len = b.take_packet(out, sizeof out);
+  check(len == 28 && out[2] == (imu::kFlagStreamStart | imu::kFlagDeviceOverflow),
+        "after a refused first packet, the next carries STREAM_START and DEVICE_OVERFLOW");
+  check(out[6] == 1, "and continues the sequence (the lost sample's number is skipped)");
+  b.add(sample(40));
+  len = b.take_packet(out, sizeof out);
+  check(len == 28 && out[2] == 0, "once delivered, later packets carry no flags");
+  b.take_packet(out, sizeof out);
+  b.add(sample(60));
+  b.take_packet(out, sizeof out);  // refused, but it did not open the stream
+  b.mark_overflow();
+  b.add(sample(80));
+  len = b.take_packet(out, sizeof out);
+  check(out[2] == imu::kFlagDeviceOverflow, "a refused later packet flags overflow only");
+}
+
 void test_batcher_restart_discards_stale_samples() {
   imu::RawSample storage[4];
   imu::SampleBatcher b(storage, 4);
@@ -169,6 +195,7 @@ int main() {
   test_batcher_stream_start_and_sequence();
   test_batcher_time_flush();
   test_batcher_overflow_marks_gap();
+  test_refused_first_packet_keeps_stream_start();
   test_batcher_restart_discards_stale_samples();
   std::printf("firmware host tests: %d/%d checks passed (%zu golden sample packets, %zu golden device-info packets)\n",
               checks - failures, checks, sizeof kGoldenSamples / sizeof kGoldenSamples[0],

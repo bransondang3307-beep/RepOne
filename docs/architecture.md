@@ -24,13 +24,13 @@ Infrastructure implements contract/domain interfaces; only the composition root
 
 | Module (spec) | Location | Public API | Status |
 |---|---|---|---|
-| A — Sensor contracts | `packages/sensor-contracts/src/{common,sensor,derived}.ts` | `@repone/sensor-contracts` | Implemented, including error states and reasons ([ADR 0007](decisions/0007-sensor-errors-channels-device-connections.md) §1); multi-channel *planned (M2, ADR 0007 §2)* |
+| A — Sensor contracts | `packages/sensor-contracts/src/{common,sensor,derived}.ts` | `@repone/sensor-contracts` | Implemented, including error states and reasons ([ADR 0007](decisions/0007-sensor-errors-channels-device-connections.md) §1), and channels identified by `source_id`. `combineChannels` rejects colliding sensors within a session (§2) |
 | B — Sensor simulation | `packages/sensor-contracts/src/simulation/` | same package | Implemented, with deterministic scripted faults (ADR 0007 §1) and a multi-channel `SimulatedDevice` (§4) |
 | C — Rep engine | `packages/rep-engine/src/` | `@repone/rep-engine` | Implemented: the rotational detector, plus `MultiChannelRepDetector`, one independent detector per channel (ADR 0007 §3) |
 | D — Workout domain | `packages/workout-domain/src/` | `@repone/workout-domain` | Session + repository ports only; exercises/sets/resistance/lifecycle *planned (M3)* |
 | E — Persistence | `apps/mobile/src/infrastructure/database/` | `infrastructure/database/index.ts` | SQLite adapter + migrations implemented; new tables *planned (M3)* |
 | F — Mobile UI | `apps/mobile/app/`, `src/features/`, `src/shared/` | feature `index.ts` files | Active set + history; dashboard, exercise selection, pause *planned (M4)* |
-| G — Device connectivity | contract `packages/sensor-contracts/src/device.ts`; app `src/features/device-connection/`, `src/infrastructure/<transport>/` | `@repone/sensor-contracts` | `DeviceConnection` contract + `SimulatedDevice` implemented (ADR 0007 §4); app view *planned (M2 part 4)*; no native BLE/serial deps in Sprint 1 |
+| G — Device connectivity | contract `packages/sensor-contracts/src/device.ts`; app `src/features/device-connection/`, `src/infrastructure/<transport>/` | `@repone/sensor-contracts`; feature `index.ts` | `DeviceConnection` contract, `SimulatedDevice`, and the app's connection panel implemented (ADR 0007 §4). Real transports (`infrastructure/<transport>/`) *planned*; no native BLE/serial deps in Sprint 1 |
 | Application services | `apps/mobile/src/application/` | `application/index.ts` | `WorkoutSessionController`, composition root |
 
 Folders from the spec tree that have no code yet (`features/exercises`, `features/machines`,
@@ -61,7 +61,10 @@ container is created once at boot and passed through React context.
 ## 4. Data flow — recording a set
 
 1. Route calls `useLiveSession().startSimulatedSet()` (feature hook → Zustand store).
-2. Store calls `WorkoutSessionController.start({ sensor, calibration })` (application service).
+2. Store gets the sensor from `AppContainer.getSessionSensor()`, which connects the device (`DeviceConnection`,
+   ADR 0007 §4) if needed and returns its channel's `SensorSource`. It then calls
+   `WorkoutSessionController.start({ sensor, calibration })` (application service). The device's state is shown by
+   `features/device-connection`.
 3. Controller subscribes to the `SensorSource`; each `RawSensorSample` is batched to
    `RawSampleRepository` and pushed to the `MotionDetector` (`RotationalRepDetector`).
 4. Emitted `RepEvent`s are appended to `RepEventRepository`; the controller publishes a

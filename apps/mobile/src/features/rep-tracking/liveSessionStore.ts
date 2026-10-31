@@ -16,7 +16,7 @@ export type LiveSessionStore = StoreApi<LiveSessionState>;
  * snapshots and exposes actions.
  */
 export function createLiveSessionStore(
-  container: Pick<AppContainer, 'controller' | 'createSensor' | 'getCalibration'>,
+  container: Pick<AppContainer, 'controller' | 'getSessionSensor' | 'getCalibration'>,
 ): LiveSessionStore {
   const { controller } = container;
 
@@ -24,8 +24,10 @@ export function createLiveSessionStore(
     session: controller.getSnapshot(),
 
     async startSimulatedSet(machineLabel) {
+      // Connects the (simulated) device first if it is not connected yet.
+      const sensor = await container.getSessionSensor();
       await controller.start({
-        sensor: container.createSensor(),
+        sensor,
         calibration: container.getCalibration(),
         machineLabel: machineLabel?.trim() || null,
       });

@@ -1,6 +1,7 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { DeviceConnectionPanel } from '../src/features/device-connection';
 import { RepCounter, useLiveSession } from '../src/features/rep-tracking';
 import { PrimaryButton, ProvenanceBadge, colors, spacing } from '../src/shared';
 
@@ -32,6 +33,7 @@ export default function WorkoutScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <DeviceConnectionPanel locked={recording || busy} />
       <View style={styles.card}>
         <View style={styles.row}>
           <Text style={styles.status}>{STATUS_TEXT[session.status]}</Text>
@@ -83,8 +85,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
-  status: { fontSize: 16, fontWeight: '600', color: colors.text },
+  // Wraps so the simulated-data badge moves under the status when both don't fit on one line (RO-023).
+  row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+  status: { fontSize: 16, fontWeight: '600', color: colors.text, flexShrink: 0 },
   counters: { flexDirection: 'row', alignItems: 'flex-end', marginTop: spacing.md },
   meta: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
   input: {

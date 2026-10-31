@@ -12,7 +12,7 @@ Every hardware path must end up as `RawSensorSample` objects delivered through a
 | Field | Type / unit | Notes |
 |---|---|---|
 | `timestamp_ms` | integer, milliseconds | Device-relative, monotonic, non-decreasing. Not wall clock. |
-| `source_id` | string | Stable per physical sensor, e.g. `uno-gy521-01`. |
+| `source_id` | string | Stable per physical sensor, e.g. `uno-gy521-01`. **The sensor identity** (owner decision 2026-10-23, ADR 0007 §2): it must be unique per physical IMU, derived from something unique to it (board serial, or device address + channel index), never a product name or a position label alone. A session rejects two channels with the same `source_id` (`combineChannels`). |
 | `accel_m_s2` | `[x, y, z]`, m/s² | Sensor frame. Converted from raw counts **on the phone/adapter**, not assumed by the engine. |
 | `gyro_rad_s` | `[x, y, z]`, rad/s | Sensor frame. Bias is removed by calibration, not by the transport. |
 | `quality_flags` | string[] | e.g. `synthetic`, `sample_gap`, `saturated` (proposed). |
@@ -76,4 +76,5 @@ The same contract applies to a future USB-serial (H0) adapter.
 
 1. Sample rate (50 Hz assumed) and whether firmware or phone timestamps are authoritative.
 2. Binary vs ASCII framing for H0; checksum/sequence numbers for loss detection.
-3. Multiple sensors/channels: identifier scheme (`source_id` per sensor vs channel index).
+3. ~~Multiple sensors/channels: identifier scheme (`source_id` per sensor vs channel index).~~ **Decided 2026-10-23:**
+   `source_id` per physical sensor, with no channel index (ADR 0007 §2).

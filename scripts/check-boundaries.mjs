@@ -92,7 +92,10 @@ function layerOf(rel) {
   m = rel.match(/^apps\/mobile\/src\/features\/([^/]+)\//);
   if (m) return { kind: 'feature', name: m[1] };
   if (rel.startsWith('apps/mobile/src/shared/')) return { kind: 'shared' };
-  if (rel.startsWith('apps/mobile/src/infrastructure/')) return { kind: 'infrastructure' };
+  // Each adapter (database, bluetooth, …) is its own layer, so one adapter cannot reach into another (RO-025).
+  m = rel.match(/^apps\/mobile\/src\/infrastructure\/([^/]+)\//);
+  if (m) return { kind: 'infrastructure', name: m[1] };
+  if (rel.startsWith('apps/mobile/src/infrastructure/')) return { kind: 'infrastructure', name: '' };
   return { kind: 'other' };
 }
 
@@ -172,6 +175,7 @@ for (const file of files) {
       case 'application':
         if (to.kind === 'feature' || to.kind === 'shared' || to.kind === 'route')
           fail(spec, 'application layer must not depend on UI');
+        else if (to.kind === 'infrastructure' && !viaIndex) fail(spec, 'import infrastructure through its index');
         break;
       case 'infrastructure':
         fail(spec, 'infrastructure adapters may only import packages and their own module');

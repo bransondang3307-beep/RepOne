@@ -140,3 +140,46 @@ test('Windows-style path separators: rules still apply and diagnostics use forwa
   assert.match(output, /circular import: packages\/sensor-contracts\/src\/index\.ts → packages\/rep-engine\/src\/index\.ts → packages\/sensor-contracts\/src\/index\.ts/);
   assert.ok(!output.includes('\\'), `diagnostics must not contain backslashes:\n${output}`);
 });
+
+// RO-025 (RO-011 finding 2): all of infrastructure/ used to be one layer, so one adapter could import another's
+// internals, and application/ could skip an adapter's index. Each adapter is now its own layer.
+const ADAPTERS = {
+  'apps/mobile/src/infrastructure/database/index.ts': "export { openDb } from './openDb';\n",
+  'apps/mobile/src/infrastructure/database/openDb.ts': 'export const openDb = (): number => 1;\n',
+  'apps/mobile/src/infrastructure/bluetooth/index.ts': "export { scan } from './scan';\n",
+  'apps/mobile/src/infrastructure/bluetooth/scan.ts': 'export const scan = (): number => 2;\n',
+};
+const ADAPTER_VIOLATIONS = {
+  ...ADAPTERS,
+  'apps/mobile/src/infrastructure/bluetooth/store.ts':
+    "import { openDb } from '../database/openDb';\nexport const store = (): number => openDb();\n",
+  'apps/mobile/src/application/createAppContainer.ts':
+    "import { scan } from '../infrastructure/bluetooth/scan';\nimport { openDb } from '../infrastructure/database';\nexport const c = (): number => scan() + openDb();\n",
+};
+
+test('adapters may use their own files; application imports adapters through their index', () => {
+  const { code, output } = runChecker({
+    ...ADAPTERS,
+    'apps/mobile/src/application/createAppContainer.ts':
+      "import { scan } from '../infrastructure/bluetooth';\nimport { openDb } from '../infrastructure/database';\nexport const c = (): number => scan() + openDb();\n",
+    'apps/mobile/src/infrastructure/bluetooth/__tests__/scan.test.ts':
+      "import { openDb } from '../../database/openDb';\nimport { scan } from '../scan';\nexport const t: number = openDb() + scan();\n",
+  });
+  assert.equal(code, 0, output);
+});
+
+test("reports an adapter importing another adapter's internals, and application skipping an adapter's index", () => {
+  const { code, output } = runChecker(ADAPTER_VIOLATIONS);
+  assert.equal(code, 1, output);
+  assert.match(output, /apps\/mobile\/src\/infrastructure\/bluetooth\/store\.ts: import '\.\.\/database\/openDb' — infrastructure adapters may only import packages and their own module/);
+  assert.match(output, /apps\/mobile\/src\/application\/createAppContainer\.ts: import '\.\.\/infrastructure\/bluetooth\/scan' — import infrastructure through its index/);
+  assert.ok(!output.includes("'../infrastructure/database' —"), `the index import must stay allowed:\n${output}`);
+});
+
+test('adapter rules also hold with Windows-style path separators', () => {
+  const { code, output } = runChecker(ADAPTER_VIOLATIONS, ['--import', pathToFileURL(SIMULATE_WINDOWS).href]);
+  assert.equal(code, 1, output);
+  assert.match(output, /apps\/mobile\/src\/infrastructure\/bluetooth\/store\.ts: import '\.\.\/database\/openDb' — infrastructure adapters may only import packages and their own module/);
+  assert.match(output, /apps\/mobile\/src\/application\/createAppContainer\.ts: import '\.\.\/infrastructure\/bluetooth\/scan' — import infrastructure through its index/);
+  assert.ok(!output.includes('\\'), `diagnostics must not contain backslashes:\n${output}`);
+});

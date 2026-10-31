@@ -36,7 +36,7 @@
 | RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | done | RO-021 | [PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10) — merged `8a70565` |
 | RO-023 | Simulated-data warning badge clips on iPhone (record only; not fixed yet) | Claude Code | P3 | todo | — | — |
 | RO-024 | Brand configuration for display names (ADR 0006 follow-up) | Claude Code | P2 | todo | RO-020 merged | — |
-| RO-025 | Boundary-checker hardening: per-adapter infrastructure layers; `application/` imports infrastructure only via its index (RO-011 finding 2) | Claude Code | P3 | todo | before a second `src/infrastructure/<adapter>` lands | — |
+| RO-025 | Boundary-checker hardening: per-adapter infrastructure layers; `application/` imports infrastructure only via its index (RO-011 finding 2) | Claude Code | P3 | in-review | before a second `src/infrastructure/<adapter>` lands | [PR #25](https://github.com/bransondang3307-beep/RepOne/pull/25) |
 | RO-026 | Decide where simulation lives: root barrel vs a `./simulation` subpath export (RO-011 §3.2) | Gemini (proposal) → owner decides | P3 | todo | RO-012 merged | — |
 
 ## Task details

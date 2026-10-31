@@ -32,6 +32,8 @@ jobs:
         run: npm run check:workflows --if-present
       - run: npm run typecheck
       - run: npm test
+      - name: Firmware host tests — portable protocol layer vs the shared golden packets (when present on this branch)
+        run: npm run test:firmware --if-present
 
   # RO-021 showed that path-separator bugs in scripts/ pass on Linux and fail on the owner's Windows
   # laptop. Kept small: only the scripts/ checks run here. `npm ci` is needed because the workflow-policy

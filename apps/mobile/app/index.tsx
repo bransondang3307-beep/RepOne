@@ -32,7 +32,13 @@ export default function WorkoutScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    // iOS lays this screen out under the translucent title bar; "automatic" insets the content below it and the
+    // status bar, and does nothing where the bar is opaque (RO-028).
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <DeviceConnectionPanel locked={recording || busy} />
       <View style={styles.card}>
         <View style={styles.row}>

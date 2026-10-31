@@ -28,6 +28,10 @@ const RADIO_STATES: Record<string, BleRadioState> = {
 };
 const toRadioState = (state: string): BleRadioState => RADIO_STATES[state] ?? 'unknown';
 
+/** How long prepare() waits for a definite radio state, e.g. while iOS shows its Bluetooth permission prompt. */
+const SETTLE_MS = 5000;
+const unsettled = (state: BleRadioState) => state === 'unknown' || state === 'resetting';
+
 /** Android 12+ asks for scan/connect at run time; older versions need location for BLE scans. iOS asks by itself. */
 async function requestAndroidPermissions(): Promise<boolean> {
   if (Platform.OS !== 'android') return true;
@@ -64,7 +68,22 @@ export function createNativeBleCentral(): BleCentral | null {
     async prepare() {
       if (!(await requestAndroidPermissions())) return 'unauthorized';
       await start();
-      return toRadioState(await manager.checkState());
+      const first = toRadioState(await manager.checkState());
+      if (!unsettled(first)) return first;
+      // iOS reports `unknown` until the user answers the permission prompt that start() raised: wait for the answer.
+      return new Promise<BleRadioState>((resolve) => {
+        const timer = setTimeout(() => {
+          sub.remove();
+          resolve(first);
+        }, SETTLE_MS);
+        const sub = manager.onDidUpdateState((event) => {
+          const state = toRadioState(event.state);
+          if (unsettled(state)) return;
+          clearTimeout(timer);
+          sub.remove();
+          resolve(state);
+        });
+      });
     },
 
     subscribeRadioState(listener): Unsubscribe {

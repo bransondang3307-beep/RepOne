@@ -74,6 +74,31 @@ describe('createNativeBleCentral', () => {
     expect(a).toHaveLength(1);
   });
 
+  it('waits for the answer to the iOS permission prompt instead of failing on an unknown radio state', async () => {
+    registry.mockReturnValue({} as never);
+    const central = createNativeBleCentral()!;
+    mockManager.checkState.mockResolvedValueOnce('unknown');
+    const prepared = central.prepare();
+    await new Promise((resolve) => setImmediate(resolve));
+    mockEmit('state', { state: 'unknown' });
+    mockEmit('state', { state: 'on' });
+    await expect(prepared).resolves.toBe('on');
+  });
+
+  it('gives up waiting after 5 s and reports the unsettled state', async () => {
+    jest.useFakeTimers();
+    try {
+      registry.mockReturnValue({} as never);
+      const central = createNativeBleCentral()!;
+      mockManager.checkState.mockResolvedValueOnce('unknown');
+      const prepared = central.prepare();
+      await jest.advanceTimersByTimeAsync(5000);
+      await expect(prepared).resolves.toBe('unknown');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('scans with the service filter and reports the radio state as the OS gives it', async () => {
     registry.mockReturnValue({} as never);
     const central = createNativeBleCentral()!;

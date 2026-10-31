@@ -89,6 +89,10 @@ can be planned before it is recorded. Everything recorded so far keeps working u
     external implementations.
 - **Shared tests.** `createInMemoryRepositories` implements everything. `describeRepositoriesContract`
   (`@repone/workout-domain/testing`) is extended, so the in-memory and SQLite implementations pass the same suite.
+- **Staging.** The SQLite tests already run the shared suite unconditionally
+  (`apps/mobile/src/infrastructure/database/__tests__/sqliteRepositories.test.ts`). So the extended `Repositories`
+  bundle, the port changes and the extended suite land **in the same PR as the SQLite adapter and migration**, never
+  before them. That way every PR passes `npm run verify` on its own (§3).
 
 ### 2.4 Migration v2 (`apps/mobile/src/infrastructure/database/migrations.ts`)
 `MIGRATIONS[1]`, appended; `MIGRATIONS[0]` is not edited. It only adds:
@@ -120,11 +124,12 @@ it.
 ## 3. Delivery: two stacked PRs
 | PR | Branch | Contents | Files |
 |---|---|---|---|
-| Part 1 | `claude/RO-013-workout-domain` | domain types, lifecycle, resistance, ports, in-memory implementation, extended contract suite and its tests; the data-model ADR; RO-013 row → `in-review`; handoff | `packages/workout-domain/**`, `docs/decisions/<next>-*.md`, `TASKS.md` (RO-013 row only), `docs/handoffs/…` |
-| Part 2 | `claude/RO-013-sqlite-persistence` (stacked on part 1) | migration v2 and the SQLite adapter; migration tests (§5); controller end-reason and rep-event `source_id`; controller × SQLite integration test; `docs/architecture.md` modules D and E; handoff | `apps/mobile/src/infrastructure/database/**`, `apps/mobile/src/application/services/WorkoutSessionController.ts` and its tests, `docs/architecture.md`, `docs/handoffs/…` |
+| Part 1 | `claude/RO-013-workout-domain` | **pure domain only:** domain types, the lifecycle state machine, resistance and its validation, with their unit tests; the data-model ADR; RO-013 row → `in-review`; handoff. **No change** to `Repositories`, the existing ports or `describeRepositoriesContract` | `packages/workout-domain/src/` (new model files and `index.ts` exports), `packages/workout-domain/test/`, `docs/decisions/<next>-*.md`, `TASKS.md` (RO-013 row only), `docs/handoffs/…` |
+| Part 2 | `claude/RO-013-sqlite-persistence` (stacked on part 1) | **all persistence together:** the new ports and the extended `Repositories` bundle; `markEnded`/`append` changes; in-memory implementation; extended `describeRepositoriesContract`; migration v2 and the SQLite adapter; migration tests (§5); controller end-reason and rep-event `source_id`; controller × SQLite integration test; `docs/architecture.md` modules D and E; handoff | `packages/workout-domain/src/repositories.ts`, `src/memory/`, `src/testing/`, `apps/mobile/src/infrastructure/database/**`, `apps/mobile/src/application/services/WorkoutSessionController.ts` and its tests, `docs/architecture.md`, `docs/handoffs/…` |
 
 **Each PR:**
-- `npm run verify` and CI on Linux and Windows;
+- passes `npm run verify` on its own; the staging above guarantees this (Codex P2 on PR #23);
+- CI on Linux and Windows;
 - Codex review of the final head, with at most two fix rounds; after that only new P0/P1 findings come back, and
   P2/P3 findings become follow-up tasks;
 - part 2 also needs the Android and iOS exports.

@@ -5,15 +5,18 @@
   "dependencies": {
     "@repone/rep-engine": "*",
     "@repone/sensor-contracts": "*",
+    "@repone/sensor-protocol": "*",
     "@repone/workout-domain": "*",
     "expo": "~57.0.31",
     "expo-constants": "~57.0.22",
+    "expo-dev-client": "~57.0.20",
     "expo-linking": "~57.0.13",
     "expo-router": "~57.0.29",
     "expo-sqlite": "~57.0.4",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-ble-manager": "12.6.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "zustand": "^5.0.15"
@@ -28,6 +31,8 @@
   },
   "scripts": {
     "start": "expo start",
+    "start:go": "expo start --go",
+    "start:dev-build": "expo start --dev-client",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",

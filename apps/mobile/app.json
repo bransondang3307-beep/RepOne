@@ -24,7 +24,15 @@
     "scheme": "repone",
     "plugins": [
       "expo-router",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "react-native-ble-manager",
+        {
+          "bluetoothAlwaysPermission": "Allow $(PRODUCT_NAME) to connect to your motion sensor over Bluetooth to record its readings.",
+          "neverForLocation": true,
+          "isBleRequired": false
+        }
+      ]
     ]
   }
 }

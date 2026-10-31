@@ -66,10 +66,12 @@ bring-up path.
 
   Discovery matches the service UUID, never a name.
 - **Streams.** Enabling notifications starts a stream. Packets are batched to the negotiated MTU (spec §9).
-- **The app adapter** (`apps/mobile/src/infrastructure/bluetooth/`, RO-029 part 3):
-  - implements `DeviceConnection` (ADR 0007 §4, `packages/sensor-contracts/src/device.ts`), with one `SensorSource`
-    per IMU channel;
-  - must pass `describeDeviceConnectionContract`, and each channel `describeSensorSourceContract`.
+- **The app adapter** (`apps/mobile/src/infrastructure/bluetooth/`, RO-029 part 3, implemented):
+  - `BleSensorDevice` implements `DeviceConnection` (ADR 0007 §4), with one `SensorSource` per IMU channel;
+  - it passes `describeDeviceConnectionContract`, and each channel `describeSensorSourceContract`, against a fake
+    central (Jest);
+  - it needs a development build: [`docs/guides/real-sensor-development-build.md`](guides/real-sensor-development-build.md);
+  - it is not verified on a radio.
 - **The board.** The wireless board is **not chosen**. Spec §13 lists the capabilities it needs.
 - **Connection failures** use `ConnectionError` codes:
   - `unavailable`: not found or refused;

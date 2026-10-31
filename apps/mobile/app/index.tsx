@@ -1,7 +1,7 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { DeviceConnectionPanel } from '../src/features/device-connection';
+import { DeviceConnectionPanel, useDeviceConnection } from '../src/features/device-connection';
 import { RepCounter, useLiveSession } from '../src/features/rep-tracking';
 import { PrimaryButton, ProvenanceBadge, colors, spacing } from '../src/shared';
 
@@ -16,7 +16,8 @@ const STATUS_TEXT = {
 
 export default function WorkoutScreen() {
   const session = useLiveSession((s) => s.session);
-  const startSimulatedSet = useLiveSession((s) => s.startSimulatedSet);
+  const startSet = useLiveSession((s) => s.startSet);
+  const sensorKind = useDeviceConnection((s) => s.sensorKind);
   const stop = useLiveSession((s) => s.stop);
   const dismissResult = useLiveSession((s) => s.dismissResult);
   const [machineLabel, setMachineLabel] = useState('');
@@ -37,7 +38,7 @@ export default function WorkoutScreen() {
       <View style={styles.card}>
         <View style={styles.row}>
           <Text style={styles.status}>{STATUS_TEXT[session.status]}</Text>
-          <ProvenanceBadge provenance={session.provenance ?? 'simulated'} />
+          <ProvenanceBadge provenance={session.provenance ?? (sensorKind === 'ble' ? 'sensor' : 'simulated')} />
         </View>
         <View style={styles.counters}>
           <RepCounter label="Full reps" value={session.fullReps} emphasis />
@@ -46,6 +47,9 @@ export default function WorkoutScreen() {
         <Text style={styles.meta}>
           {session.samplesReceived} samples · algorithm-derived counts, unvalidated on real hardware
         </Text>
+        {sensorKind === 'ble' && (
+          <Text style={styles.meta}>Rep counts use a placeholder calibration: this sensor is not calibrated yet.</Text>
+        )}
       </View>
 
       {!recording && !busy && !done && (
@@ -64,7 +68,10 @@ export default function WorkoutScreen() {
       ) : done ? (
         <PrimaryButton label="New set" onPress={dismissResult} />
       ) : (
-        <PrimaryButton label="Start simulated set" onPress={() => run(() => startSimulatedSet(machineLabel))} />
+        <PrimaryButton
+          label={sensorKind === 'ble' ? 'Start set' : 'Start simulated set'}
+          onPress={() => run(() => startSet(machineLabel))}
+        />
       )}
 
       {(session.error ?? actionError) && <Text style={styles.error}>{session.error ?? actionError}</Text>}

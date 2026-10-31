@@ -37,6 +37,8 @@ export interface BleSensorDeviceOptions {
 }
 
 const WATCHDOG_TICK_MS = 250;
+/** How long a teardown waits for the OS's disconnect event, which never comes if no link was established. */
+const DISCONNECT_EVENT_GRACE_MS = 2000;
 
 /** What the device reported about itself on the last successful connect. For diagnostics in the UI. */
 export interface BleSensorInfo {
@@ -105,6 +107,14 @@ export class BleSensorDevice implements DeviceConnection {
   private notifyingEpoch = -1;
   private watchdog: unknown = null;
   private badPacketsInARow = 0;
+  /** Disabling notifications, still in flight: the next enable waits for it, so it cannot cut the new run off. */
+  private notifyShutdown: Promise<void> | null = null;
+  /** Whether the current attempt asked the OS to connect, so a failure must tear the link down. */
+  private linkOpened = false;
+  /** Our own disconnect, still in flight (including its OS event): the next connect waits for it. */
+  private teardown: Promise<void> | null = null;
+  /** Set while we expect the OS's event for our own disconnect: that event is ours, not a link loss. */
+  private ownDisconnect: (() => void) | null = null;
   private readonly unsubscribeCentral: Unsubscribe[];
 
   constructor(private readonly options: BleSensorDeviceOptions) {
@@ -113,7 +123,9 @@ export class BleSensorDevice implements DeviceConnection {
     this.tracker = new StreamTracker({ sourceIdFor: (channel) => this.sourceIdFor(channel) });
     this.unsubscribeCentral = [
       this.central.subscribeDisconnect((id) => {
-        if (id === options.peripheralId) this.linkLost('The Bluetooth connection to the sensor was lost');
+        if (id !== options.peripheralId) return;
+        if (this.ownDisconnect) this.ownDisconnect();
+        else this.linkLost('The Bluetooth connection to the sensor was lost');
       }),
       this.central.subscribeRadioState((radio) => {
         if (radio !== 'on') this.linkLost(RADIO_MESSAGES[radio]);
@@ -165,12 +177,15 @@ export class BleSensorDevice implements DeviceConnection {
     if (this.state === 'connected') return Promise.resolve();
     if (this.pending) return this.pending;
     if (this.closing) return this.closing.then(() => this.connect());
+    // A failed attempt's link is still being torn down: never let its late disconnect hit this attempt.
+    if (this.teardown) return this.teardown.then(() => this.connect());
     let settle!: { resolve: () => void; reject: (error: unknown) => void };
     const pending = new Promise<void>((resolve, reject) => {
       settle = { resolve, reject };
     });
     const epoch = ++this.linkEpoch;
     this.droppedWhileConnecting = false;
+    this.linkOpened = false;
     // Install the attempt before publishing `connecting`, so a listener's connect()/disconnect() sees and waits for it.
     this.pending = pending;
     this.setState('connecting');
@@ -185,7 +200,8 @@ export class BleSensorDevice implements DeviceConnection {
         this.pending = null;
         const reason =
           error instanceof ConnectFailure ? error.connectionError : { code: 'unknown' as const, message: messageOf(error) };
-        void this.central.disconnect(this.options.peripheralId).catch(() => undefined);
+        // Install the teardown before publishing `failed`, so a retry from a listener waits for it.
+        if (this.linkOpened) void this.tearDownLink();
         this.fail(reason);
         settle.reject(new DeviceConnectError(reason));
       },
@@ -203,7 +219,7 @@ export class BleSensorDevice implements DeviceConnection {
       await Promise.all(this.channels.map((c) => c.stop()));
       this.linkEpoch += 1;
       this.endNotifications();
-      await this.central.disconnect(this.options.peripheralId).catch(() => undefined);
+      await this.tearDownLink();
       this.channels = [];
       this.closing = null;
       this.setState('disconnected');
@@ -211,6 +227,37 @@ export class BleSensorDevice implements DeviceConnection {
     this.closing = closing;
     this.setState('disconnecting');
     return closing;
+  }
+
+  /**
+   * Disconnect the OS link and wait until it is really gone: the disconnect call has returned and its OS event has
+   * arrived (or, if no link was ever established, a short grace period passed). That event is ours, never a loss.
+   */
+  private tearDownLink(): Promise<void> {
+    if (this.teardown) return this.teardown;
+    const done = new Promise<void>((resolve) => {
+      let finished = false;
+      let grace: unknown = null;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        if (grace !== null) this.scheduler.clearInterval(grace);
+        this.ownDisconnect = null;
+        resolve();
+      };
+      this.ownDisconnect = finish;
+      void this.central
+        .disconnect(this.options.peripheralId)
+        .catch(() => undefined)
+        .then(() => {
+          if (!finished) grace = this.scheduler.setInterval(finish, DISCONNECT_EVENT_GRACE_MS);
+        });
+    });
+    const teardown = done.then(() => {
+      if (this.teardown === teardown) this.teardown = null;
+    });
+    this.teardown = teardown;
+    return teardown;
   }
 
   /** Release the central's listeners. Call when this device is no longer the app's device. */
@@ -224,6 +271,8 @@ export class BleSensorDevice implements DeviceConnection {
     const id = this.options.peripheralId;
     const radio = await this.central.prepare();
     if (radio !== 'on') throw new ConnectFailure({ code: 'unavailable', message: RADIO_MESSAGES[radio] });
+    this.checkStillConnecting(epoch);
+    this.linkOpened = true;
     await this.bounded(this.central.connect(id), this.options.connectTimeoutMs ?? 10_000);
     this.checkStillConnecting(epoch);
     const characteristics = await this.central.discover(id);
@@ -312,15 +361,21 @@ export class BleSensorDevice implements DeviceConnection {
     return epoch === this.linkEpoch && this.state === 'connected' && !this.dropping && this.closing === null;
   }
 
-  /** Enable sample notifications for this link if no channel has yet. Resolves once the device is streaming. */
+  /**
+   * Enable sample notifications for this link if no channel has yet. Resolves once the device is streaming. An
+   * earlier disable still in flight finishes first, so it can never switch off this new subscription.
+   */
   ensureNotifications(epoch: number): Promise<void> {
     if (this.notifying && this.notifyingEpoch === epoch) return this.notifying;
     this.tracker.reset(); // nothing from an earlier subscription can mix into this one
     this.badPacketsInARow = 0;
     this.notifyingEpoch = epoch;
-    const notifying = this.central.startNotifications(this.options.peripheralId, BLE_UUIDS.service, BLE_UUIDS.samples, (value) =>
-      this.onSamples(value, epoch),
-    );
+    const notifying = (this.notifyShutdown ?? Promise.resolve()).then(() => {
+      if (!this.isLive(epoch)) throw new Error('the sensor is no longer connected');
+      return this.central.startNotifications(this.options.peripheralId, BLE_UUIDS.service, BLE_UUIDS.samples, (value) =>
+        this.onSamples(value, epoch),
+      );
+    });
     this.notifying = notifying;
     notifying.catch(() => {
       if (this.notifying === notifying) this.notifying = null;
@@ -329,19 +384,34 @@ export class BleSensorDevice implements DeviceConnection {
     return notifying;
   }
 
-  /** Called when a channel stops: switch notifications off once no channel is streaming or starting. */
-  releaseNotificationsIfIdle(): void {
-    if (this.channels.some((c) => c.wantsData())) return;
-    if (this.notifying && this.notifyingEpoch === this.linkEpoch && this.isLive(this.linkEpoch)) {
-      void this.central.stopNotifications(this.options.peripheralId, BLE_UUIDS.service, BLE_UUIDS.samples).catch(() => undefined);
+  /**
+   * Called when a channel stops or abandons a start: switch notifications off once no channel is streaming or
+   * starting. The disable runs after any enable still in flight, and the next enable waits for it. Resolves once
+   * any disable this call started has finished.
+   */
+  releaseNotificationsIfIdle(): Promise<void> {
+    if (this.channels.some((c) => c.wantsData())) return Promise.resolve();
+    const current = this.notifying;
+    if (current && this.notifyingEpoch === this.linkEpoch && this.isLive(this.linkEpoch)) {
+      const id = this.options.peripheralId;
+      const shutdown: Promise<void> = current
+        .catch(() => undefined)
+        .then(() => this.central.stopNotifications(id, BLE_UUIDS.service, BLE_UUIDS.samples))
+        .catch(() => undefined)
+        .then(() => {
+          if (this.notifyShutdown === shutdown) this.notifyShutdown = null;
+        });
+      this.notifyShutdown = shutdown;
     }
     this.notifying = null;
     this.tracker.reset();
     this.stopWatchdog();
+    return this.notifyShutdown ?? Promise.resolve();
   }
 
   private endNotifications(): void {
     this.notifying = null;
+    this.notifyShutdown = null; // the link is going away with its subscriptions
     this.tracker.reset();
     this.stopWatchdog();
   }
@@ -480,13 +550,15 @@ class BleDeviceChannel extends BaseSensorSource {
     }
     const generation = ++this.generation;
     const overtaken = () => {
-      // A connection loss failed this start (reject); a stop() cancelled it (resolve, stay stopped).
+      // A stop() cancelled this start (resolve, stay stopped) or a connection loss failed it (reject). Either way the
+      // notifications it asked for may now be unused: release them unless another run wants them.
+      void this.device.releaseNotificationsIfIdle();
       const error = this.getLastError();
       if (this.getStatus() === 'error' && error) throw new SensorStartError(error);
     };
-    this.starting = this.device.ensureNotifications(this.epoch).then(
+    const attempt: Promise<void> = this.device.ensureNotifications(this.epoch).then(
       () => {
-        this.starting = null;
+        if (this.starting === attempt) this.starting = null;
         if (generation !== this.generation) return overtaken();
         if (!this.device.isLive(this.epoch)) {
           const error: SensorError = { code: 'connection_lost', message: 'The sensor connection was lost while starting' };
@@ -497,22 +569,26 @@ class BleDeviceChannel extends BaseSensorSource {
         this.setStatus('streaming');
       },
       (error: unknown) => {
-        this.starting = null;
+        if (this.starting === attempt) this.starting = null;
         if (generation !== this.generation) return overtaken();
         const reason: SensorError = { code: 'start_failed', message: `Could not start the sensor stream: ${messageOf(error)}` };
         this.fail(reason);
-        this.device.releaseNotificationsIfIdle();
+        void this.device.releaseNotificationsIfIdle();
         throw new SensorStartError(reason);
       },
     );
-    return this.starting;
+    this.starting = attempt;
+    return attempt;
   }
 
   async stop(): Promise<void> {
     this.generation += 1;
+    // Retire a start still waiting for notifications: it no longer owns them, and a later start() makes its own run.
+    this.starting = null;
     if (this.getStatus() === 'streaming') this.setStatus('stopped');
-    // A start() made meanwhile (e.g. by a `stopped` listener) keeps the notifications on.
-    this.device.releaseNotificationsIfIdle();
+    // A start() made meanwhile (e.g. by a `stopped` listener) keeps the notifications on. Otherwise this resolves once
+    // the sensor has been told to stop streaming.
+    await this.device.releaseNotificationsIfIdle();
   }
 
   /** Samples for this channel, in order. Delivery stops the moment the channel stops or fails, even mid-batch. */
@@ -528,6 +604,7 @@ class BleDeviceChannel extends BaseSensorSource {
   interrupt(error: SensorError): void {
     if (this.getStatus() !== 'streaming' && this.starting === null) return;
     this.generation += 1;
+    this.starting = null;
     this.fail(error);
   }
 
@@ -536,7 +613,7 @@ class BleDeviceChannel extends BaseSensorSource {
     if (this.getStatus() !== 'streaming') return;
     this.generation += 1;
     this.fail(error);
-    this.device.releaseNotificationsIfIdle();
+    void this.device.releaseNotificationsIfIdle();
   }
 
   watchdogTick(tickMs: number, limitMs: number): void {

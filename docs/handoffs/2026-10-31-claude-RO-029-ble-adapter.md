@@ -44,6 +44,13 @@ Simulation must keep working, and the app must never fall back to it silently.
       - a device-reported IMU read failure → `unknown`.
     - **Hygiene:** a link epoch makes callbacks from an older link and old channel objects inert; tracker resets on
       every subscription; one set of central listeners per device, released by `dispose()`.
+    - **Serialized native operations** (Codex review round 1):
+      - a failed or closing link is torn down completely before the next connect, including the OS's disconnect
+        event, which is recognised as ours and never as a loss;
+      - disabling notifications finishes before the next enable, and `stop()` resolves only once the sensor has been
+        told to stop;
+      - a start cancelled while notifications were being enabled is retired, and releases them once they come up;
+      - a scan stopped while still preparing (e.g. at the permission prompt) never starts.
   - **`BleSensorScanner`:** filters by service UUID only, reports each sensor once, stops after 10 s.
   - **`createNativeBleCentral`:** the only file that touches the native module.
     - It loads it **lazily, only if present**. In Expo Go it returns null, because importing the library there
@@ -93,14 +100,14 @@ Simulation must keep working, and the app must never fall back to it silently.
 ## Tests and checks (exact results)
 | Command | Result |
 |---|---|
-| `npx jest` in `apps/mobile` | **115/115** (was 31). Adds: the device contract suite ×2 (instant; 200 ms connect with 2 channels), the sensor-source contract on a BLE channel (independent harnesses), BLE-specific failure, identity and hygiene tests, the native-binding mapping (mocked module), selection and store tests, and two end-to-end sets through the app's container |
+| `npx jest` in `apps/mobile` | **120/120** (was 31; 5 of them are the round-1 ordering regressions, which fail on `ef72348`). Adds: the device contract suite ×2 (instant; 200 ms connect with 2 channels), the sensor-source contract on a BLE channel (independent harnesses), BLE-specific failure, identity and hygiene tests, the native-binding mapping (mocked module), selection and store tests, and two end-to-end sets through the app's container |
 | Mutation checks | Removing the mid-batch stop: 4 tests fail. Ignoring stream restarts: 1 fails. Both restored |
 | `npx tsc --noEmit` (mobile) | OK |
 | `npx expo config --type prebuild` | OK; the plugin resolves |
 | `CI=1 EXPO_OFFLINE=1 npx expo prebuild --no-install --clean`, with a placeholder bundle id (discarded) | OK. `Info.plist` has `NSBluetoothAlwaysUsageDescription`; `AndroidManifest.xml` has `BLUETOOTH_SCAN` with `neverForLocation` |
 | `EXPO_OFFLINE=1 npx expo install --check` | "Dependencies are up to date" (offline mode is unreliable, as Expo warns) |
 | `npx expo export --platform ios` / `android` | both exit 0 |
-| `npm run verify` (Node 22.22.0) | exit 0. Boundaries OK (94 files); workflow policy OK; typecheck OK; script tests 67/67; Jest 325/325 (mobile 115, rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 4), with the iOS radio-state fix |
+| `npm run verify` (Node 22.22.0) | exit 0. Boundaries OK (94 files); workflow policy OK; typecheck OK; script tests 67/67; Jest 330/330 (mobile 120, rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 4), after review round 1 |
 | `npm run test:firmware` | protocol 62/62; MPU-6050 driver 16/16 (fake Wire bus) |
 
 **Not tested:**

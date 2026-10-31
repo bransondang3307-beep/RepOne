@@ -2,6 +2,7 @@ import { DeviceConnectError, SensorStartError, type RawSensorSample, type Sensor
 import { ManualScheduler, describeDeviceConnectionContract, describeSensorSourceContract } from '@repone/sensor-contracts/testing';
 import { BLE_UUIDS, encodeDeviceInfo } from '@repone/sensor-protocol';
 import { BleSensorDevice } from '../BleSensorDevice';
+import { BleSensorScanner } from '../BleSensorScanner';
 import { FakeBleCentral, FakePeripheral, type FakePeripheralOptions } from './FakeBleCentral';
 
 // These tests drive the adapter against a fake central (SYNTHETIC packets). They verify state handling and data
@@ -137,7 +138,7 @@ describe('BleSensorDevice: actionable connect failures (no fallback to simulatio
   it('gives up after the connect timeout and cancels the attempt', async () => {
     const { device, advance, peripheral } = setup({ connectDelayMs: null }, { connectTimeoutMs: 10_000 });
     const pending = failure(device);
-    await Promise.resolve();
+    for (let i = 0; i < 10; i++) await Promise.resolve(); // let the attempt reach the connect step and arm its timer
     advance(9_999);
     expect(device.getState()).toBe('connecting');
     advance(1);
@@ -299,5 +300,96 @@ describe('BleSensorDevice: reconnects never mix sessions or leak listeners', () 
 
   it('uses the protocol UUIDs for discovery and notifications', () => {
     expect(BLE_UUIDS.service).toMatch(/^19bc0001-/);
+  });
+});
+
+// Orderings the OS can produce, found by Codex on PR #28 (review of ef72348). Each test holds one native operation
+// mid-flight; each fails on ef72348.
+describe('BleSensorDevice: asynchronous orderings (Codex round 1)', () => {
+  const flush = async () => {
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  };
+
+  it("a retry waits until a failed attempt's link is torn down, so that teardown never hits the new link", async () => {
+    const { device, central, peripheral } = setup({ failInfoReadOnce: true });
+    const releaseDisconnect = central.hold('disconnect');
+    await expect(device.connect()).rejects.toBeInstanceOf(DeviceConnectError);
+    const retry = device.connect();
+    await flush();
+    expect(device.getState()).toBe('failed'); // still waiting for the old link's teardown
+    releaseDisconnect();
+    await retry;
+    await flush();
+    expect(device.getState()).toBe('connected');
+    expect(peripheral.connected).toBe(true);
+  });
+
+  it('a start cancelled while notifications are being enabled is retired: a new start() makes its own run', async () => {
+    const { device, central, advance } = await connected();
+    const [channel] = device.getChannels();
+    const { samples } = record(channel!.source);
+    const releaseEnable = central.hold('startNotifications');
+    const cancelled = channel!.source.start();
+    const stopping = channel!.source.stop();
+    const fresh = channel!.source.start();
+    expect(fresh).not.toBe(cancelled);
+    releaseEnable();
+    await cancelled;
+    await stopping;
+    await fresh;
+    expect(channel!.source.getStatus()).toBe('streaming');
+    advance(500);
+    expect(samples.length).toBeGreaterThan(0);
+  });
+
+  it('a cancelled start releases the notifications it asked for once they come up', async () => {
+    const { device, central, peripheral } = await connected();
+    const [channel] = device.getChannels();
+    const releaseEnable = central.hold('startNotifications');
+    const cancelled = channel!.source.start();
+    const stopping = channel!.source.stop();
+    releaseEnable();
+    await cancelled;
+    await stopping;
+    await flush();
+    expect(channel!.source.getStatus()).toBe('idle');
+    expect(peripheral.streaming).toBe(false);
+  });
+
+  it('stop() then start(): the new enable waits for the disable, which therefore cannot cut the new run off', async () => {
+    const { device, central, peripheral, advance } = await connected();
+    const [channel] = device.getChannels();
+    const { samples } = record(channel!.source);
+    await channel!.source.start();
+    advance(200);
+    const releaseDisable = central.hold('stopNotifications');
+    const stopping = channel!.source.stop();
+    const restarting = channel!.source.start();
+    await flush();
+    expect(peripheral.streamsStarted).toBe(1); // the enable is queued behind the disable
+    releaseDisable();
+    await stopping;
+    await restarting;
+    const before = samples.length;
+    advance(1500);
+    expect(channel!.source.getStatus()).toBe('streaming');
+    expect(samples.length).toBeGreaterThan(before);
+    expect(peripheral.streamsStarted).toBe(2);
+  });
+
+  it('a scan stopped while still preparing (e.g. at the permission prompt) never starts', async () => {
+    const scheduler = new ManualScheduler();
+    const central = new FakeBleCentral(scheduler, [new FakePeripheral({ id: 'p1' })]);
+    const scanner = new BleSensorScanner(central, scheduler);
+    const releasePrepare = central.hold('prepare');
+    const found: unknown[] = [];
+    const scanning = scanner.scan((p) => found.push(p));
+    await flush();
+    await scanner.stop();
+    releasePrepare();
+    await scanning;
+    expect(found).toEqual([]);
+    expect(central.isScanning).toBe(false);
+    expect(scanner.scanning).toBe(false);
   });
 });

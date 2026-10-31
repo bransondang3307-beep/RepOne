@@ -33,7 +33,12 @@ export interface FakePeripheralOptions {
   readonly silentAfterPackets?: number;
   /** Notify device-info status 2 (IMU read failed) after this many packets and stop streaming. */
   readonly imuFailsAfterPackets?: number;
+  /** The first device-info read fails (a flaky link); later reads succeed. */
+  readonly failInfoReadOnce?: boolean;
 }
+
+/** Native operations a test can hold mid-flight, to reproduce orderings the OS can produce. */
+export type HoldableOperation = 'prepare' | 'disconnect' | 'startNotifications' | 'stopNotifications';
 
 interface Stream {
   timer: unknown;
@@ -49,6 +54,7 @@ export class FakePeripheral {
   /** Settles when the current attempt's connect time has elapsed (see `connectDelayMs`). */
   ready: Promise<void> = Promise.resolve();
   streamsStarted = 0;
+  infoReadFailed = false;
   private stream: Stream | null = null;
   private infoListener: ((value: Uint8Array) => void) | null = null;
   private onValue: ((value: Uint8Array) => void) | null = null;
@@ -156,6 +162,24 @@ export class FakeBleCentral implements BleCentral {
   private readonly radioListeners = new Set<(state: BleRadioState) => void>();
   private scanning: ((p: BlePeripheralSeen) => void) | null = null;
   scanFilter: readonly string[] = [];
+  private readonly holds = new Map<HoldableOperation, Promise<void>>();
+
+  /** Hold every call of `operation` (after it is made) until the returned release() runs. */
+  hold(operation: HoldableOperation): () => void {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.holds.set(operation, gate);
+    return () => {
+      if (this.holds.get(operation) === gate) this.holds.delete(operation);
+      release();
+    };
+  }
+
+  private held(operation: HoldableOperation): Promise<void> {
+    return this.holds.get(operation) ?? Promise.resolve();
+  }
 
   constructor(
     private readonly scheduler: Scheduler,
@@ -200,7 +224,7 @@ export class FakeBleCentral implements BleCentral {
         });
       }
     }
-    return Promise.resolve(this.radio);
+    return this.held('prepare').then(() => this.radio);
   }
 
   subscribeRadioState(listener: (state: BleRadioState) => void): Unsubscribe {
@@ -235,6 +259,7 @@ export class FakeBleCentral implements BleCentral {
   }
 
   async disconnect(id: string): Promise<void> {
+    await this.held('disconnect');
     const p = this.peripheral(id);
     const was = p.connected;
     p.connected = false;
@@ -262,6 +287,10 @@ export class FakeBleCentral implements BleCentral {
   async read(id: string, _service: string, characteristic: string): Promise<Uint8Array> {
     const p = this.peripheral(id);
     if (characteristic !== BLE_UUIDS.deviceInfo) throw new Error('not readable');
+    if (p.options.failInfoReadOnce && !p.infoReadFailed) {
+      p.infoReadFailed = true;
+      throw new Error('Reading the characteristic failed');
+    }
     return p.infoPacket();
   }
 
@@ -272,11 +301,14 @@ export class FakeBleCentral implements BleCentral {
       p.setInfoListener(onValue);
       return;
     }
+    await this.held('startNotifications');
+    if (!p.connected) throw new Error('not connected');
     if (p.options.failStartNotifications) throw new Error('Writing the notification descriptor failed');
     p.startStream(this.scheduler, onValue);
   }
 
   async stopNotifications(id: string, _service: string, characteristic: string): Promise<void> {
+    await this.held('stopNotifications');
     if (characteristic === BLE_UUIDS.samples) this.peripheral(id).stopStream(this.scheduler);
   }
 }

@@ -59,7 +59,7 @@ This is part 1 of the owner's real-sensor pipeline:
 ## Tests and checks (exact results)
 | Command | Result |
 |---|---|
-| `npx jest` in `packages/sensor-protocol` | 74/74 |
+| `npx jest` in `packages/sensor-protocol` | 76/76 (after the round-1 fix) |
 | `npm run verify` (Node 22.22.0) | exit 0. Boundaries OK (85 files); workflow policy OK (6 package files); typecheck OK; script tests 65/65; Jest **239/239** (mobile 31, rep-engine 27, sensor-contracts 103, **sensor-protocol 74**, workout-domain 4) |
 
 The tests cover:

@@ -36,6 +36,8 @@ interface ChannelStream {
   nextSequence: number;
   lastRawTimeMs: number | null;
   wraps: number;
+  /** A loss happened and no sample has carried `sample_gap` yet: the next delivered one must, whatever packet it is in. */
+  gapPending: boolean;
 }
 
 /**
@@ -69,7 +71,7 @@ export class StreamTracker {
     if (packet.streamStart && stream?.streamId !== packet.streamId) {
       if (stream) events.push({ kind: 'stream_restarted', channel, previousStreamId: stream.streamId, streamId: packet.streamId });
       else events.push({ kind: 'stream_started', channel, streamId: packet.streamId });
-      stream = { streamId: packet.streamId, nextSequence: packet.firstSequence, lastRawTimeMs: null, wraps: 0 };
+      stream = { streamId: packet.streamId, nextSequence: packet.firstSequence, lastRawTimeMs: null, wraps: 0, gapPending: false };
       this.streams.set(channel, stream);
     }
     if (!stream || stream.streamId !== packet.streamId) {
@@ -82,14 +84,13 @@ export class StreamTracker {
       events.push({ kind: 'duplicate_packet', channel, firstSequence: packet.firstSequence });
       return { samples: [], events };
     }
-    let gap = false;
     if (ahead > 0) {
       events.push({ kind: 'samples_lost', channel, count: ahead });
-      gap = true;
+      stream.gapPending = true;
     }
     if (packet.deviceOverflow) {
       events.push({ kind: 'device_overflow', channel });
-      gap = true;
+      stream.gapPending = true;
     }
 
     const sourceId = this.options.sourceIdFor(channel);
@@ -101,16 +102,16 @@ export class StreamTracker {
           wraps += 1;
         } else {
           events.push({ kind: 'time_went_backwards', channel, deviceTimeMs: wire.deviceTimeMs });
-          gap = true;
+          stream.gapPending = true;
           continue;
         }
       }
       stream.wraps = wraps;
       stream.lastRawTimeMs = wire.deviceTimeMs;
       const flags: string[] = [];
-      if (gap) flags.push('sample_gap');
+      if (stream.gapPending) flags.push('sample_gap');
       if ([...wire.accel, ...wire.gyro].some(isSaturated)) flags.push('saturated');
-      gap = false;
+      stream.gapPending = false;
       samples.push({
         timestamp_ms: wraps * U32 + wire.deviceTimeMs,
         source_id: sourceId,

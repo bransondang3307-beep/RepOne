@@ -55,6 +55,8 @@ The iPhone check has **not** run. Jest has no native layout, so only the owner's
 - **Duplicate React.** The two React copies also exist in the app's dependency tree. Metro bundles a working app on
   the device (2026-10-30 check), so this is a Jest-only fix. Deduplicating the tree is a separate dependency task, if
   wanted.
+- **Forward-compatible with RO-029.** The route test also mocks `useDeviceConnection` and `startSet`, which the home
+  screen uses once PR #28 lands. Either merge order keeps the test valid (round 1, 2026-10-31).
 - **Not added to `TASKS.md`.** The RO-028 row arrives with PR #23 (status, not merged yet). This PR leaves `TASKS.md`
   alone to avoid a conflict; RO-028's status is updated after both merge.
 

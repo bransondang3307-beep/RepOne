@@ -11,11 +11,16 @@ jest.mock('expo-router', () => {
   const { Text } = jest.requireActual('react-native');
   return { Link: ({ children }: { children: string }) => <Text>{children}</Text> };
 });
-jest.mock('../features/device-connection', () => ({ DeviceConnectionPanel: () => null }));
+// Also mocks the hook the home screen reads once RO-029's sensor choice lands (PR #28), so this test holds either way.
+jest.mock('../features/device-connection', () => ({
+  DeviceConnectionPanel: () => null,
+  useDeviceConnection: (select: (s: { sensorKind: 'simulated' }) => unknown) => select({ sensorKind: 'simulated' }),
+}));
 jest.mock('../features/rep-tracking', () => {
   const state = {
     session: { status: 'idle', provenance: null, fullReps: 0, partialReps: 0, samplesReceived: 0, error: null },
     startSimulatedSet: jest.fn(),
+    startSet: jest.fn(), // the name after RO-029 (PR #28)
     stop: jest.fn(),
     dismissResult: jest.fn(),
   };

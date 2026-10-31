@@ -99,8 +99,8 @@ Simulation must keep working, and the app must never fall back to it silently.
 | `CI=1 EXPO_OFFLINE=1 npx expo prebuild --no-install --clean`, with a placeholder bundle id (discarded) | OK. `Info.plist` has `NSBluetoothAlwaysUsageDescription`; `AndroidManifest.xml` has `BLUETOOTH_SCAN` with `neverForLocation` |
 | `EXPO_OFFLINE=1 npx expo install --check` | "Dependencies are up to date" (offline mode is unreliable, as Expo warns) |
 | `npx expo export --platform ios` / `android` | both exit 0 |
-| `npm run verify` (Node 22.22.0) | exit 0. Boundaries OK (94 files); workflow policy OK; typecheck OK; script tests 65/65; Jest 321/321 (mobile 113, rep-engine 27, sensor-contracts 103, sensor-protocol 74, workout-domain 4) |
-| `npm run test:firmware` | 58/58 |
+| `npm run verify` (Node 22.22.0) | exit 0. Boundaries OK (94 files); workflow policy OK; typecheck OK; script tests 67/67; Jest 323/323 (mobile 113, rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 4), after merging part 2 round 1 |
+| `npm run test:firmware` | protocol 62/62; MPU-6050 driver 16/16 (fake Wire bus) |
 
 **Not tested:**
 - no iOS build (it needs EAS or a Mac);

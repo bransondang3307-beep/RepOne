@@ -13,7 +13,9 @@ export default function HistoryScreen() {
   const { sessions: history, error: historyError } = useWorkoutHistory();
 
   return (
+    // Same as the home screen: keep the list's first row below the translucent iOS title bar (RO-028).
     <FlatList
+      contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.container}
       data={history}
       keyExtractor={(s) => s.id}

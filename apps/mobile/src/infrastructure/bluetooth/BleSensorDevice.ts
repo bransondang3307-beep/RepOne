@@ -109,6 +109,8 @@ export class BleSensorDevice implements DeviceConnection {
   private badPacketsInARow = 0;
   /** Disabling notifications, still in flight: the next enable waits for it, so it cannot cut the new run off. */
   private notifyShutdown: Promise<void> | null = null;
+  /** Rejects when the current link ends, so a native enable that never answers cannot hold anything up past it. */
+  private linkEnd: { readonly promise: Promise<never>; readonly reject: (reason: Error) => void } | null = null;
   /** Whether the current attempt asked the OS to connect, so a failure must tear the link down. */
   private linkOpened = false;
   /** Our own disconnect, still in flight (including its OS event): the next connect waits for it. */
@@ -370,12 +372,14 @@ export class BleSensorDevice implements DeviceConnection {
     this.tracker.reset(); // nothing from an earlier subscription can mix into this one
     this.badPacketsInARow = 0;
     this.notifyingEpoch = epoch;
-    const notifying = (this.notifyShutdown ?? Promise.resolve()).then(() => {
+    const enabled = (this.notifyShutdown ?? Promise.resolve()).then(() => {
       if (!this.isLive(epoch)) throw new Error('the sensor is no longer connected');
       return this.central.startNotifications(this.options.peripheralId, BLE_UUIDS.service, BLE_UUIDS.samples, (value) =>
         this.onSamples(value, epoch),
       );
     });
+    // Settles when the enable answers or the link ends, whichever comes first (Codex round 2).
+    const notifying = Promise.race([enabled, this.linkEndSignal()]);
     this.notifying = notifying;
     notifying.catch(() => {
       if (this.notifying === notifying) this.notifying = null;
@@ -386,17 +390,18 @@ export class BleSensorDevice implements DeviceConnection {
 
   /**
    * Called when a channel stops or abandons a start: switch notifications off once no channel is streaming or
-   * starting. The disable runs after any enable still in flight, and the next enable waits for it. Resolves once
-   * any disable this call started has finished.
+   * starting. The disable runs after any enable still in flight, and the next enable waits for it. A disable
+   * queued on a link that has since ended is skipped, so it can never reach a later connection (Codex round 2).
    */
-  releaseNotificationsIfIdle(): Promise<void> {
-    if (this.channels.some((c) => c.wantsData())) return Promise.resolve();
+  releaseNotificationsIfIdle(): void {
+    if (this.channels.some((c) => c.wantsData())) return;
     const current = this.notifying;
     if (current && this.notifyingEpoch === this.linkEpoch && this.isLive(this.linkEpoch)) {
       const id = this.options.peripheralId;
+      const epoch = this.linkEpoch;
       const shutdown: Promise<void> = current
         .catch(() => undefined)
-        .then(() => this.central.stopNotifications(id, BLE_UUIDS.service, BLE_UUIDS.samples))
+        .then(() => (epoch === this.linkEpoch ? this.central.stopNotifications(id, BLE_UUIDS.service, BLE_UUIDS.samples) : undefined))
         .catch(() => undefined)
         .then(() => {
           if (this.notifyShutdown === shutdown) this.notifyShutdown = null;
@@ -406,12 +411,26 @@ export class BleSensorDevice implements DeviceConnection {
     this.notifying = null;
     this.tracker.reset();
     this.stopWatchdog();
-    return this.notifyShutdown ?? Promise.resolve();
+  }
+
+  /** A promise that rejects when the current link ends (see endNotifications()). */
+  private linkEndSignal(): Promise<never> {
+    if (!this.linkEnd) {
+      let reject!: (reason: Error) => void;
+      const promise = new Promise<never>((_, rej) => {
+        reject = rej;
+      });
+      promise.catch(() => undefined); // observed through the races that use it
+      this.linkEnd = { promise, reject };
+    }
+    return this.linkEnd.promise;
   }
 
   private endNotifications(): void {
     this.notifying = null;
     this.notifyShutdown = null; // the link is going away with its subscriptions
+    this.linkEnd?.reject(new Error('the sensor connection ended'));
+    this.linkEnd = null;
     this.tracker.reset();
     this.stopWatchdog();
   }
@@ -552,7 +571,7 @@ class BleDeviceChannel extends BaseSensorSource {
     const overtaken = () => {
       // A stop() cancelled this start (resolve, stay stopped) or a connection loss failed it (reject). Either way the
       // notifications it asked for may now be unused: release them unless another run wants them.
-      void this.device.releaseNotificationsIfIdle();
+      this.device.releaseNotificationsIfIdle();
       const error = this.getLastError();
       if (this.getStatus() === 'error' && error) throw new SensorStartError(error);
     };
@@ -573,7 +592,7 @@ class BleDeviceChannel extends BaseSensorSource {
         if (generation !== this.generation) return overtaken();
         const reason: SensorError = { code: 'start_failed', message: `Could not start the sensor stream: ${messageOf(error)}` };
         this.fail(reason);
-        void this.device.releaseNotificationsIfIdle();
+        this.device.releaseNotificationsIfIdle();
         throw new SensorStartError(reason);
       },
     );
@@ -586,9 +605,10 @@ class BleDeviceChannel extends BaseSensorSource {
     // Retire a start still waiting for notifications: it no longer owns them, and a later start() makes its own run.
     this.starting = null;
     if (this.getStatus() === 'streaming') this.setStatus('stopped');
-    // A start() made meanwhile (e.g. by a `stopped` listener) keeps the notifications on. Otherwise this resolves once
-    // the sensor has been told to stop streaming.
-    await this.device.releaseNotificationsIfIdle();
+    // A start() made meanwhile (e.g. by a `stopped` listener) keeps the notifications on. The disable is not awaited:
+    // nothing is delivered after stop(), the next enable waits for the disable anyway, and stopping or disconnecting
+    // must never hang on a native operation that does not answer (Codex round 2).
+    this.device.releaseNotificationsIfIdle();
   }
 
   /** Samples for this channel, in order. Delivery stops the moment the channel stops or fails, even mid-batch. */
@@ -613,7 +633,7 @@ class BleDeviceChannel extends BaseSensorSource {
     if (this.getStatus() !== 'streaming') return;
     this.generation += 1;
     this.fail(error);
-    void this.device.releaseNotificationsIfIdle();
+    this.device.releaseNotificationsIfIdle();
   }
 
   watchdogTick(tickMs: number, limitMs: number): void {

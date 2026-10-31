@@ -283,6 +283,7 @@ describe('BleSensorDevice: reconnects never mix sessions or leak listeners', () 
     await a!.source.stop();
     expect(peripheral.streaming).toBe(true);
     await b!.source.stop();
+    for (let i = 0; i < 10; i++) await Promise.resolve(); // the disable is sent, not awaited, by stop()
     expect(peripheral.streaming).toBe(false);
   });
 
@@ -391,5 +392,74 @@ describe('BleSensorDevice: asynchronous orderings (Codex round 1)', () => {
     expect(found).toEqual([]);
     expect(central.isScanning).toBe(false);
     expect(scanner.scanning).toBe(false);
+  });
+});
+
+// Found by Codex on PR #28's round-1 head (233a78c): the round-1 serialization must never hang on a native operation
+// that does not answer, nor reach a later link. The first, second and fourth tests fail on 233a78c; the third guards
+// the sensor-switch path.
+describe('BleSensorDevice: native operations that never answer, and stale disables (Codex round 2)', () => {
+  const flush = async () => {
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  };
+
+  it('disconnect() closes the link even when a stopped start is still waiting for an enable that never answers', async () => {
+    const { device, central, peripheral, advance } = await connected();
+    const [channel] = device.getChannels();
+    central.hold('startNotifications'); // never released
+    const start = channel!.source.start();
+    await channel!.source.stop();
+    const closing = device.disconnect();
+    advance(60_000);
+    await closing;
+    expect(device.getState()).toBe('disconnected');
+    expect(peripheral.connected).toBe(false);
+    await expect(start).resolves.toBeUndefined(); // cancelled by stop(): settles quietly once the link is gone
+    expect(channel!.source.getStatus()).toBe('idle');
+  });
+
+  it('a start still waiting for an enable that never answers fails with connection_lost when the link drops', async () => {
+    const { device, central, peripheral } = await connected();
+    const [channel] = device.getChannels();
+    central.hold('startNotifications'); // never released
+    const start = channel!.source.start();
+    await flush(); // the enable is now in flight, and held
+    central.dropLink(peripheral.id);
+    const failure = await start.then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(failure).toBeInstanceOf(SensorStartError);
+    expect((failure as SensorStartError).sensorError.code).toBe('connection_lost');
+  });
+
+  it('switching to another sensor never hangs on an enable that does not answer', async () => {
+    const { device, central } = await connected();
+    const [channel] = device.getChannels();
+    central.hold('startNotifications'); // never released
+    void channel!.source.start();
+    await flush(); // the enable is now in flight, and held
+    await device.disconnect(); // what SensorSelection does before replacing the device
+    expect(device.getState()).toBe('disconnected');
+  });
+
+  it('a disable queued before a link loss is skipped: it never switches off the next connection', async () => {
+    const { device, central, peripheral, advance } = await connected();
+    const [old] = device.getChannels();
+    const releaseEnable = central.hold('startNotifications');
+    void old!.source.start().catch(() => undefined);
+    await old!.source.stop(); // queues the disable behind the pending enable
+    central.dropLink(peripheral.id);
+    await device.connect();
+    const [fresh] = device.getChannels();
+    const { samples } = record(fresh!.source);
+    const starting = fresh!.source.start();
+    releaseEnable();
+    await starting;
+    await flush();
+    advance(1500);
+    expect(fresh!.source.getStatus()).toBe('streaming');
+    expect(samples.length).toBeGreaterThan(0);
+    expect(peripheral.streaming).toBe(true);
   });
 });

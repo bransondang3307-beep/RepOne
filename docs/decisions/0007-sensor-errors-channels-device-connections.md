@@ -2,8 +2,9 @@
 
 - **Date:** 2026-10-23
 - **Status:** Proposed.
-  - Decision 1 is implemented by RO-012 part 1.
-  - Decisions 2–4 are the plan for the later RO-012 pull requests and may be refined there.
+  - Decision 1 is implemented by RO-012 part 1 (PR #14).
+  - Decision 3, and decision 2 as the rep engine uses it, are implemented by part 2.
+  - Decision 4, and decision 2's wording on `SensorSource`, are the plan for parts 3–4 and may be refined there.
   - The owner accepts it by merging; contract changes also need Codex review (`docs/architecture.md` §6).
 - **Extends:** [ADR 0002](0002-sensor-contract-and-rep-detector.md) (`SensorSource`) and
   [ADR 0003](0003-full-spec-module-layout.md) ("Module G and multi-channel contracts are added in Milestone 2").
@@ -89,7 +90,7 @@ continuous streams.
    **No schema change:** the session row does not record why it ended. An end-reason column belongs with the
    Milestone 3 persistence work (RO-013).
 
-## Decision 2 — Channels (proposed, RO-012 part 2)
+## Decision 2 — Channels (proposed; used by the rep engine since RO-012 part 2)
 
 `docs/hardware-protocol.md` §4 leaves open question 3: `source_id` per sensor, or a channel index?
 
@@ -103,14 +104,21 @@ continuous streams.
 - **Channel independence.** A gap, failure or noise on one channel must not affect another channel's samples or
   reps. Tests assert this.
 
-## Decision 3 — Per-channel rep-engine wrapper (proposed, RO-012 part 2)
+## Decision 3 — Per-channel rep-engine wrapper (implemented, RO-012 part 2)
 
-- **One detector per channel.** A wrapper in `@repone/rep-engine` routes each sample by `source_id` to that channel's
-  own `RotationalRepDetector`, which is created lazily with that channel's own calibration. Samples from channels
-  without a calibration are ignored and reported.
-- **Output.** The wrapper returns channel-tagged results (`{ source_id, event }`). `RepEvent` itself is unchanged.
-- **Algorithm unchanged.** The algorithm, thresholds, units and `algorithm_version` stay the same. A single-channel
-  stream through the wrapper must give exactly the events the bare detector gives (regression test).
+- **One detector per channel.** `MultiChannelRepDetector` (`@repone/rep-engine`) routes each sample by `source_id`
+  to that channel's own detector (by default `RotationalRepDetector`).
+  - Each detector is created up front from that channel's own calibration, so a bad calibration fails fast.
+  - All channels must share one algorithm version.
+  - Samples from channels without a calibration are ignored and counted (`ignoredSampleCounts()`).
+  - `resetChannel()` resets one channel only.
+- **Output.** It implements `MotionDetector<ChannelRepEvent>`, returning channel-tagged results
+  (`{ source_id, event }`). `RepEvent` itself is unchanged; its `calibration_id` already differs per channel.
+- **Algorithm unchanged.** The algorithm, thresholds, units and `algorithm_version` stay the same. Tests assert that:
+  - one channel through the wrapper gives exactly the bare detector's events;
+  - with two interleaved channels on different axes and clocks, each channel gives exactly what it gives alone, even
+    when the other has a gap, stops early, is very noisy or is reset mid-rep;
+  - a single bare detector fed both channels does **not** (which is why the wrapper exists).
 - **Persistence deferred.** Storing the channel on `rep_events` is a schema change, left to Milestone 3. Until then
   the app records one channel per session.
 

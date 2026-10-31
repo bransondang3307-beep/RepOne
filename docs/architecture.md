@@ -26,7 +26,7 @@ Infrastructure implements contract/domain interfaces; only the composition root
 |---|---|---|---|
 | A — Sensor contracts | `packages/sensor-contracts/src/{common,sensor,derived}.ts` | `@repone/sensor-contracts` | Implemented, including error states and reasons ([ADR 0007](decisions/0007-sensor-errors-channels-device-connections.md) §1); multi-channel *planned (M2, ADR 0007 §2)* |
 | B — Sensor simulation | `packages/sensor-contracts/src/simulation/` | same package | Implemented, with deterministic scripted faults (ADR 0007 §1) |
-| C — Rep engine | `packages/rep-engine/src/` | `@repone/rep-engine` | Implemented (single channel); per-channel wrapper *planned (M2, ADR 0007 §3)* |
+| C — Rep engine | `packages/rep-engine/src/` | `@repone/rep-engine` | Implemented: the rotational detector, plus `MultiChannelRepDetector`, one independent detector per channel (ADR 0007 §3) |
 | D — Workout domain | `packages/workout-domain/src/` | `@repone/workout-domain` | Session + repository ports only; exercises/sets/resistance/lifecycle *planned (M3)* |
 | E — Persistence | `apps/mobile/src/infrastructure/database/` | `infrastructure/database/index.ts` | SQLite adapter + migrations implemented; new tables *planned (M3)* |
 | F — Mobile UI | `apps/mobile/app/`, `src/features/`, `src/shared/` | feature `index.ts` files | Active set + history; dashboard, exercise selection, pause *planned (M4)* |

@@ -23,6 +23,12 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 
 | Date | Agent | Task | File |
 |---|---|---|---|
+| 2026-10-31 | Claude Code | Milestone 2 closeout status (PRs #21, #14–#17 merged after the owner's device check; ADR 0007 Accepted); RO-013 plan; RO-028 and RO-029 recorded | [2026-10-31-claude-RO-012-m2-closeout-status.md](2026-10-31-claude-RO-012-m2-closeout-status.md) |
+| 2026-10-29 | Claude Code | RO-027 dependency security patch (PR #21) | [2026-10-29-claude-RO-027-dependency-security.md](2026-10-29-claude-RO-027-dependency-security.md) |
+| 2026-10-23 | Claude Code | RO-012 part 4: app device integration, RO-023 badge fix (PR #17) | [2026-10-23-claude-RO-012-app-device.md](2026-10-23-claude-RO-012-app-device.md) |
+| 2026-10-23 | Claude Code | RO-012 part 3: `DeviceConnection` and `SimulatedDevice` (PR #16) | [2026-10-23-claude-RO-012-device-connection.md](2026-10-23-claude-RO-012-device-connection.md) |
+| 2026-10-23 | Claude Code | RO-012 part 2: channels and the per-channel rep engine (PR #15) | [2026-10-23-claude-RO-012-channel-rep-engine.md](2026-10-23-claude-RO-012-channel-rep-engine.md) |
+| 2026-10-23 | Claude Code | RO-012 part 1: sensor error states (PR #14) | [2026-10-23-claude-RO-012-sensor-error-states.md](2026-10-23-claude-RO-012-sensor-error-states.md) |
 | 2026-10-28 | Claude Code | Milestone 1 closeout batch, consolidated status update (PRs #13, #19, #9, #8, #6, #7 merged; PR #2 closed); handoff to ChatGPT | [2026-10-28-claude-RO-003-m1-closeout-status.md](2026-10-28-claude-RO-003-m1-closeout-status.md) |
 | 2026-10-28 | Claude Code | RO-004 follow-up: status-update ownership (owner decision 2026-10-28), ADR 0004 Accepted; supersedes PR #2 | [2026-10-28-claude-RO-004-status-ownership.md](2026-10-28-claude-RO-004-status-ownership.md) |
 | 2026-10-23 | Claude Code | Milestone 1 closeout (RO-003…RO-007, RO-023) | [2026-10-23-claude-RO-003-m1-closeout.md](2026-10-23-claude-RO-003-m1-closeout.md) |

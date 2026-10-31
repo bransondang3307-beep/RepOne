@@ -6,7 +6,7 @@
 > - After your work PR merges, set your row to `done` in your own status-update PR (`AGENTS.md` §3 step 9).
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-031**.
+> - Next free ID: **RO-032**.
 
 ## Board
 
@@ -42,6 +42,7 @@
 | RO-028 | iOS: home and History content starts under the translucent navigation header | Claude Code | P2 | todo | — | — |
 | RO-029 | Real-sensor pipeline over BLE: wire protocol, codec, firmware, iPhone BLE adapter (owner-directed) | Claude Code | P1 | in-progress | RO-012 (done); RO-025 before the BLE adapter lands | — |
 | RO-030 | Mobile UI redesign: light/dark design system, tab navigation, dashboard, live set and history (owner-directed) | Claude Code | P2 | in-review | RO-012 (done) | `claude/RO-030-ui-redesign`; PR to be opened by the owner |
+| RO-031 | Upgrade the app to Expo SDK 58 (the current Expo Go needs it) (owner-directed) | Claude Code | P1 | in-review | — | `claude/RO-031-expo-sdk-58`; PR to be opened by the owner |
 
 ## Task details
 
@@ -434,3 +435,22 @@
   - the owner's Expo Go checklist (in the handoff) passes in light and dark mode;
   - the owner merges.
 - **Handoff:** [`docs/handoffs/2026-10-31-claude-RO-030-ui-redesign.md`](docs/handoffs/2026-10-31-claude-RO-030-ui-redesign.md).
+- **Built on RO-031:** the branch has RO-031 (Expo SDK 58) merged in, so it runs in the current Expo Go;
+  `react-native-svg` is 15.16.0, SDK 58's bundled version.
+
+### RO-031 — Upgrade the app to Expo SDK 58 (owner-directed, 2026-10-31)
+- **Why:** the owner: "we have to be on SDK 58.0.0". Expo SDK 58 is the npm `latest` (58.0.21, 2026-10-28), and the
+  App Store's Expo Go runs only the newest SDK, so an SDK 57 project no longer opens on the owner's iPhone.
+- **Files:**
+  - `apps/mobile/package.json`: Expo SDK 58 versions from `npx expo install expo@^58.0.0` and
+    `npx expo install --fix`, plus `react-test-renderer` 19.3.0 (dev), which `jest-expo` 58 no longer brings in;
+  - `apps/mobile/app.json`: the `expo-status-bar` config plugin, which the SDK 58 installer added;
+  - the root `package.json`: `overrides.react` = the SDK's React (`19.3.0`), so the monorepo installs one React;
+  - `package-lock.json`, this row and the handoff.
+- **Scope:** the dependency upgrade only, with no application code change. The algorithm, contracts, units and
+  persistence are unchanged. RO-030 (UI redesign) is merged on top of it on its own branch.
+- **Completion criteria:**
+  - `npm ci` and `npm run verify` pass;
+  - `npx expo install --check`, `npx expo-doctor` and `npx expo export --platform ios --platform android` pass;
+  - Codex review; the owner's Expo Go check on the current App Store Expo Go; the owner merges.
+- **Handoff:** [`docs/handoffs/2026-10-31-claude-RO-031-expo-sdk-58.md`](docs/handoffs/2026-10-31-claude-RO-031-expo-sdk-58.md).

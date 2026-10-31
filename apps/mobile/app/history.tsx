@@ -46,7 +46,7 @@ export default function HistoryScreen() {
         </FadeIn>
       )}
       ListEmptyComponent={
-        loading ? null : (
+        loading ? undefined : (
           <Text style={styles.empty}>{error ?? 'No sets recorded yet. Data is stored only on this device.'}</Text>
         )
       }

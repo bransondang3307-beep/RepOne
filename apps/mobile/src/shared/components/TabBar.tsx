@@ -14,7 +14,7 @@ interface Props extends BottomTabBarProps {
 }
 
 /** A floating, rounded bottom navigation bar with a sliding highlight behind the active tab. */
-export function TabBar({ state, descriptors, navigation, insets, icons, liveRoute = null }: Props) {
+export function TabBar({ state, descriptors, emitter, navigateToTab, insets, icons, liveRoute = null }: Props) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const reduced = useReducedMotion();
@@ -50,8 +50,8 @@ export function TabBar({ state, descriptors, navigation, insets, icons, liveRout
           const color = focused ? colors.primaryText : colors.textMuted;
           const live = liveRoute === route.name;
           const onPress = () => {
-            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+            const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!focused && !event.defaultPrevented) navigateToTab(route.key);
           };
           return (
             <Pressable
@@ -60,7 +60,7 @@ export function TabBar({ state, descriptors, navigation, insets, icons, liveRout
               accessibilityState={{ selected: focused }}
               accessibilityLabel={live ? `${title}, recording` : title}
               onPress={onPress}
-              onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
+              onLongPress={() => emitter.emit({ type: 'tabLongPress', target: route.key })}
               style={styles.tab}
             >
               <View>

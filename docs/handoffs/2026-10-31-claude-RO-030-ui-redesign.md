@@ -6,7 +6,7 @@
 | **Date** | 2026-10-31 |
 | **Task** | RO-030 (`TASKS.md`) |
 | **Branch** | `claude/RO-030-ui-redesign` (base: `main` @ `b414307`) |
-| **Commits** | `62152f4` RO-030: mobile UI redesign — light/dark design system, tab navigation, dashboard, live set and history; then the docs commit that adds this file |
+| **Commits** | `62152f4` RO-030: mobile UI redesign — light/dark design system, tab navigation, dashboard, live set and history; `de60947` docs; then the merge of RO-031 (Expo SDK 58), with the SDK 58 fixes and this file's update |
 | **Pull request** | not opened yet: `gh` is not installed on this machine, so the owner opens it from the compare link |
 | **Status** | implemented and verified by tests and Expo export; **not yet seen on a device** |
 
@@ -87,11 +87,15 @@ layouts and unsupported metrics were not used, and no feature or metric was inve
   hides the test control on the dashboard; it stays on Record.
 
 **Tooling**
-- **`react-native-svg` 15.15.4:** installed with `npx expo install`. It is the version SDK 57's Expo Go bundles, so
-  the app stays Expo Go compatible.
-- **Jest `moduleNameMapper` for `react`:** `main` already installs two Reacts, 19.3.1 at the root and 19.2.3 in
-  `apps/mobile`. `react-test-renderer` used the other copy, and hooks in shared components crashed the badge test.
-  The mapper points Jest at the app's own React; the app bundle is not affected.
+- **Built on Expo SDK 58 (RO-031).** The owner's current Expo Go needs SDK 58. RO-031's branch
+  (`claude/RO-031-expo-sdk-58`) is merged into this one, so this branch runs in today's Expo Go.
+- **`react-native-svg` 15.16.0:** installed with `npx expo install`. It is the version SDK 58's Expo Go bundles, so
+  the app stays Expo Go compatible. Before the SDK 58 merge it was 15.15.4, SDK 57's version.
+- **SDK 58 tab-bar API.** The custom tab bar receives `emitter` and `navigateToTab(routeKey)` instead of `navigation`.
+  `TabBar.tsx` uses them the same way expo-router's built-in tab bar does: emit `tabPress`, then navigate unless the
+  press was prevented.
+- **No Jest workaround for React.** On SDK 57 this branch needed a Jest `moduleNameMapper`, because two Reacts were
+  installed. RO-031's root override installs one React, so the mapper was removed in the merge.
 - **No `.value` in style objects.** Expo's Babel preset includes the Reanimated plugin, which treats `x.value` inside
   a style object as a shared-value read and injects a dev warning. The bar segments' field is named `amount` and
   StatTile's style key is `number` for that reason.
@@ -100,10 +104,10 @@ layouts and unsupported metrics were not used, and no feature or metric was inve
 - `apps/mobile/app/_layout.tsx`, `apps/mobile/app/index.tsx`, `apps/mobile/app/history.tsx` — modified
 - `apps/mobile/app/record.tsx` — added
 - `apps/mobile/app.json` — modified (`userInterfaceStyle: "automatic"`)
-- `apps/mobile/package.json` — modified (`react-native-svg`, Jest `moduleNameMapper`)
-- `package-lock.json` — modified:
-  - `react-native-svg` and its 11 dependencies (`css-select`, `css-tree` and others);
-  - npm also dropped a stale `packages/core` entry; that directory doesn't exist.
+- `apps/mobile/package.json` — modified (`react-native-svg`)
+- `package-lock.json` — modified: `react-native-svg` and its dependencies (`css-select`, `css-tree` and others).
+- Through the RO-031 merge: the SDK 58 versions, the root `package.json` React override, and `app.json`'s
+  `expo-status-bar` plugin. Those are RO-031's changes and are described in its handoff.
 - `apps/mobile/src/shared/` — modified:
   - `index.ts`, `theme/tokens.ts`, `components/PrimaryButton.tsx`, `components/ProvenanceBadge.tsx`.
 - `apps/mobile/src/shared/` — added:
@@ -121,17 +125,24 @@ layouts and unsupported metrics were not used, and no feature or metric was inve
 - `TASKS.md` — modified:
   - the RO-030 row and details;
   - a status note on my own RO-028 task;
-  - the next free ID is now RO-031.
+  - the next free ID is now RO-032 (RO-031 is the SDK 58 upgrade).
 - `docs/handoffs/2026-10-31-claude-RO-030-ui-redesign.md` (this file) and `docs/handoffs/README.md` — added / modified
 
 ## Tests and checks (exact results)
 | Command | Result |
 |---|---|
-| `npm ci` (worktree of `main` @ `b414307`), then `npx expo install react-native-svg` | exit 0 |
-| `npm run verify` at `62152f4` | **exit 0**:<br>• `✓ module boundaries OK (99 files checked, no circular imports)`<br>• `✓ workflow policy OK (1 workflow, 0 action, 5 package, 1 lock files: no AI API integrations, least-privilege permissions)`<br>• typecheck OK in all four workspaces<br>• script tests 62/62<br>• Jest **211/211**: mobile 77 (10 suites), rep-engine 27, sensor-contracts 103, workout-domain 4 |
+**On Expo SDK 58**, after merging RO-031 @ `4cff3ca` (clean `npm ci` from the merged lockfile):
+
+| Command | Result |
+|---|---|
+| `npm run verify` | **exit 0**:<br>• `✓ module boundaries OK (99 files checked, no circular imports)`<br>• `✓ workflow policy OK (1 workflow, 0 action, 5 package, 1 lock files: no AI API integrations, least-privilege permissions)`<br>• typecheck OK in all four workspaces<br>• script tests 62/62<br>• Jest **211/211**: mobile 77 (10 suites), rep-engine 27, sensor-contracts 103, workout-domain 4 |
 | `npx expo install --check` (in `apps/mobile`) | `Dependencies are up to date` |
-| `npx expo export --platform ios --platform android` (in `apps/mobile`, output to a temp folder) | exit 0. iOS bundle 2.8 MB, Android bundle 3.1 MB |
-| `npm audit` | 39 findings (5 low, 29 moderate, 5 high). None is in `react-native-svg` or its new dependencies. I did not re-measure `main`'s count in this session. RO-027's handoff recorded 19 on 2026-10-29; new advisories have been published since |
+| `npx expo-doctor` (in `apps/mobile`) | `20/20 checks passed. No issues detected!` |
+| `npx expo export --platform ios --platform android` (in `apps/mobile`, output to a temp folder) | exit 0; iOS and Android bundles 2.9 MB each |
+
+**Earlier, on SDK 57** (`62152f4`, before the merge): `npm run verify` exit 0 with the same counts, and the export
+also succeeded. `npm audit`: 39 findings on SDK 57, none in `react-native-svg` or its dependencies; RO-031's handoff
+has the SDK 58 count.
 
 **New tests:**
 - **Palette:** contrast and token completeness, in both themes.
@@ -148,7 +159,7 @@ layouts and unsupported metrics were not used, and no feature or metric was inve
 **Environment:** Windows 11, Node v24.22.0, npm 11.19.1. Not run here:
 - a device or simulator run. Expo Go needs the owner's phone, and the web target isn't installed, so **I have not
   seen the screens rendered**. Layout and animation are checked only by typecheck, tests and the bundle build;
-- `expo-doctor` and `expo lint` (no ESLint config yet, RO-017).
+- `expo lint` (no ESLint config yet, RO-017).
 
 ## Decisions / ADRs
 - **No ADR.** This is UI only, with no change to contracts, units, the algorithm or the architecture's layers. The
@@ -164,9 +175,8 @@ layouts and unsupported metrics were not used, and no feature or metric was inve
   need the owner's Expo Go check (below).
 - **Android in a development build.** Expo Go follows the phone's dark mode. A future development build (RO-029 part 3)
   needs `expo-system-ui` for `userInterfaceStyle` to apply on Android; I didn't add it.
-- **Duplicate React (pre-existing on `main`).** The Jest mapper path `<rootDir>/node_modules/react` assumes npm keeps
-  installing the app's React under `apps/mobile`. If a future lockfile hoists it, the mapper needs updating. The
-  duplicate itself is worth a separate look.
+- **Depends on RO-031.** Merge RO-031 first. This PR then shows only the redesign. Until then, its diff against
+  `main` also includes the SDK 58 upgrade.
 - **Dashboard limit.** The dashboard loads the 500 most recent sets. Someone with more than 500 sets in 7 days would
   see a truncated week.
 - **Rep strip.** The controller publishes only the last event when one sample completes two reps at once, which is

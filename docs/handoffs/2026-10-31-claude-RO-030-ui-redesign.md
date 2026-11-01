@@ -140,6 +140,22 @@ layouts and unsupported metrics were not used, and no feature or metric was inve
 | `npx expo-doctor` (in `apps/mobile`) | `20/20 checks passed. No issues detected!` |
 | `npx expo export --platform ios --platform android` (in `apps/mobile`, output to a temp folder) | exit 0; iOS and Android bundles 2.9 MB each |
 
+**Codex round 1 ([PR #30](https://github.com/bransondang3307-beep/RepOne/pull/30), review of `8385fb0`).** CI was
+green on `8385fb0`. Codex raised two P1 findings, both about provenance, and both are fixed in the round-1 commit:
+1. History's totals card showed rep totals without a provenance badge. It is now `HistorySummaryCard`, which shows
+   `ProvenanceBadge` with `provenanceOf(sessions)`, the same least-real rule as Today.
+2. `SetCard` is one accessibility element whose label replaced the badge's text, so VoiceOver didn't announce the
+   simulated-data warning. The label now ends with the provenance wording, via the new `provenanceLabel()` from
+   `shared`.
+
+After the fix (clean `npm ci`):
+- `npm run verify` exit 0: boundaries OK (100 files), script tests 62/62, Jest 215/215 (mobile 81, rep-engine 27,
+  sensor-contracts 103, workout-domain 4);
+- `expo install --check` up to date; `expo-doctor` 20/20; iOS and Android export OK.
+
+The only visible change is the provenance badge in History's totals card; the rest of the UI the owner accepted is
+unchanged.
+
 **Earlier, on SDK 57** (`62152f4`, before the merge): `npm run verify` exit 0 with the same counts, and the export
 also succeeded. `npm audit`: 39 findings on SDK 57, none in `react-native-svg` or its dependencies; RO-031's handoff
 has the SDK 58 count.

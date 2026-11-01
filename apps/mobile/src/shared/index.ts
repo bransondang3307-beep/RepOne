@@ -6,7 +6,7 @@ export { Icon, type IconName } from './components/Icon';
 export { PopNumber } from './components/PopNumber';
 export { PressableScale } from './components/PressableScale';
 export { PrimaryButton } from './components/PrimaryButton';
-export { ProvenanceBadge } from './components/ProvenanceBadge';
+export { ProvenanceBadge, provenanceLabel } from './components/ProvenanceBadge';
 export { PulseDot } from './components/PulseDot';
 export { RingChart, type Ring, type RingSegment } from './components/RingChart';
 export { Screen, ScreenHeader, useScreenContentStyle } from './components/Screen';

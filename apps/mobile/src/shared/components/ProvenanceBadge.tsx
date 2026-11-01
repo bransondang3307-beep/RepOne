@@ -9,6 +9,14 @@ const LABELS: Record<DataProvenance, string> = {
 };
 
 /**
+ * The badge's wording, for places that must say it without drawing the badge — e.g. the spoken label of a grouped
+ * accessibility element, which replaces its children's text.
+ */
+export function provenanceLabel(provenance: DataProvenance): string {
+  return LABELS[provenance];
+}
+
+/**
  * Always shown next to rep counts so synthetic numbers are never mistaken for real ones. The whole label must
  * stay readable: in a narrow row the badge shrinks to the space available and its text wraps; it never truncates.
  */

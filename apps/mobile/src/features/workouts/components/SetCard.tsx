@@ -1,6 +1,6 @@
 import type { WorkoutSessionSummary } from '@repone/workout-domain';
 import { StyleSheet, Text, View } from 'react-native';
-import { ProvenanceBadge, useThemedStyles, type Theme } from '../../../shared';
+import { ProvenanceBadge, provenanceLabel, useThemedStyles, type Theme } from '../../../shared';
 import { formatDuration } from '../historyStats';
 
 /** One recorded set in History: its rep counts, label, time, duration and data provenance. */
@@ -8,10 +8,12 @@ export function SetCard({ set }: { set: WorkoutSessionSummary }) {
   const styles = useThemedStyles(makeStyles);
   const time = new Date(set.started_at_epoch_ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   return (
+    // The card is one accessibility element, so its label replaces the children's text: it must carry the
+    // provenance too, or screen readers would announce simulated counts without their warning.
     <View
       style={styles.card}
       accessible
-      accessibilityLabel={`${set.machine_label ?? 'Unlabelled set'}: ${set.full_rep_count} full reps, ${set.partial_rep_count} partial, at ${time}, ${formatDuration(set)}`}
+      accessibilityLabel={`${set.machine_label ?? 'Unlabelled set'}: ${set.full_rep_count} full reps, ${set.partial_rep_count} partial, at ${time}, ${formatDuration(set)}. ${provenanceLabel(set.provenance)}`}
     >
       <View style={styles.row}>
         <View style={styles.repBubble}>

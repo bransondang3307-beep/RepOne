@@ -1,6 +1,7 @@
 import type { WorkoutSessionSummary } from '@repone/workout-domain';
 import * as ReactNative from 'react-native';
 import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
+import { HistorySummaryCard } from '../components/HistorySummaryCard';
 import { SetCard } from '../components/SetCard';
 import { TodaySummaryCard } from '../components/TodaySummaryCard';
 import { WeeklyRepsCard } from '../components/WeeklyRepsCard';
@@ -71,7 +72,24 @@ describe.each(['light', 'dark'] as const)('workout cards (%s theme)', (scheme) =
 
   it('shows a set with its counts, label and provenance', () => {
     const tree = render(<SetCard set={set(NOW, 7, 3, 'sensor')} />);
-    expect(labels(tree)[0]).toMatch(/^Lat pulldown: 7 full reps, 3 partial, at .+, 0m 42s$/);
+    expect(labels(tree)[0]).toMatch(/^Lat pulldown: 7 full reps, 3 partial, at .+, 0m 42s\. Live sensor$/);
     expect(texts(tree)).toContain('Live sensor');
+  });
+
+  // Codex P1 (PR #30): the card is one accessibility element, so its label replaces the badge's text.
+  it('announces a simulated set with its provenance warning', () => {
+    const tree = render(<SetCard set={set(NOW, 7, 3, 'simulated')} />);
+    expect(labels(tree)[0]).toMatch(/\. Simulated data — not a real measurement$/);
+  });
+
+  // Codex P1 (PR #30): History's totals carry the provenance of the least real set they include.
+  it('labels the History totals with their provenance', () => {
+    const simulated = render(<HistorySummaryCard sessions={[set(NOW, 8, 2, 'sensor'), set(NOW - 60_000, 4, 1)]} />);
+    expect(labels(simulated)).toEqual(expect.arrayContaining(['Sets: 2', 'Full reps: 12', 'Partial reps: 3']));
+    expect(texts(simulated)).toContain('Simulated data — not a real measurement');
+
+    const real = render(<HistorySummaryCard sessions={[set(NOW, 8, 2, 'sensor')]} />);
+    expect(texts(real)).toContain('Live sensor');
+    expect(texts(real)).not.toContain('Simulated data — not a real measurement');
   });
 });

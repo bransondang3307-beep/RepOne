@@ -182,20 +182,48 @@ has the SDK 58 count.
 - **Rep strip.** The controller publishes only the last event when one sample completes two reps at once, which is
   practically impossible for the detector. The strip could then show one bar fewer than the count; the test confirms
   they match on 20 s of synthetic motion.
-- **Merge overlap with RO-029:**
-  - RO-029's open branches don't touch `apps/mobile`.
-  - They do change `package-lock.json`, adding the `packages/sensor-protocol` workspace, and one `TASKS.md` line.
-  - Whichever merges second needs `npm install` to regenerate the lockfile, plus a one-line `TASKS.md` resolution.
-  - RO-029 part 3 (the BLE adapter UI) will build on these components.
+- **Merge overlap with the Bluetooth stack (RO-029, PRs #25–#28) and RO-028 (PR #24).** Checked 2026-10-31 against
+  the RO-029 acceptance candidate `23addb5`, which is PR #28's head `18bb7b3` plus PR #24's head `6bb2514`:
+  - **SDK 58 compatibility, tested by a local trial merge** of RO-031 `4cff3ca` with `23addb5` (not committed or
+    pushed):
+    - `npm run verify` exit 0: boundaries OK (95 files), script tests 67/67, Jest 336/336 (mobile 126,
+      rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 4);
+    - `npx expo install --check` up to date; `expo-doctor` 20/20; iOS and Android export OK;
+    - the `react-native-ble-manager` config plugin still writes `NSBluetoothAlwaysUsageDescription` and the
+      Android Bluetooth permissions (checked with `npx expo config --type introspect`);
+    - the firmware host tests (`npm run test:firmware`) and a development build were not run.
+  - **What RO-029 must change for SDK 58** when it is rebased on, or merged with, RO-031:
+    - `expo-dev-client` `~57.0.20` → `~58.0.18`, using `npx expo install expo-dev-client`;
+    - keep `react-native-ble-manager` 12.6.1, the latest release, which accepts any React Native version;
+    - add `expo-status-bar` next to its `react-native-ble-manager` entry in `app.json` `plugins`;
+    - regenerate `package-lock.json` (`npm install`);
+    - the development build must be rebuilt for SDK 58. A build made on SDK 57 doesn't validate SDK 58.
+  - **PR #24 (RO-028) adds a Jest `moduleNameMapper` to `<rootDir>/node_modules/react`.** After RO-031 there is no
+    `apps/mobile/node_modules/react` (one React, at the root), so that mapper must be dropped. The trial passed
+    without it.
+  - **Code overlap with RO-030.** A trial merge of this branch with `23addb5` conflicts in `app/index.tsx`,
+    `app/history.tsx`, `DeviceConnectionPanel.tsx`, `liveSessionStore.ts`, `app.json`, `package.json` and the
+    lockfile. Whichever lands second must:
+    - port RO-029's sensor choice, scan list and Bluetooth notes into the redesigned panel and the Record screen,
+      following `docs/ui/sensor-connection-interface.md` on the RO-029 branch;
+    - rename `startSimulatedSet` to `startSet` on Record, and keep the "Start set" / "Start simulated set" wording;
+    - keep RO-030's rep timeline in `liveSessionStore`;
+    - replace RO-028's route inset test, since RO-030's screens use safe-area padding instead of the translucent
+      header.
+  - RO-030 now keeps `main`'s panel title wording, "Sensor: Simulated device", which that interface document relies on.
 
-## Owner's Expo Go checklist (iPhone; Android too if available)
-Start with `npm ci`, then `cd apps/mobile && npx expo start`, and scan the QR code. All data is simulated.
+## Owner's combined iPhone acceptance checklist
+One check covers both RO-031 (Expo SDK 58) and RO-030 (the redesign), on the candidate branch
+`claude/RO-030-ui-redesign`, which contains RO-031's final head `4cff3ca`. Use the current App Store Expo Go; it must
+show SDK 58. All data is simulated. The startup commands are in the report that accompanies this candidate.
 
-1. **Launch:** the app opens on **Today** with the date and a large "Today" title, below the status bar (RO-028).
-   With no sets: the ring shows "–" and "no reps yet", the stats are 0, and there is no badge.
+1. **Opens on SDK 58:** Expo Go loads the app with no "incompatible SDK" or red error screen. It opens on **Today**,
+   with the date and a large "Today" title below the status bar (RO-028). With no sets: the ring shows "–" and
+   "no reps yet", the stats are 0, and there is no badge.
 2. **Tabs:** tap Record, History and Today. The highlight slides to the active tab, and labels and icons turn purple.
 3. **Record a set:**
-   - On Record, connect the simulated device; the dot pulses green and the button reads "Disconnect".
+   - On Record, the panel reads "Sensor: Simulated device · Not connected". Tap **Connect**: the dot pulses green, the
+     state reads "Connected" and the button reads "Disconnect".
    - Enter a label and tap **Start simulated set**. The outer arc circles, the status reads "Recording" with a red dot,
      elapsed time ticks, and the samples count rises.
    - The full-rep number pops on each rep. The ring fills green and amber, and bars appear under "Reps this set".
@@ -216,15 +244,18 @@ Start with `npm ci`, then `cd apps/mobile && npx expo start`, and scan the QR co
       the status bar text is light.
 11. **Reduce Motion (optional):** turn on Settings → Accessibility → Motion → Reduce Motion. The screens appear
     without sliding in, the ring jumps to its value, and nothing loops.
-12. **Android (if available):** steps 1–3, 5 and 10. Check that the tab bar sits above the gesture or navigation bar.
+12. **Animations and feel:** cards slide in on each screen, buttons shrink slightly when pressed, and the tab
+    highlight slides. Nothing stutters, jumps or flickers, and the app stays responsive while recording.
+13. **Android (if available):** steps 1–3, 5 and 10. Check that the tab bar sits above the gesture or navigation bar.
 
-Please note any screen that looks wrong. A screenshot helps.
+Report pass/fail per step, with a screenshot of anything that looks wrong, as a comment on the RO-030 PR. Name the
+candidate SHA in it.
 
 ## Next steps
 1. Owner: open the PR from the compare link
    `https://github.com/bransondang3307-beep/RepOne/compare/main...claude/RO-030-ui-redesign`. Codex reviews it
    automatically when it opens.
-2. Owner: run the Expo Go checklist above and report the results on the PR.
+2. Owner: run the combined checklist above and report the results on the PR. The same run covers RO-031.
 3. Claude Code: address Codex findings per `docs/automation/claude-codex-workflow.md` §4 (at most two fix rounds).
 4. After the merge: my status-update PR (RO-030 done; RO-028 done if step 1 of the checklist passed).
 

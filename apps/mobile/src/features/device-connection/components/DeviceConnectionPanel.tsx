@@ -53,7 +53,8 @@ export function DeviceConnectionPanel({ locked = false, showTestControl = true }
           <Icon name="sensor" color={connected ? colors.primaryText : colors.textMuted} size={22} />
         </View>
         <View style={styles.text}>
-          <Text style={styles.title}>{TRANSPORT_LABEL[transport]}</Text>
+          {/* Wording kept from main; RO-029's acceptance checklists rely on "Sensor: <device>". */}
+          <Text style={styles.title}>Sensor: {TRANSPORT_LABEL[transport]}</Text>
           <View style={styles.stateRow}>
             <PulseDot color={stateColor} active={connected || transitioning} size={8} />
             <Text style={[styles.state, { color: state === 'failed' ? colors.danger : colors.textMuted }]}>

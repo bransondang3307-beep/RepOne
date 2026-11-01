@@ -182,26 +182,37 @@ has the SDK 58 count.
 - **Rep strip.** The controller publishes only the last event when one sample completes two reps at once, which is
   practically impossible for the detector. The strip could then show one bar fewer than the count; the test confirms
   they match on 20 s of synthetic motion.
-- **Merge overlap with the Bluetooth stack (RO-029, PRs #25–#28) and RO-028 (PR #24).** Checked 2026-10-31 against
-  the RO-029 acceptance candidate `23addb5`, which is PR #28's head `18bb7b3` plus PR #24's head `6bb2514`:
-  - **SDK 58 compatibility, tested by a local trial merge** of RO-031 `4cff3ca` with `23addb5` (not committed or
-    pushed):
-    - `npm run verify` exit 0: boundaries OK (95 files), script tests 67/67, Jest 336/336 (mobile 126,
-      rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 4);
-    - `npx expo install --check` up to date; `expo-doctor` 20/20; iOS and Android export OK;
-    - the `react-native-ble-manager` config plugin still writes `NSBluetoothAlwaysUsageDescription` and the
-      Android Bluetooth permissions (checked with `npx expo config --type introspect`);
-    - the firmware host tests (`npm run test:firmware`) and a development build were not run.
+- **Merge overlap with the Bluetooth stack (RO-029, PRs #25–#28) and RO-028 (PR #24).** SDK 58 Bluetooth
+  compatibility is **provisional**: only JavaScript-level checks have run. It stays provisional until a native SDK 58
+  development build and a physical test with the sensor pass. An SDK 57 development build or device check doesn't
+  count for SDK 58.
+  - **Integration base (owner direction, 2026-11-01).** Integrate on PR #28's latest corrected and reviewed head.
+    - Don't use the RO-029 acceptance candidate `23addb5` (PR #28 `18bb7b3` + PR #24 `6bb2514`) as the base: it has
+      known P1 findings.
+    - On 2026-11-01, PR #28's head on GitHub was still `18bb7b3`.
+  - **Local trial merges, not committed or pushed:**
+
+    | Trial | Result |
+    |---|---|
+    | RO-031 `4cff3ca` + PR #28 `18bb7b3` | `npm run verify` exit 0: boundaries OK (94 files), script tests 67/67, Jest 334/334 (mobile 124, rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 4). `expo install --check` OK; `expo-doctor` 20/20; iOS and Android export OK |
+    | RO-031 `4cff3ca` + `23addb5` (superseded) | `npm run verify` exit 0; Jest 336/336; Expo checks as above |
+
+    - `npx expo config --type introspect` shows the `react-native-ble-manager` config plugin still writing
+      `NSBluetoothAlwaysUsageDescription` and the Android Bluetooth permissions under SDK 58.
+    - **Not run:** the firmware host tests, `expo prebuild` or any native compile, a development build, and any radio
+      or iPhone test.
+    - `react-native-ble-manager` declares `react-native: "*"`. That peer range is no evidence of native
+      compatibility with React Native 0.88.1.
   - **What RO-029 must change for SDK 58** when it is rebased on, or merged with, RO-031:
     - `expo-dev-client` `~57.0.20` → `~58.0.18`, using `npx expo install expo-dev-client`;
-    - keep `react-native-ble-manager` 12.6.1, the latest release, which accepts any React Native version;
+    - keep `react-native-ble-manager` 12.6.1, the latest release. Its native build on SDK 58 is unverified;
     - add `expo-status-bar` next to its `react-native-ble-manager` entry in `app.json` `plugins`;
     - regenerate `package-lock.json` (`npm install`);
     - the development build must be rebuilt for SDK 58. A build made on SDK 57 doesn't validate SDK 58.
   - **PR #24 (RO-028) adds a Jest `moduleNameMapper` to `<rootDir>/node_modules/react`.** After RO-031 there is no
     `apps/mobile/node_modules/react` (one React, at the root), so that mapper must be dropped. The trial passed
     without it.
-  - **Code overlap with RO-030.** A trial merge of this branch with `23addb5` conflicts in `app/index.tsx`,
+  - **Code overlap with RO-030.** A trial merge of this branch with `23addb5` (superseded) conflicts in `app/index.tsx`,
     `app/history.tsx`, `DeviceConnectionPanel.tsx`, `liveSessionStore.ts`, `app.json`, `package.json` and the
     lockfile. Whichever lands second must:
     - port RO-029's sensor choice, scan list and Bluetooth notes into the redesigned panel and the Record screen,
@@ -211,6 +222,25 @@ has the SDK 58 count.
     - replace RO-028's route inset test, since RO-030's screens use safe-area padding instead of the translucent
       header.
   - RO-030 now keeps `main`'s panel title wording, "Sensor: Simulated device", which that interface document relies on.
+
+## Owner acceptance so far
+- **2026-11-01: visual acceptance only.** The owner tested the redesigned UI on an iPhone in Expo Go and reported:
+  "I tested the redesigned UI and it looks good".
+  - The tested candidate is `43217e40dc4afdacb326cc646e6e1dec6bac0b23`: the owner's clone `RepOne-candidate` was
+    checked out at that commit.
+  - The app code is unchanged since then. Later commits on this branch change docs only.
+  - The owner asked for this to be recorded as **visual acceptance only**. It does not record that any functional,
+    dark-mode, persistence or connection-loss check passed.
+- **Still required before merge:** the functional steps of the checklist below, reported by the owner as pass or fail:
+  - 1 (opens on SDK 58 with no error screen; the empty state);
+  - 3 (simulated recording) and 4 (the live dot);
+  - 5 (stop and save) and 6 (History);
+  - 7 (Today matches the set);
+  - 8 (connection loss) and 9 (persistence after force-quit);
+  - 10 (dark mode).
+
+  Steps 11 (Reduce Motion) and 13 (Android) are optional. Steps 2 (navigation) and 12 (animations) are partly visual;
+  the owner should confirm them explicitly.
 
 ## Owner's combined iPhone acceptance checklist
 One check covers both RO-031 (Expo SDK 58) and RO-030 (the redesign), on the candidate branch

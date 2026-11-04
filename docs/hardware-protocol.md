@@ -1,6 +1,7 @@
 # Hardware protocol
 
-> **Status: draft, not decided.** No firmware exists and no real sensor has been connected.
+> **Status: draft, not decided.** No real sensor has been connected. Firmware for the Uno R3 USB bring-up exists
+> (`firmware/`, RO-029 part 2). It is compiled and host-tested only, never run on hardware.
 > Sample rate and packet schema are source-of-truth §12 **open decision 2**. Everything below
 > marked *proposed* needs owner approval (and an ADR) before firmware is written against it.
 

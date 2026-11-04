@@ -94,7 +94,8 @@ Simulation must keep working, and the app must never fall back to it silently.
   - `app.json` plugin `react-native-ble-manager`: iOS `NSBluetoothAlwaysUsageDescription` (brand-neutral text); Android
     BLE permissions, with `neverForLocation`.
   - `eas.json` `development` profile.
-  - `expo-dev-client` ~57.0.20.
+  - `expo-dev-client` ~57.0.20 on SDK 57. After the SDK 58 integration it is ~58.0.18, as Expo SDK 58's module list
+    specifies; see the integration section below.
   - Scripts `start:go` (Expo Go) and `start:dev-build`.
 - **Docs:**
   - `docs/guides/real-sensor-development-build.md` (new): Expo Go vs development build, what signing requires, costs
@@ -158,3 +159,42 @@ Simulation must keep working, and the app must never fall back to it silently.
 1. **Owner:** choose the build route and the board.
 2. **Hardware:** H0 bring-up over USB (part 2's checklist), then the BLE board's firmware backend.
 3. **The first development build and BLE notification:** the guide, §4.
+
+## Integration with Expo SDK 58 and the redesign (PRs #29 and #30)
+
+A normal merge of the redesign head `4f847cf` (which contains SDK 58) into this branch. No rebase, and no rewritten
+history.
+
+- **Dependencies:** SDK 58's set, plus `react-native-ble-manager` 12.6.1, `@repone/sensor-protocol` and
+  `expo-dev-client` ~58.0.18.
+  - **Lockfile:** regenerated from SDK 58's lockfile with npm 11, the format it was written in. The change is
+    additions only: those packages and their dependencies.
+  - Every Expo-managed version matches `expo/bundledNativeModules.json` for expo 58.0.22.
+- **Plugins:** `expo-router`, `expo-sqlite`, `expo-status-bar` (from SDK 58) and `react-native-ble-manager`.
+- **Jest:** the redesign's config has no `moduleNameMapper`. PR #24's React mapping was not brought in: SDK 58's root
+  `overrides` makes it obsolete.
+- **UI, ported into the redesign** (the semantics of `docs/ui/sensor-connection-interface.md`):
+  - **Record tab:**
+    - the Simulated / Bluetooth choice, as a radio group;
+    - the Expo Go note;
+    - scan and pick;
+    - the sensor's own report;
+    - every control locked while a set runs;
+    - *Start set* vs *Start simulated set*;
+    - the provenance badge following the chosen sensor before a set;
+    - the placeholder-calibration note.
+  - **Today tab:** the compact connection panel.
+  - **Store:** `startSet` replaces the redesign's `startSimulatedSet`.
+- **Checks**, on a clean `npm ci` with no `node_modules` in any parent directory:
+
+  | Check | Result |
+  |---|---|
+  | `npm run verify` | exit 0; mobile Jest 196/196, including the new panel render test |
+  | `npm run test:firmware` | 62/62 and 16/16 |
+  | `npx expo config --type prebuild` | OK |
+  | `CI=1 EXPO_OFFLINE=1 npx expo prebuild --no-install --clean`, with a placeholder bundle id (discarded) | OK; the Bluetooth usage text is in `Info.plist`, and `BLUETOOTH_SCAN` with `neverForLocation` is in the manifest |
+  | React Native 0.88.1 codegen (`generate-codegen-artifacts.js`), iOS and Android | exit 0; `BleManagerSpec` is generated. All 36 Android spec methods are implemented; on iOS, 36 in the module and the 12 event emitters in the generated base class |
+  | `npx expo export --platform ios` / `android` | both exit 0 |
+  | `npx expo install --check` | **not run:** this environment's network policy blocks `api.expo.dev`. Versions were checked against Expo's bundled module list instead |
+  | Native compile (Xcode, Gradle) | **not run:** there is no Xcode, and `dl.google.com` (the Android SDK) is blocked. The first native build is the owner's Mac build (guide §4) |
+

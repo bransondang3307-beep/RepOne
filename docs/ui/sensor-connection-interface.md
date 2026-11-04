@@ -8,7 +8,12 @@
 > Restyle and rearrange freely, but keep these semantics. If wording changes, update the checklists in the RO-029
 > completion handoff and the tests listed in §5.
 >
-> **State:** as of RO-029 part 3 (PR #28) and RO-028 (PR #24). Neither is merged yet.
+> **State:** RO-029 part 3 (PR #28) integrated with the RO-030 redesign (PR #30) on Expo SDK 58 (PR #29).
+> - **Record tab:** the full `DeviceConnectionPanel`, with the choice, the scan-and-pick list and the test control.
+> - **Today tab:** the compact panel (`showSensorChoice={false}`, `showTestControl={false}`), showing the connection
+>   only.
+> - **RO-028:** the redesign's `Screen` draws its own title below the safe-area inset, which supersedes PR #24's
+>   approach.
 
 ## 1. Layering (enforced by `npm run check:boundaries`)
 
@@ -76,8 +81,8 @@
 2. **Expo Go.** When `bleSupport` is `needs_development_build`, the Bluetooth option is unavailable and the screen says
    why: "Real sensors need the development build; Expo Go runs the simulated sensor only."
 3. **Locked while recording.** The sensor choice, Scan, picking a sensor and Connect/Disconnect are disabled while a set
-   is `starting`, `recording` or `stopping` (today, the panel's `locked` prop). Connection changes mid-set are not
-   allowed.
+   is `starting`, `recording` or `stopping` (the panel's `locked` prop, on both tabs). Connection changes mid-set are
+   not allowed.
 4. **Provenance is always visible and never truncated** (RO-023). The badge text is exactly:
    - "Simulated data — not a real measurement";
    - "Replayed recording";
@@ -104,6 +109,17 @@
 12. **Start-button wording:** "Start set" for a real sensor; "Start simulated set" for the simulated one.
 
 ## 5. Tests that guard this interface
+
+- `src/features/device-connection/__tests__/DeviceConnectionPanel.test.tsx`, rendering the panel in light and dark
+  themes:
+  - the Expo Go note and the disabled Bluetooth radio;
+  - the radio group;
+  - scan and the found list;
+  - the sensor's own report;
+  - failure messages shown as given;
+  - every control locked while recording;
+  - the compact variant;
+  - the test control for the simulated device only.
 
 - `src/features/device-connection/__tests__/deviceConnectionStore.test.ts`:
   - mirroring connection state;

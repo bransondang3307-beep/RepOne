@@ -39,7 +39,10 @@ export function decodeCapture(text) {
   const infos = [];
   const events = {};
   const samples = [];
-  let rangesSeen = new Set();
+  /** One entry per stream (per channel): a device reboot starts a new stream with a fresh clock (Codex review). */
+  const streams = [];
+  const currentStream = new Map();
+  const rangesSeen = new Set();
 
   text.split(/\r?\n/).forEach((raw, index) => {
     counts.lines += 1;
@@ -74,27 +77,58 @@ export function decodeCapture(text) {
     counts.samplePackets += 1;
     rangesSeen.add(`${packet.accelRange}/${packet.gyroRange}`);
     const result = tracker.accept(packet);
-    for (const event of result.events) events[event.kind] = (events[event.kind] ?? 0) + (event.kind === 'samples_lost' ? event.count : 1);
-    for (const sample of result.samples) samples.push(sample);
+    for (const event of result.events) {
+      events[event.kind] = (events[event.kind] ?? 0) + (event.kind === 'samples_lost' ? event.count : 1);
+      if (event.kind === 'stream_started' || event.kind === 'stream_restarted') {
+        const stream = { index: streams.length, channel: event.channel, streamId: event.streamId, samples: [] };
+        streams.push(stream);
+        currentStream.set(event.channel, stream);
+      }
+    }
+    const stream = currentStream.get(packet.channel);
+    for (const sample of result.samples) {
+      samples.push(sample);
+      stream.samples.push(sample);
+    }
   });
 
-  return { counts, invalid, deviceErrors, diagnostics, info: infos.at(-1) ?? null, infoCount: infos.length, events, samples, ranges: [...rangesSeen], stats: statistics(samples) };
+  return {
+    counts,
+    invalid,
+    deviceErrors,
+    diagnostics,
+    info: infos.at(-1) ?? null,
+    infoCount: infos.length,
+    events,
+    samples,
+    streams: streams.map((s) => ({ index: s.index, channel: s.channel, streamId: s.streamId, samples: s.samples })),
+    ranges: [...rangesSeen],
+    stats: statistics(samples, streams),
+  };
 }
 
-function statistics(samples) {
+function statistics(samples, streams) {
   if (samples.length === 0) return null;
   const mean = (values) => values.reduce((a, b) => a + b, 0) / values.length;
   const magnitude = (v) => Math.hypot(v[0], v[1], v[2]);
-  const first = samples[0].timestamp_ms;
-  const last = samples.at(-1).timestamp_ms;
-  const spanS = (last - first) / 1000;
+  // Device time is only comparable within one stream: a reboot restarts the clock. Durations and the rate are summed
+  // over streams, never measured across a boundary.
+  let spanMs = 0;
+  let intervals = 0;
+  for (const stream of streams) {
+    if (stream.samples.length < 2) continue;
+    spanMs += stream.samples.at(-1).timestamp_ms - stream.samples[0].timestamp_ms;
+    intervals += stream.samples.length - 1;
+  }
+  const spanS = spanMs / 1000;
   const accelMag = samples.map((s) => magnitude(s.accel_m_s2));
   const gyroMag = samples.map((s) => magnitude(s.gyro_rad_s));
   const axisMean = (key) => [0, 1, 2].map((k) => mean(samples.map((s) => s[key][k])));
   return {
     sampleCount: samples.length,
     spanS,
-    rateHz: spanS > 0 ? (samples.length - 1) / spanS : null,
+    streamCount: streams.length,
+    rateHz: spanS > 0 ? intervals / spanS : null,
     accelMeanMS2: axisMean('accel_m_s2'),
     accelMagnitudeMS2: { mean: mean(accelMag), min: Math.min(...accelMag), max: Math.max(...accelMag) },
     gyroMeanRadS: axisMean('gyro_rad_s'),
@@ -130,7 +164,9 @@ export function formatSummary(summary) {
   const eventText = Object.entries(summary.events).map(([k, v]) => `${k} ${v}`).join(' · ');
   out.push(`Stream: ${eventText || 'no sample packets'}`);
   if (stats) {
-    out.push(`Samples: ${stats.sampleCount} over ${f(stats.spanS, 1)} s of device time → ${f(stats.rateHz, 1)} Hz measured`);
+    out.push(
+      `Samples: ${stats.sampleCount} in ${stats.streamCount} stream${stats.streamCount === 1 ? '' : 's'}, ${f(stats.spanS, 1)} s of device time → ${f(stats.rateHz, 1)} Hz measured (within each stream)`,
+    );
     out.push(`Full-scale codes (accel/gyro): ${summary.ranges.join(', ')}`);
     out.push(
       `Accel mean (m/s²): x ${f(stats.accelMeanMS2[0])} · y ${f(stats.accelMeanMS2[1])} · z ${f(stats.accelMeanMS2[2])} · |a| mean ${f(stats.accelMagnitudeMS2.mean)} (min ${f(stats.accelMagnitudeMS2.min)}, max ${f(stats.accelMagnitudeMS2.max)})`,
@@ -144,10 +180,15 @@ export function formatSummary(summary) {
   return out.join('\n');
 }
 
-export function samplesToCsv(samples) {
-  const rows = ['timestamp_ms,ax_m_s2,ay_m_s2,az_m_s2,gx_rad_s,gy_rad_s,gz_rad_s,flags'];
-  for (const s of samples) {
-    rows.push([s.timestamp_ms, ...s.accel_m_s2.map((v) => v.toFixed(5)), ...s.gyro_rad_s.map((v) => v.toFixed(6)), s.quality_flags.join('|')].join(','));
+/** Every sample in SI units. `stream` numbers the streams in capture order: device time restarts with each one. */
+export function samplesToCsv(streams) {
+  const rows = ['stream,channel,timestamp_ms,ax_m_s2,ay_m_s2,az_m_s2,gx_rad_s,gy_rad_s,gz_rad_s,flags'];
+  for (const stream of streams) {
+    for (const s of stream.samples) {
+      rows.push(
+        [stream.index, stream.channel, s.timestamp_ms, ...s.accel_m_s2.map((v) => v.toFixed(5)), ...s.gyro_rad_s.map((v) => v.toFixed(6)), s.quality_flags.join('|')].join(','),
+      );
+    }
   }
   return `${rows.join('\n')}\n`;
 }
@@ -165,7 +206,7 @@ if (isMain) {
   const summary = decodeCapture(readFileSync(input, 'utf8'));
   console.log(formatSummary(summary));
   if (csvPath) {
-    writeFileSync(csvPath, samplesToCsv(summary.samples));
+    writeFileSync(csvPath, samplesToCsv(summary.streams));
     console.log(`Wrote ${summary.samples.length} samples to ${csvPath}`);
   }
   // A capture often starts mid-line, so unreadable lines are reported above, not fatal. No samples at all is.

@@ -99,7 +99,10 @@ compiler version the Arduino IDE ships).
     `StreamTracker`), the measured rate, the means and ranges of `|a|` and `|ω|`, and the count of saturated samples.
   - An all-zero serial is refused, with the fix to make.
 - **Procedure:** `firmware/README.md`, "Capture and decode real output".
-- **Tests:** `firmware/tools/decode-serial-capture.test.mjs`, 3 tests on synthetic captures built from the golden
+- **Tests:** `firmware/tools/decode-serial-capture.test.mjs`, 4 tests on synthetic captures built from the golden
   packets, added to `npm run test:firmware`.
+  - **Codex review of `ec6cd74` (P1):** device time is measured within each stream, never across a reboot's clock
+    reset, and the CSV numbers the streams.
+  - The test *"a capture spanning a device reboot …"* fails on `ec6cd74`.
 - **Still unverified:** no real capture exists. Physical readings remain unverified until the owner runs the procedure.
 

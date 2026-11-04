@@ -89,3 +89,17 @@ compiler version the Arduino IDE ships).
   acceptance checklist is in the PR.
 - **Part 3:** the iPhone BLE adapter.
 - **After the board choice:** the BLE backend described in `firmware/ble/README.md`.
+
+## Addendum 2026-11-04: serial-capture decoder (owner's batch, phase 6)
+
+- **`firmware/tools/decode-serial-capture.mjs`** (`npm run decode:serial -- capture.txt [--csv out.csv]`): decodes a
+  saved Uno capture with the app's own codec (`@repone/sensor-protocol`, run from source with Node 22's
+  `--experimental-transform-types` and a resolve hook; no new dependency).
+  - It reports the device's identity and status, `E` lines and unreadable lines, stream continuity (from
+    `StreamTracker`), the measured rate, the means and ranges of `|a|` and `|ω|`, and the count of saturated samples.
+  - An all-zero serial is refused, with the fix to make.
+- **Procedure:** `firmware/README.md`, "Capture and decode real output".
+- **Tests:** `firmware/tools/decode-serial-capture.test.mjs`, 3 tests on synthetic captures built from the golden
+  packets, added to `npm run test:firmware`.
+- **Still unverified:** no real capture exists. Physical readings remain unverified until the owner runs the procedure.
+

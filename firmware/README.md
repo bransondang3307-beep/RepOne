@@ -65,6 +65,48 @@ baud.
 The result in this environment: **9,462 bytes of flash (29%) and 601 bytes of RAM (29%)**, with no warnings from
 this code. That is a compile only; nothing was flashed.
 
+### Capture and decode real output (H0 evidence)
+
+After the parts and their supply voltage are verified (RO-018) and the sketch is flashed:
+
+1. **Capture about 30 s:**
+   - 10 s lying flat and still;
+   - 10 s turning and moving the breakout;
+   - 10 s still again.
+
+   Save the serial output as text, in either of these ways:
+   ```bash
+   arduino-cli monitor -p <PORT> -c baudrate=115200 --quiet > capture.txt   # Ctrl+C after ~30 s
+   ```
+   or, in the Arduino IDE's Serial Monitor at 115200 baud, select all, copy and paste into `capture.txt`. Its
+   timestamps are fine: the decoder ignores them.
+2. **Decode it with the app's codec**, from the repository root (Node 22+):
+   ```bash
+   npm run decode:serial -- capture.txt --csv capture.csv
+   ```
+   It prints:
+   - the line counts;
+   - the device's own report (serial, firmware, nominal rate, status);
+   - the firmware's `#` diagnostics, and every `E` line and unreadable line;
+   - stream continuity (stream starts and restarts, lost or stale packets);
+   - the measured rate, from device time;
+   - mean and range of `|a|` (m/s²) and `|ω|` (°/s).
+
+   `capture.csv` holds every sample in SI units, for plotting.
+3. **What a healthy capture shows:**
+   - your `IMU_DEVICE_SERIAL`, firmware 0.1, 50 Hz, status 0, and `# imu ok (WHO_AM_I=0x68)`;
+   - one `stream_started`, with no `samples_lost` or `stream_restarted` unless you caused them;
+   - a measured rate close to 50 Hz;
+   - lying still: `|a|` close to 9.8 m/s², mostly on one axis, and `|ω|` near 0 °/s;
+   - moving: the minimum and maximum of `|a|` spread out, and the maximum of `|ω|` rises. That shows the readings
+     respond to movement; it is **not** a calibration, and it says nothing about rep-count accuracy.
+   - At most the first line is unreadable (a capture that started mid-line).
+4. **Send back:** the printed summary and `capture.txt`. That is the first physical evidence. Until then, the firmware
+   is compiled and host-tested only.
+
+The decoder's own tests (`firmware/tools/decode-serial-capture.test.mjs`, in `npm run test:firmware`) use synthetic
+captures built from the golden packets.
+
 ## BLE backend (`ble/`): pending
 
 See [`ble/README.md`](ble/README.md). The portable layer is ready for it. The board-specific part (radio stack, GATT

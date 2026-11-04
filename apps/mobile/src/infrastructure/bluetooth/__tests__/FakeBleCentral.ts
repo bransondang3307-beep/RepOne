@@ -38,7 +38,16 @@ export interface FakePeripheralOptions {
 }
 
 /** Native operations a test can hold mid-flight, to reproduce orderings the OS can produce. */
-export type HoldableOperation = 'prepare' | 'disconnect' | 'startNotifications' | 'stopNotifications';
+export type HoldableOperation =
+  | 'prepare'
+  | 'disconnect'
+  | 'discover'
+  | 'read'
+  /** The device-info notification enable, the last step of the connect handshake. */
+  | 'infoNotifications'
+  /** The sample notification enable, made by a channel's start(). */
+  | 'startNotifications'
+  | 'stopNotifications';
 
 interface Stream {
   timer: unknown;
@@ -274,6 +283,7 @@ export class FakeBleCentral implements BleCentral {
   }
 
   async discover(id: string): Promise<readonly BleCharacteristicInfo[]> {
+    await this.held('discover');
     const p = this.peripheral(id);
     if (p.options.incompatibleGatt) {
       return [{ service: '0000180f-0000-1000-8000-00805f9b34fb', characteristic: '00002a19-0000-1000-8000-00805f9b34fb', properties: ['read'] }];
@@ -285,6 +295,7 @@ export class FakeBleCentral implements BleCentral {
   }
 
   async read(id: string, _service: string, characteristic: string): Promise<Uint8Array> {
+    await this.held('read');
     const p = this.peripheral(id);
     if (characteristic !== BLE_UUIDS.deviceInfo) throw new Error('not readable');
     if (p.options.failInfoReadOnce && !p.infoReadFailed) {
@@ -298,6 +309,8 @@ export class FakeBleCentral implements BleCentral {
     const p = this.peripheral(id);
     if (!p.connected) throw new Error('not connected');
     if (characteristic === BLE_UUIDS.deviceInfo) {
+      await this.held('infoNotifications');
+      if (!p.connected) throw new Error('not connected');
       p.setInfoListener(onValue);
       return;
     }

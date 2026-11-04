@@ -160,4 +160,24 @@ describe('deviceConnectionStore', () => {
     expect(store.getState()).toMatchObject({ sensorKind: 'simulated', transport: 'simulated', connectionState: 'disconnected' });
     expect(central.listenerCounts).toEqual({ disconnect: 0, radio: 0 });
   });
+
+  // Codex round 3 on PR #28: fails on 18bb7b3, where the switch waited for a handshake step that never answers.
+  it('switching away from a sensor whose connect is stuck in its handshake happens at once', async () => {
+    const scheduler = new ManualScheduler();
+    const central = new FakeBleCentral(scheduler, [new FakePeripheral({ id: 'p1' })]);
+    const store = createDeviceConnectionStore(container(device(), central, scheduler));
+    await store.getState().chooseBle();
+    await store.getState().selectSensor('p1');
+    central.hold('infoNotifications'); // never released
+    void store.getState().connect();
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+    expect(store.getState().connectionState).toBe('connecting');
+    let switched = false;
+    void store.getState().chooseSimulated().then(() => (switched = true));
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+    expect(switched).toBe(true); // no time has passed: the stuck attempt was cancelled, not waited out
+    expect(store.getState()).toMatchObject({ sensorKind: 'simulated', transport: 'simulated' });
+    scheduler.advance(5000); // the cancelled attempt's link teardown finishes (its grace period)
+    expect(central.peripheral('p1').connected).toBe(false);
+  });
 });

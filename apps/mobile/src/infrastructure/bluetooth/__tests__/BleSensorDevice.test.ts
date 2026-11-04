@@ -463,3 +463,118 @@ describe('BleSensorDevice: native operations that never answer, and stale disabl
     expect(peripheral.streaming).toBe(true);
   });
 });
+
+// Found by Codex on PR #28's round-2 head (18bb7b3), plus the closely related paths: the connect handshake as a whole
+// must end within the connect timeout, a link loss must end it at once, and iOS's permission prompt must not count as
+// a link loss. Every test fails on 18bb7b3 (the hangs are detected without waiting) except the guard that a slow
+// permission answer is never counted as a connect timeout.
+describe('BleSensorDevice: a connect handshake that never answers (Codex round 3)', () => {
+  const flush = async () => {
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+  };
+  /** 'resolved' | 'rejected' | 'pending', after letting every queued microtask run (no time passes). */
+  const outcome = async (promise: Promise<unknown>) => {
+    let result: 'resolved' | 'rejected' | 'pending' = 'pending';
+    promise.then(
+      () => (result = 'resolved'),
+      () => (result = 'rejected'),
+    );
+    await flush();
+    return result;
+  };
+
+  it.each(['discover', 'read', 'infoNotifications'] as const)(
+    'a %s step that never answers ends the attempt at the connect timeout, and disconnect() then returns',
+    async (step) => {
+      const { device, central, peripheral, advance } = setup({}, { connectTimeoutMs: 10_000 });
+      central.hold(step); // never released
+      const connecting = device.connect();
+      const caught = connecting.catch((e: unknown) => e);
+      await flush();
+      const disconnecting = device.disconnect();
+      advance(9_999);
+      expect(await outcome(connecting)).toBe('pending');
+      advance(1);
+      expect(await outcome(connecting)).toBe('rejected');
+      const error = (await caught) as DeviceConnectError;
+      expect(error.connectionError).toEqual({ code: 'timeout', message: 'The sensor did not connect within 10 s' });
+      expect(await outcome(disconnecting)).toBe('resolved');
+      expect(device.getState()).toBe('failed');
+      advance(5000); // the failed attempt's teardown (grace period: no disconnect event for an unanswered handshake)
+      expect(peripheral.connected).toBe(false);
+    },
+  );
+
+  it('a link loss during a handshake step that never answers ends the attempt at once', async () => {
+    const { device, central, peripheral } = setup();
+    central.hold('infoNotifications'); // never released
+    const connecting = device.connect();
+    const caught = connecting.catch((e: unknown) => e);
+    await flush();
+    expect(device.getState()).toBe('connecting');
+    central.dropLink(peripheral.id);
+    expect(await outcome(connecting)).toBe('rejected');
+    expect(((await caught) as DeviceConnectError).connectionError).toEqual({
+      code: 'unavailable',
+      message: 'The sensor disconnected while connecting',
+    });
+  });
+
+  it('cancelConnect() (switching sensors) ends a stuck attempt at once; a later connect works', async () => {
+    const { device, central, advance } = setup();
+    const release = central.hold('read');
+    const connecting = device.connect();
+    const caught = connecting.catch((e: unknown) => e);
+    await flush();
+    device.cancelConnect();
+    expect(await outcome(connecting)).toBe('rejected');
+    expect(((await caught) as DeviceConnectError).connectionError.message).toBe('Connecting to the sensor was cancelled');
+    release();
+    advance(5000);
+    await flush();
+    await device.connect();
+    expect(device.getState()).toBe('connected');
+  });
+
+  it("iOS's permission prompt: an `unknown` radio report while preparing is not a link loss", async () => {
+    const { device, central } = setup();
+    const answer = central.hold('prepare'); // the permission prompt is open
+    const connecting = device.connect();
+    await flush();
+    central.setRadio('unknown'); // iOS reports `unknown` until the user answers
+    central.setRadio('on'); // the user taps Allow
+    answer();
+    await connecting;
+    expect(device.getState()).toBe('connected');
+  });
+
+  it('a permission answer slower than the connect timeout never counts as a connect timeout', async () => {
+    const { device, central, advance } = setup({}, { connectTimeoutMs: 10_000 });
+    const answer = central.hold('prepare');
+    const connecting = device.connect();
+    await flush();
+    advance(30_000); // the user takes 30 s to answer
+    expect(device.getState()).toBe('connecting');
+    answer();
+    await connecting;
+    expect(device.getState()).toBe('connected');
+  });
+
+  it('a sample notification enable that never answers fails the start after the start timeout', async () => {
+    const { device, central, advance } = await connected();
+    const [channel] = device.getChannels();
+    central.hold('startNotifications'); // never released
+    const start = channel!.source.start();
+    const caught = start.catch((e: unknown) => e);
+    await flush();
+    advance(9_999);
+    expect(await outcome(start)).toBe('pending');
+    advance(1);
+    expect(await outcome(start)).toBe('rejected');
+    const error = (await caught) as SensorStartError;
+    expect(error).toBeInstanceOf(SensorStartError);
+    expect(error.sensorError.code).toBe('start_failed');
+    expect(error.sensorError.message).toMatch(/did not start streaming within 10 s/);
+    expect(device.getState()).toBe('connected'); // the link itself is fine: the next start can try again
+  });
+});

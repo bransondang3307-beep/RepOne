@@ -85,18 +85,72 @@ describe('createNativeBleCentral', () => {
     await expect(prepared).resolves.toBe('on');
   });
 
-  it('gives up waiting after 5 s and reports the unsettled state', async () => {
+  // Codex round 3 follow-up: the user's time to answer the permission prompt is not the radio's time to settle.
+  // Fails on 18bb7b3, which gave up after 5 s whatever the state.
+  it('waits for a slow answer to the iOS permission prompt (unknown) far longer than for a radio reset', async () => {
     jest.useFakeTimers();
     try {
       registry.mockReturnValue({} as never);
       const central = createNativeBleCentral()!;
       mockManager.checkState.mockResolvedValueOnce('unknown');
-      const prepared = central.prepare();
-      await jest.advanceTimersByTimeAsync(5000);
-      await expect(prepared).resolves.toBe('unknown');
+      let result: string | null = null;
+      void central.prepare().then((s) => (result = s));
+      await jest.advanceTimersByTimeAsync(20_000); // the user is still reading the prompt
+      expect(result).toBeNull();
+      mockEmit('state', { state: 'on' }); // Allow
+      await jest.advanceTimersByTimeAsync(0);
+      expect(result).toBe('on');
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  // A guard (passes on 18bb7b3 too): both waits are still bounded, and recoverable.
+  it('gives up on an unanswered permission prompt after 60 s and on a radio reset after 5 s; the next prepare() asks again', async () => {
+    jest.useFakeTimers();
+    try {
+      registry.mockReturnValue({} as never);
+      const central = createNativeBleCentral()!;
+      mockManager.checkState.mockResolvedValueOnce('unknown');
+      const unanswered = central.prepare();
+      await jest.advanceTimersByTimeAsync(60_000);
+      await expect(unanswered).resolves.toBe('unknown');
+      mockManager.checkState.mockResolvedValueOnce('resetting');
+      const resetting = central.prepare();
+      await jest.advanceTimersByTimeAsync(5000);
+      await expect(resetting).resolves.toBe('resetting');
+      await expect(central.prepare()).resolves.toBe('on'); // recovers: nothing was left stuck
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  // Codex round 3 on PR #28: fails on 18bb7b3, where the old enable's failure deleted the new link's target.
+  it("an older enable that fails late never removes a newer link's notification target", async () => {
+    registry.mockReturnValue({} as never);
+    const central = createNativeBleCentral()!;
+    const service = '19bc0001-bab5-4ddb-8e9c-8595137ac300';
+    const samples = '19bc0002-bab5-4ddb-8e9c-8595137ac300';
+    let failFirst!: (error: string) => void;
+    mockManager.startNotification.mockImplementationOnce(
+      () => new Promise<void>((_, reject) => (failFirst = reject)),
+    );
+    const first = central.startNotifications('p1', service, samples, () => undefined);
+    await central.disconnect('p1'); // the link ends; the first enable is still pending in the native module
+    const fresh: Uint8Array[] = [];
+    await central.startNotifications('p1', service, samples, (v) => fresh.push(v)); // the next link subscribes
+    failFirst('Disconnect called before the command completed');
+    await expect(first).rejects.toBe('Disconnect called before the command completed');
+    mockEmit('value', { peripheral: 'p1', service, characteristic: samples, value: [7] });
+    expect(fresh).toEqual([Uint8Array.from([7])]);
+  });
+
+  it('retries a failed native start on the next prepare() instead of caching the failure', async () => {
+    registry.mockReturnValue({} as never);
+    const central = createNativeBleCentral()!;
+    mockManager.start.mockRejectedValueOnce('NSBluetoothAlwaysUsageDescription is not set in the infoPlist');
+    await expect(central.prepare()).rejects.toBe('NSBluetoothAlwaysUsageDescription is not set in the infoPlist');
+    await expect(central.prepare()).resolves.toBe('on');
   });
 
   it('scans with the service filter and reports the radio state as the OS gives it', async () => {

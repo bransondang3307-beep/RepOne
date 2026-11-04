@@ -28,8 +28,14 @@ export interface BleSensorDeviceOptions {
   readonly peripheralId: string;
   /** Timers (connect timeout, stream watchdog). Tests pass a ManualScheduler. */
   readonly scheduler?: Scheduler;
-  /** Give up connecting after this long, ms. Default 10 000 (iOS connects never time out on their own). */
+  /**
+   * Give up connecting after this long, ms: one deadline for the whole handshake (connect, discovery, device-info
+   * read and its notifications), counted once the radio is on, so a permission prompt's time is never part of it.
+   * Default 10 000 (iOS connects never time out on their own).
+   */
   readonly connectTimeoutMs?: number;
+  /** A channel's start() fails if the sensor's notifications are not enabled within this long, ms. Default 10 000. */
+  readonly startTimeoutMs?: number;
   /** A streaming channel with no valid sample for this long fails with `stream_timeout`, ms. Default 1000. */
   readonly streamTimeoutMs?: number;
   /** This many undecodable packets in a row fail the streaming channels with `invalid_data`. Default 5. */
@@ -55,7 +61,7 @@ export const RADIO_MESSAGES: Record<Exclude<BleRadioState, 'on'>, string> = {
   unauthorized: 'Bluetooth permission was denied. Allow it for this app in Settings.',
   unsupported: 'This phone does not support Bluetooth Low Energy.',
   resetting: 'Bluetooth is restarting. Try again in a moment.',
-  unknown: 'Bluetooth is not ready yet. Try again in a moment.',
+  unknown: 'Bluetooth is not ready yet. If the phone asked for Bluetooth permission, answer it, then try again.',
 };
 
 const DEVICE_STATUS_MESSAGES: Record<number, string> = {
@@ -69,6 +75,29 @@ const describeStatus = (status: number) => DEVICE_STATUS_MESSAGES[status] ?? `Th
 class ConnectFailure extends Error {
   constructor(readonly connectionError: ConnectionError) {
     super(connectionError.message);
+  }
+}
+
+/**
+ * One connect attempt. Every native step of its handshake races `aborted`, so a deadline, a link loss or a cancel
+ * ends the attempt at once even when the native operation never answers (Codex round 3). The first reason wins.
+ */
+class Attempt {
+  readonly aborted: Promise<never>;
+  reason: ConnectFailure | null = null;
+  private rejectAborted!: (reason: ConnectFailure) => void;
+
+  constructor() {
+    this.aborted = new Promise<never>((_, reject) => {
+      this.rejectAborted = reject;
+    });
+    this.aborted.catch(() => undefined); // observed through the races that use it
+  }
+
+  abort(reason: ConnectFailure): void {
+    if (this.reason) return;
+    this.reason = reason;
+    this.rejectAborted(reason);
   }
 }
 
@@ -96,7 +125,8 @@ export class BleSensorDevice implements DeviceConnection {
   private closing: Promise<void> | null = null;
   private dropping = false;
   private lossPublished: Promise<void> | null = null;
-  private droppedWhileConnecting = false;
+  /** The connect attempt in progress, if any. */
+  private attempt: Attempt | null = null;
   private readonly unpublished: ConnectionState[] = [];
   private publishing = false;
   /** Bumped on every connect, disconnect and loss: callbacks from an older link are ignored. */
@@ -127,7 +157,7 @@ export class BleSensorDevice implements DeviceConnection {
       this.central.subscribeDisconnect((id) => {
         if (id !== options.peripheralId) return;
         if (this.ownDisconnect) this.ownDisconnect();
-        else this.linkLost('The Bluetooth connection to the sensor was lost');
+        else this.linkLost('The Bluetooth connection to the sensor was lost', 'The sensor disconnected while connecting');
       }),
       this.central.subscribeRadioState((radio) => {
         if (radio !== 'on') this.linkLost(RADIO_MESSAGES[radio]);
@@ -186,20 +216,23 @@ export class BleSensorDevice implements DeviceConnection {
       settle = { resolve, reject };
     });
     const epoch = ++this.linkEpoch;
-    this.droppedWhileConnecting = false;
+    const attempt = new Attempt();
+    this.attempt = attempt;
     this.linkOpened = false;
     // Install the attempt before publishing `connecting`, so a listener's connect()/disconnect() sees and waits for it.
     this.pending = pending;
     this.setState('connecting');
-    this.establish(epoch).then(
+    this.establish(epoch, attempt).then(
       (channels) => {
         this.pending = null;
+        this.attempt = null;
         this.channels = channels;
         this.setState('connected');
         settle.resolve();
       },
       (error: unknown) => {
         this.pending = null;
+        this.attempt = null;
         const reason =
           error instanceof ConnectFailure ? error.connectionError : { code: 'unknown' as const, message: messageOf(error) };
         // Install the teardown before publishing `failed`, so a retry from a listener waits for it.
@@ -209,6 +242,14 @@ export class BleSensorDevice implements DeviceConnection {
       },
     );
     return pending;
+  }
+
+  /**
+   * Give up a connect still in progress, at once: for switching to another sensor. disconnect() instead lets a pending
+   * attempt finish, as the DeviceConnection contract requires; that attempt ends within the connect timeout anyway.
+   */
+  cancelConnect(): void {
+    this.attempt?.abort(new ConnectFailure({ code: 'unavailable', message: 'Connecting to the sensor was cancelled' }));
   }
 
   async disconnect(): Promise<void> {
@@ -269,71 +310,81 @@ export class BleSensorDevice implements DeviceConnection {
 
   // ---- connecting ---------------------------------------------------------------------------------------------
 
-  private async establish(epoch: number): Promise<BleDeviceChannel[]> {
+  private async establish(epoch: number, attempt: Attempt): Promise<BleDeviceChannel[]> {
     const id = this.options.peripheralId;
-    const radio = await this.central.prepare();
+    // Not bounded by the connect timeout: on iOS this waits for the user's answer to the Bluetooth permission prompt.
+    const radio = await this.step(attempt, this.central.prepare());
     if (radio !== 'on') throw new ConnectFailure({ code: 'unavailable', message: RADIO_MESSAGES[radio] });
-    this.checkStillConnecting(epoch);
-    this.linkOpened = true;
-    await this.bounded(this.central.connect(id), this.options.connectTimeoutMs ?? 10_000);
-    this.checkStillConnecting(epoch);
-    const characteristics = await this.central.discover(id);
-    this.checkStillConnecting(epoch);
-    checkGatt(characteristics);
-    const bytes = await this.central.read(id, BLE_UUIDS.service, BLE_UUIDS.deviceInfo);
-    this.checkStillConnecting(epoch);
-    const decoded = decodePacket(bytes);
-    if (!decoded.ok || decoded.packet.type !== 'device_info') {
-      const why = decoded.ok ? 'it is not a device-info packet' : decoded.error.message;
-      throw new ConnectFailure({ code: 'unavailable', message: `The sensor's device information is invalid: ${why}` });
-    }
-    const info = decoded.packet;
-    if (info.status !== DeviceStatus.Ok) throw new ConnectFailure({ code: 'unavailable', message: describeStatus(info.status) });
-    this.info = info;
-    const infoNotifies = characteristics.some(
-      (c) => c.service === BLE_UUIDS.service && c.characteristic === BLE_UUIDS.deviceInfo && c.properties.includes('notify'),
-    );
-    if (infoNotifies) {
-      await this.central.startNotifications(id, BLE_UUIDS.service, BLE_UUIDS.deviceInfo, (value) => this.onDeviceInfo(value, epoch));
-      this.checkStillConnecting(epoch);
-    }
-    return Array.from(
-      { length: info.channelCount },
-      (_, channel) => new BleDeviceChannel(this.sourceIdFor(channel), this, epoch),
-    );
-  }
-
-  private bounded<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const timer = this.scheduler.setInterval(() => {
-        this.scheduler.clearInterval(timer);
-        reject(new ConnectFailure({ code: 'timeout', message: `The sensor did not connect within ${Math.round(timeoutMs / 1000)} s` }));
-      }, timeoutMs);
-      promise.then(
-        (value) => {
-          this.scheduler.clearInterval(timer);
-          resolve(value);
-        },
-        (error: unknown) => {
-          this.scheduler.clearInterval(timer);
-          reject(new ConnectFailure({ code: 'unavailable', message: `Could not connect to the sensor: ${messageOf(error)}` }));
-        },
+    this.checkStillConnecting(epoch, attempt);
+    // From here on, one deadline bounds the whole handshake: no native step can hold the attempt (or a disconnect or
+    // sensor switch waiting for it) past the connect timeout (Codex round 3).
+    const timeoutMs = this.options.connectTimeoutMs ?? 10_000;
+    const deadline = this.scheduler.setInterval(() => {
+      attempt.abort(new ConnectFailure({ code: 'timeout', message: `The sensor did not connect within ${Math.round(timeoutMs / 1000)} s` }));
+    }, timeoutMs);
+    try {
+      this.linkOpened = true;
+      await this.step(
+        attempt,
+        this.central.connect(id).catch((error: unknown) => {
+          throw new ConnectFailure({ code: 'unavailable', message: `Could not connect to the sensor: ${messageOf(error)}` });
+        }),
       );
-    });
+      this.checkStillConnecting(epoch, attempt);
+      const characteristics = await this.step(attempt, this.central.discover(id));
+      this.checkStillConnecting(epoch, attempt);
+      checkGatt(characteristics);
+      const bytes = await this.step(attempt, this.central.read(id, BLE_UUIDS.service, BLE_UUIDS.deviceInfo));
+      this.checkStillConnecting(epoch, attempt);
+      const decoded = decodePacket(bytes);
+      if (!decoded.ok || decoded.packet.type !== 'device_info') {
+        const why = decoded.ok ? 'it is not a device-info packet' : decoded.error.message;
+        throw new ConnectFailure({ code: 'unavailable', message: `The sensor's device information is invalid: ${why}` });
+      }
+      const info = decoded.packet;
+      if (info.status !== DeviceStatus.Ok) throw new ConnectFailure({ code: 'unavailable', message: describeStatus(info.status) });
+      this.info = info;
+      const infoNotifies = characteristics.some(
+        (c) => c.service === BLE_UUIDS.service && c.characteristic === BLE_UUIDS.deviceInfo && c.properties.includes('notify'),
+      );
+      if (infoNotifies) {
+        await this.step(
+          attempt,
+          this.central.startNotifications(id, BLE_UUIDS.service, BLE_UUIDS.deviceInfo, (value) => this.onDeviceInfo(value, epoch)),
+        );
+        this.checkStillConnecting(epoch, attempt);
+      }
+      return Array.from(
+        { length: info.channelCount },
+        (_, channel) => new BleDeviceChannel(this.sourceIdFor(channel), this, epoch),
+      );
+    } finally {
+      this.scheduler.clearInterval(deadline);
+    }
   }
 
-  private checkStillConnecting(epoch: number): void {
-    if (epoch !== this.linkEpoch || this.droppedWhileConnecting) {
+  /** One native step of a connect attempt: settles when the operation answers or the attempt is aborted. */
+  private step<T>(attempt: Attempt, operation: Promise<T>): Promise<T> {
+    // `aborted` first, so an abort that has already happened wins over an operation that answered at the same time.
+    return Promise.race([attempt.aborted, operation]);
+  }
+
+  private checkStillConnecting(epoch: number, attempt: Attempt): void {
+    if (attempt.reason) throw attempt.reason;
+    if (epoch !== this.linkEpoch) {
       throw new ConnectFailure({ code: 'unavailable', message: 'The sensor disconnected while connecting' });
     }
   }
 
   // ---- link loss ----------------------------------------------------------------------------------------------
 
-  private linkLost(message: string): void {
+  private linkLost(message: string, whileConnecting: string = message): void {
     if (this.closing) return; // our own disconnect
     if (this.state === 'connecting') {
-      this.droppedWhileConnecting = true;
+      // Before the attempt asks the OS to connect, radio reports belong to prepare(), which waits for a definite state
+      // (iOS reports `unknown` while its permission prompt is open), and a disconnect event cannot be this attempt's.
+      // After that, the attempt ends at once, even if a native step is still waiting (Codex round 3).
+      if (this.linkOpened) this.attempt?.abort(new ConnectFailure({ code: 'unavailable', message: whileConnecting }));
       return;
     }
     if (this.state !== 'connected' || this.dropping) return;
@@ -378,10 +429,20 @@ export class BleSensorDevice implements DeviceConnection {
         this.onSamples(value, epoch),
       );
     });
-    // Settles when the enable answers or the link ends, whichever comes first (Codex round 2).
-    const notifying = Promise.race([enabled, this.linkEndSignal()]);
+    // Settles when the enable answers, the link ends (Codex round 2) or the start timeout passes, whichever comes
+    // first: a start never waits on a native enable that does not answer.
+    const timeoutMs = this.options.startTimeoutMs ?? 10_000;
+    let timer: unknown = null;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = this.scheduler.setInterval(() => {
+        reject(new Error(`the sensor did not start streaming within ${Math.round(timeoutMs / 1000)} s`));
+      }, timeoutMs);
+    });
+    const notifying = Promise.race([enabled, this.linkEndSignal(), deadline]);
     this.notifying = notifying;
-    notifying.catch(() => {
+    const settled = () => this.scheduler.clearInterval(timer);
+    notifying.then(settled, () => {
+      settled();
       if (this.notifying === notifying) this.notifying = null;
     });
     this.startWatchdog();

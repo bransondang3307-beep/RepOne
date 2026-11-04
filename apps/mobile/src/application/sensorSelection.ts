@@ -110,6 +110,8 @@ export function createSensorSelection(options: SensorSelectionOptions): SensorSe
   const replaceDevice = async (next: DeviceConnection, nextKind: SensorKind, peripheralId: string | null) => {
     const previous = device;
     if (previous !== next) {
+      // Switching away gives up a connect still in progress at once, instead of waiting for it (Codex round 3).
+      if (previous instanceof BleSensorDevice) previous.cancelConnect();
       await previous.disconnect().catch(() => undefined);
       if (previous instanceof BleSensorDevice) previous.dispose();
     }

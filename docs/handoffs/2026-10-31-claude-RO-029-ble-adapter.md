@@ -27,8 +27,10 @@ Simulation must keep working, and the app must never fall back to it silently.
 - **`apps/mobile/src/infrastructure/bluetooth/`** (the second infrastructure adapter; RO-025's rules apply):
   - **`BleCentral`:** the native-boundary port.
   - **`BleSensorDevice`** (`DeviceConnection`):
-    - **Connect:** a radio and permission check, then a connect bounded at 10 s (iOS connects never time out), then
-      GATT discovery checking the protocol's service and characteristics, then the device-info packet.
+    - **Connect:** a radio and permission check, then the handshake: the connect, GATT discovery checking the
+      protocol's service and characteristics, the device-info packet and its notifications. One 10 s deadline bounds
+      the whole handshake (iOS connects never time out); it starts once the radio is on, so the user's time at the
+      permission prompt never counts against it.
     - **Identity:** `deviceId = imu-<serial>`; channels `imu-<serial>-ch<n>`. Never the phone's peripheral id.
     - **Channel sources:** kind `ble`, provenance `sensor`. Starting one enables the shared sample notifications;
       packets are decoded and tracked (`@repone/sensor-protocol`) and routed to their channel in order. Delivery stops
@@ -44,7 +46,7 @@ Simulation must keep working, and the app must never fall back to it silently.
       - a device-reported IMU read failure → `unknown`.
     - **Hygiene:** a link epoch makes callbacks from an older link and old channel objects inert; tracker resets on
       every subscription; one set of central listeners per device, released by `dispose()`.
-    - **Serialized native operations, never hung on them** (Codex review rounds 1 and 2):
+    - **Serialized native operations, never hung on them** (Codex review rounds 1–3):
       - a failed or closing link is torn down completely before the next connect, including the OS's disconnect
         event, which is recognised as ours and never as a loss;
       - disabling notifications finishes before the next enable; a disable queued on a link that has since ended is
@@ -52,14 +54,26 @@ Simulation must keep working, and the app must never fall back to it silently.
       - a pending enable is cut off when its link ends, so `stop()`, `disconnect()` and switching sensors never wait
         on a native operation that does not answer (`stop()` sends the disable without awaiting it);
       - a start cancelled while notifications were being enabled is retired, and releases them once they come up;
-      - a scan stopped while still preparing (e.g. at the permission prompt) never starts.
+      - a scan stopped while still preparing (e.g. at the permission prompt) never starts;
+      - every handshake step races the attempt's deadline and abort signal, so a step that never answers ends the
+        attempt at the connect timeout, and `disconnect()` (which lets a pending attempt finish, as ADR 0007 requires)
+        returns then too (round 3);
+      - a link loss during the handshake ends the attempt at once; before the attempt asks the OS to connect, radio
+        reports belong to `prepare()`, so iOS's `unknown` while its permission prompt is open is not a loss (round 3);
+      - switching sensors calls `cancelConnect()`, which ends a pending attempt at once (round 3);
+      - a channel's start fails with `start_failed` if the sample enable does not answer within 10 s (round 3).
   - **`BleSensorScanner`:** filters by service UUID only, reports each sensor once, stops after 10 s.
   - **`createNativeBleCentral`:** the only file that touches the native module.
     - It loads it **lazily, only if present**. In Expo Go it returns null, because importing the library there
       throws.
     - It maps UUIDs to lowercase, values to bytes, and properties.
-    - It asks for Android runtime permissions; iOS asks by itself. `prepare()` waits up to 5 s for a definite radio
-      state, because iOS reports `unknown` until the user answers the permission prompt.
+    - It asks for Android runtime permissions; iOS asks by itself. `prepare()` waits for a definite radio state:
+      up to 60 s while iOS reports `unknown` (the user has not answered the permission prompt yet: the user's time),
+      and up to 5 s while it reports `resetting` (the system's time). It then reports what it saw, with "If the phone
+      asked for Bluetooth permission, answer it, then try again", and the next attempt asks again (round 3). A failed
+      native start is retried, never cached.
+    - Each notification registration owns its entry: a late failure of an older enable never removes a newer link's
+      target (round 3).
 - **`apps/mobile/src/application/sensorSelection.ts`:** the explicit choice between simulated and Bluetooth.
   - Choosing Bluetooth without a sensor gives a device that refuses to connect with "Choose a sensor first", so there
     is **never a fallback** to simulation.
@@ -102,14 +116,14 @@ Simulation must keep working, and the app must never fall back to it silently.
 ## Tests and checks (exact results)
 | Command | Result |
 |---|---|
-| `npx jest` in `apps/mobile` | **124/124** (was 31). Includes the ordering regressions: 5 from round 1 fail on `ef72348`; 3 of the 4 from round 2 fail on `233a78c` (the fourth guards sensor switching). Adds: the device contract suite ×2 (instant; 200 ms connect with 2 channels), the sensor-source contract on a BLE channel (independent harnesses), BLE-specific failure, identity and hygiene tests, the native-binding mapping (mocked module), selection and store tests, and two end-to-end sets through the app's container |
+| `npx jest` in `apps/mobile` | **136/136** (was 31). Includes the ordering regressions: 5 from round 1 fail on `ef72348`; 3 of the 4 from round 2 fail on `233a78c` (the fourth guards sensor switching); 11 of the 13 from round 3 fail on `18bb7b3` (the other two guard that permission time is never a connect timeout and that both radio waits stay bounded). Adds: the device contract suite ×2 (instant; 200 ms connect with 2 channels), the sensor-source contract on a BLE channel (independent harnesses), BLE-specific failure, identity and hygiene tests, the native-binding mapping (mocked module), selection and store tests, and two end-to-end sets through the app's container |
 | Mutation checks | Removing the mid-batch stop: 4 tests fail. Ignoring stream restarts: 1 fails. Both restored |
 | `npx tsc --noEmit` (mobile) | OK |
 | `npx expo config --type prebuild` | OK; the plugin resolves |
 | `CI=1 EXPO_OFFLINE=1 npx expo prebuild --no-install --clean`, with a placeholder bundle id (discarded) | OK. `Info.plist` has `NSBluetoothAlwaysUsageDescription`; `AndroidManifest.xml` has `BLUETOOTH_SCAN` with `neverForLocation` |
 | `EXPO_OFFLINE=1 npx expo install --check` | "Dependencies are up to date" (offline mode is unreliable, as Expo warns) |
 | `npx expo export --platform ios` / `android` | both exit 0 |
-| `npm run verify` (Node 22.22.0) | exit 0. Boundaries OK (94 files); workflow policy OK; typecheck OK; script tests 67/67; Jest 334/334 (mobile 124, rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 4), after review round 2 |
+| `npm run verify` (Node 22.22.0) | exit 0. Boundaries OK; workflow policy OK; typecheck OK; script tests 67/67; Jest 346/346 (mobile 136, rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 4), after review round 3 |
 | `npm run test:firmware` | protocol 62/62; MPU-6050 driver 16/16 (fake Wire bus) |
 
 **Not tested:**

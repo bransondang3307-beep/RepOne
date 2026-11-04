@@ -28,8 +28,15 @@ const RADIO_STATES: Record<string, BleRadioState> = {
 };
 const toRadioState = (state: string): BleRadioState => RADIO_STATES[state] ?? 'unknown';
 
-/** How long prepare() waits for a definite radio state, e.g. while iOS shows its Bluetooth permission prompt. */
-const SETTLE_MS = 5000;
+/**
+ * How long prepare() waits for a definite radio state. Two different waits:
+ * - `unknown`: iOS reports it until the user answers the Bluetooth permission prompt (and for a moment at start-up).
+ *   That is the user's time, so it gets a generous bound;
+ * - `resetting`: the radio is restarting. That is the system's time, so it gets a short one.
+ * Either way prepare() then reports the state it last saw, and the next prepare() asks again: nothing is left stuck.
+ */
+const PERMISSION_ANSWER_MS = 60_000;
+const RADIO_SETTLE_MS = 5000;
 const unsettled = (state: BleRadioState) => state === 'unknown' || state === 'resetting';
 
 /** Android 12+ asks for scan/connect at run time; older versions need location for BLE scans. iOS asks by itself. */
@@ -50,17 +57,25 @@ export function createNativeBleCentral(): BleCentral | null {
   if (!isNativeBleAvailable()) return null;
   const { default: manager } = require('react-native-ble-manager') as BleManagerModule;
   let started: Promise<void> | null = null;
-  const start = () => (started ??= manager.start({ showAlert: false }));
+  const start = () =>
+    (started ??= manager.start({ showAlert: false }).catch((error: unknown) => {
+      started = null; // a failed start is retried by the next call, never cached
+      throw error;
+    }));
 
   let scanSubscription: { remove(): void } | null = null;
-  const notificationTargets = new Map<string, (value: Uint8Array) => void>();
+  /**
+   * One entry per characteristic. Each registration is its own object, so a late failure of an older enable removes
+   * only its own entry, never a newer link's (Codex round 3).
+   */
+  const notificationTargets = new Map<string, { readonly onValue: (value: Uint8Array) => void }>();
   const key = (peripheralId: string, service: string, characteristic: string) =>
     `${peripheralId}|${lower(service)}|${lower(characteristic)}`;
   // One native listener for every characteristic value; it hands each value to the matching subscriber, in order.
   let valueSubscription: { remove(): void } | null = null;
   const ensureValueListener = () => {
     valueSubscription ??= manager.onDidUpdateValueForCharacteristic((event) => {
-      notificationTargets.get(key(event.peripheral, event.service, event.characteristic))?.(Uint8Array.from(event.value));
+      notificationTargets.get(key(event.peripheral, event.service, event.characteristic))?.onValue(Uint8Array.from(event.value));
     });
   };
 
@@ -68,21 +83,30 @@ export function createNativeBleCentral(): BleCentral | null {
     async prepare() {
       if (!(await requestAndroidPermissions())) return 'unauthorized';
       await start();
-      const first = toRadioState(await manager.checkState());
-      if (!unsettled(first)) return first;
-      // iOS reports `unknown` until the user answers the permission prompt that start() raised: wait for the answer.
+      // Listen before asking, so a change between the answer and the subscription is never missed.
       return new Promise<BleRadioState>((resolve) => {
-        const timer = setTimeout(() => {
-          sub.remove();
-          resolve(first);
-        }, SETTLE_MS);
-        const sub = manager.onDidUpdateState((event) => {
-          const state = toRadioState(event.state);
-          if (unsettled(state)) return;
-          clearTimeout(timer);
+        let latest: BleRadioState = 'unknown';
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        let done = false;
+        const finish = (state: BleRadioState) => {
+          if (done) return;
+          done = true;
+          if (timer !== null) clearTimeout(timer);
           sub.remove();
           resolve(state);
-        });
+        };
+        const observe = (state: BleRadioState) => {
+          if (done) return;
+          latest = state;
+          if (!unsettled(state)) return finish(state);
+          if (timer !== null) clearTimeout(timer);
+          timer = setTimeout(() => finish(latest), state === 'unknown' ? PERMISSION_ANSWER_MS : RADIO_SETTLE_MS);
+        };
+        const sub = manager.onDidUpdateState((event) => observe(toRadioState(event.state)));
+        manager.checkState().then(
+          (state) => observe(toRadioState(state)),
+          () => finish('unknown'),
+        );
       });
     },
 
@@ -147,11 +171,14 @@ export function createNativeBleCentral(): BleCentral | null {
 
     async startNotifications(peripheralId, service, characteristic, onValue) {
       ensureValueListener();
-      notificationTargets.set(key(peripheralId, service, characteristic), onValue);
+      const k = key(peripheralId, service, characteristic);
+      const registration = { onValue };
+      notificationTargets.set(k, registration);
       try {
         await manager.startNotification(peripheralId, service, characteristic);
       } catch (error) {
-        notificationTargets.delete(key(peripheralId, service, characteristic));
+        // Only if it is still ours: a newer link may have registered since this enable was sent.
+        if (notificationTargets.get(k) === registration) notificationTargets.delete(k);
         throw error;
       }
     },

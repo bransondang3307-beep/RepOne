@@ -180,6 +180,14 @@ export const SCENARIOS: readonly Scenario[] = [
     expected: ['full', 'full', 'full'],
     unfinished: [{ cycleIndex: 1, outcome: 'interrupted' }],
   },
+  {
+    // Codex P1 on PR #31: before any rep has completed, the side of start is known only from the interrupted cycle.
+    name: 'disconnect during the first cycle, before any rep completed',
+    script: [rest(), cycle('full', move(1, 1000), hold(2500), move(0, 1000)), rest(1000), fullRep(), rest(1000), fullRep(), rest()],
+    options: { dropouts: [[3000, 3600]] },
+    expected: ['full', 'full'],
+    unfinished: [{ cycleIndex: 0, outcome: 'interrupted' }],
+  },
 ];
 
 /** The same script with every in-cycle hold removed (the "equivalent movement without pauses"). */

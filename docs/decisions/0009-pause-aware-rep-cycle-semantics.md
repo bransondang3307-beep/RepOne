@@ -92,8 +92,11 @@ outside the detector: it sees only a signed angle from a start position.
    Flags are informational. They do not change the count.
 9. **Calibration and orientation.** The calibration supplies the axis, gyro bias and full ROM (unchanged
    `RepCalibration`). All thresholds are fractions of that ROM. Excursion is unsigned, so a flipped mount or a
-   different axis needs no configuration. The sign of the last cycle's peak (`outwardSign`) is remembered so that a
-   position re-anchored after a gap lands on the side where cycles happen.
+   different axis needs no configuration. The sign of the last cycle's peak (`outwardSign`) is remembered, including
+   that of a cycle interrupted by a gap, so that a position re-anchored after a gap lands on the side where cycles
+   happen. Gravity is unsigned, so that side is a guess until the next settled rest in `returning`. There, the
+   detector keeps whichever side makes the gyro's signed motion since the anchor agree with the gravity distance now.
+   That corrects a wrong guess, for example a gap before any cycle on a mirrored mount (Codex P1, PR #31).
 
 ## 3. Gravity as an absolute angle at rest
 

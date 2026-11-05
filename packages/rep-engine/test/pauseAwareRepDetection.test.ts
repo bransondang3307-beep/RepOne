@@ -128,6 +128,24 @@ describe('gravity reference at rest (ADR 0009 §3)', () => {
     expect(run.events.flatMap((e) => e.quality_flags)).not.toContain(DETECTOR_QUALITY_FLAGS.referenceAssumed);
   });
 
+  it.each([false, true])(
+    'resolves the side of start after a gap with no cycle observed yet (mount flipped: %s)',
+    (mountFlipped) => {
+      // The lever is lifted to the top during a 1.3 s dropout that starts before any cycle; nothing hints at the side.
+      const script = [hold(1500), cycle('full', move(1, 1000), hold(2500), move(0, 1000)), hold(1000)];
+      const later = [cycle('full', move(1, 1000), move(0, 1000)), hold(1000), cycle('full', move(1, 1000), move(0, 1000)), hold(1500)];
+      const trace = generateScenario([...script, ...later], { ...BASE_OPTIONS, mountFlipped, dropouts: [[1400, 2700]] });
+      const detector = new RotationalRepDetector('s', SCENARIO_CALIBRATION);
+      const events = runSamples(detector, trace.samples);
+      expect(events.map((e) => e.classification)).toEqual(['full', 'full']);
+      trace.cycles.slice(1).forEach((label, i) => {
+        expect(Math.abs(events[i]!.timestamp_ms - label.trueReturnMs(0.1))).toBeLessThanOrEqual(timingToleranceMs(50));
+      });
+      // No cycle was in progress when the gap began, so nothing is reported as interrupted.
+      expect(detector.finish()).toEqual([]);
+    },
+  );
+
   it('documents a limitation: without gravity (vertical axis) a disconnect at the top shifts later reps by half a cycle', () => {
     const sc = scenario('disconnect mid-cycle: that cycle is interrupted, the rest are timed correctly');
     const run = runScenario(sc, undefined, { axis: 2 });

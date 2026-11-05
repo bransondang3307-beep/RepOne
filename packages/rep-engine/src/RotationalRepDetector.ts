@@ -83,8 +83,12 @@ type State =
   | { kind: 'idle' }
   /** A cycle observed from its start is in progress. Pauses and same-direction resumption stay in this state. */
   | { kind: 'moving'; startMs: number; peakRad: number; peakSign: number; flags: Set<string> }
-  /** Away from start after a gap; the cycle's start was not observed. Returning to start counts nothing. */
-  | { kind: 'returning'; settledSinceMs: number | null };
+  /**
+   * Away from start after a gap; the cycle's start was not observed. Returning to start counts nothing.
+   * `anchorRaw`/`anchorRad`: window-mean raw angle and unsigned gravity excursion when re-anchored, used to resolve
+   * which side of start the lever is on (gravity alone is unsigned).
+   */
+  | { kind: 'returning'; settledSinceMs: number | null; anchorRaw: number; anchorRad: number };
 
 interface WindowEntry {
   readonly t: number;
@@ -205,9 +209,14 @@ export class RotationalRepDetector implements MotionDetector<RepEvent> {
 
   /** Declare that the settled window's mean position is at `angleRad` from start. */
   private setWindowAngle(angleRad: number): void {
+    this.zeroOffset = this.windowMeanRaw() - angleRad;
+  }
+
+  private windowMeanRaw(): number {
+    if (this.window.length === 0) return this.rawAngle;
     let sum = 0;
     for (const { rawAngle } of this.window) sum += rawAngle;
-    this.zeroOffset = (this.window.length > 0 ? sum / this.window.length : this.rawAngle) - angleRad;
+    return sum / this.window.length;
   }
 
   private onIdle(t: number, settled: boolean, sample: RawSensorSample): RepEvent[] {
@@ -227,7 +236,7 @@ export class RotationalRepDetector implements MotionDetector<RepEvent> {
     if (this.state.kind !== 'returning') return;
     if (settled) {
       this.state.settledSinceMs ??= t;
-      this.correctFromGravity(null);
+      this.resolveReturningSide(this.state);
       // Parked away from start for a long time: accept the rest position as the new start, by assumption.
       if (t - this.state.settledSinceMs > this.config.longCycleMs) {
         this.zeroAtStart();
@@ -280,6 +289,8 @@ export class RotationalRepDetector implements MotionDetector<RepEvent> {
 
   /** Sample gap: integration across it is meaningless, so the position reference is lost. */
   private loseReference(lastSeenMs: number): void {
+    // The interrupted cycle shows which side of start the movement goes to, even before any rep completes.
+    if (this.state.kind === 'moving' && this.state.peakSign !== 0) this.outwardSign = this.state.peakSign;
     this.closeUnfinished('interrupted', 'sample_gap', lastSeenMs);
     this.state = { kind: 'syncing' };
     this.rawAngle = 0;
@@ -312,9 +323,25 @@ export class RotationalRepDetector implements MotionDetector<RepEvent> {
       this.state = { kind: 'idle' };
     } else {
       this.setWindowAngle(this.outwardSign * fromGravity);
-      this.state = { kind: 'returning', settledSinceMs: null };
+      this.state = { kind: 'returning', settledSinceMs: null, anchorRaw: this.windowMeanRaw(), anchorRad: fromGravity };
     }
     this.hadReference = true;
+  }
+
+  /**
+   * Settled while returning: gravity gives the unsigned distance from start now, and the gyro gives the signed motion
+   * since the anchor. Only one side of start fits both, which corrects a wrong `outwardSign` guess (e.g. a gap before
+   * any cycle on a mirrored mount). Ambiguous or inconsistent readings leave the angle unchanged.
+   */
+  private resolveReturningSide(state: Extract<State, { kind: 'returning' }>): void {
+    const now = this.gravityExcursion();
+    if (now === null) return;
+    const moved = this.windowMeanRaw() - state.anchorRaw;
+    const fit = (side: number) => Math.abs(Math.abs(side * state.anchorRad + moved) - now);
+    const side = fit(this.outwardSign) <= fit(-this.outwardSign) ? this.outwardSign : -this.outwardSign;
+    if (fit(side) > this.config.startFraction * this.rom) return;
+    this.outwardSign = side;
+    this.setWindowAngle(Math.sign(side * state.anchorRad + moved) * now);
   }
 
   /** The settled window is the start position: its mean angle becomes zero and its gravity the reference. */

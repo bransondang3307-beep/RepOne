@@ -146,6 +146,37 @@ describe('gravity reference at rest (ADR 0009 §3)', () => {
     },
   );
 
+  it.each([false, true])(
+    'does not end a return at a false zero crossing after an ambiguous re-anchor (mount flipped: %s)',
+    (mountFlipped) => {
+      // Codex P1, PR #31 round 2: the dropout starts before any cycle, the lever is re-anchored during a pause at 30 %,
+      // then continues outward at constant speed without settling, returns, and one complete rep follows.
+      const script = [
+        hold(1500),
+        move(0.3, 600),
+        hold(1500),
+        move(1, 250, 'constant'),
+        move(0, 1000),
+        hold(1000),
+        cycle('full', move(1, 1000), move(0, 1000)),
+        hold(1500),
+      ];
+      // While the lever is held, both sides fit gravity equally; across seeds noise must never decide the side.
+      for (let seed = 1; seed <= 12; seed++) {
+        const trace = generateScenario(script, { ...BASE_OPTIONS, seed, mountFlipped, dropouts: [[1400, 2300]] });
+        const detector = new RotationalRepDetector('s', SCENARIO_CALIBRATION);
+        const events = runSamples(detector, trace.samples);
+        const timing = Math.abs((events[0]?.timestamp_ms ?? NaN) - trace.cycles[0]!.trueReturnMs(0.1));
+        expect({ seed, events: events.map((e) => e.classification), onTime: timing <= timingToleranceMs(50) }).toEqual({
+          seed,
+          events: ['full'],
+          onTime: true,
+        });
+        expect(detector.finish()).toEqual([]);
+      }
+    },
+  );
+
   it('documents a limitation: without gravity (vertical axis) a disconnect at the top shifts later reps by half a cycle', () => {
     const sc = scenario('disconnect mid-cycle: that cycle is interrupted, the rest are timed correctly');
     const run = runScenario(sc, undefined, { axis: 2 });

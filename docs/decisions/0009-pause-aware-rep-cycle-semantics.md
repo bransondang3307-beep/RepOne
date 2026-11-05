@@ -97,6 +97,12 @@ outside the detector: it sees only a signed angle from a start position.
    happen. Gravity is unsigned, so that side is a guess until the next settled rest in `returning`. There, the
    detector keeps whichever side makes the gyro's signed motion since the anchor agree with the gravity distance now.
    That corrects a wrong guess, for example a gap before any cycle on a mirrored mount (Codex P1, PR #31).
+   The side changes only when gravity rules the current one out; while both fit (no motion since the anchor), noise
+   cannot flip it. Until the side is trusted (from an observed cycle or confirmed by gravity), the integrated angle
+   alone may not end the return, because with a guessed side it can cross zero while the lever is moving further out.
+   The return then ends only at a settled rest that gravity places inside the start band (Codex P1, PR #31 round 2).
+   **Cost:** a rep started right after such a gap, before any settled rest, can be lost. This is conservative: it may
+   miss a rep, but it never adds one.
 
 ## 3. Gravity as an absolute angle at rest
 

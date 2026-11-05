@@ -86,9 +86,18 @@ type State =
   /**
    * Away from start after a gap; the cycle's start was not observed. Returning to start counts nothing.
    * `anchorRaw`/`anchorRad`: window-mean raw angle and unsigned gravity excursion when re-anchored, used to resolve
-   * which side of start the lever is on (gravity alone is unsigned).
+   * which side of start the lever is on (gravity alone is unsigned). `side` is the side the anchor was placed on;
+   * `sideConfirmed`: it came from an observed cycle or gravity ruled the other side out. Until then the integrated
+   * angle may sit on the wrong side of start.
    */
-  | { kind: 'returning'; settledSinceMs: number | null; anchorRaw: number; anchorRad: number };
+  | {
+      kind: 'returning';
+      settledSinceMs: number | null;
+      anchorRaw: number;
+      anchorRad: number;
+      side: number;
+      sideConfirmed: boolean;
+    };
 
 interface WindowEntry {
   readonly t: number;
@@ -122,6 +131,8 @@ export class RotationalRepDetector implements MotionDetector<RepEvent> {
   private gravityAtStart: Vec3 | null = null;
   /** Sign of the angle at the peak of the last observed cycle — which side of start the movement goes to. */
   private outwardSign = 1;
+  /** True once `outwardSign` comes from an observed cycle or a gravity-confirmed side, not the default guess. */
+  private outwardSignObserved = false;
   /** Flags raised while no cycle was in progress; attached to the next cycle. */
   private pendingFlags = new Set<string>();
   private unfinished: UnfinishedCycle[] = [];
@@ -145,6 +156,7 @@ export class RotationalRepDetector implements MotionDetector<RepEvent> {
     this.window = [];
     this.gravityAtStart = null;
     this.outwardSign = 1;
+    this.outwardSignObserved = false;
     this.pendingFlags = new Set();
     this.unfinished = [];
     this.hadReference = false;
@@ -237,6 +249,13 @@ export class RotationalRepDetector implements MotionDetector<RepEvent> {
     if (settled) {
       this.state.settledSinceMs ??= t;
       this.resolveReturningSide(this.state);
+      // Gravity says we are back at start: valid whichever side we came from.
+      const fromGravity = this.gravityExcursion();
+      if (fromGravity !== null && fromGravity <= this.config.returnFraction * this.rom) {
+        this.zeroAtStart();
+        this.state = { kind: 'idle' };
+        return;
+      }
       // Parked away from start for a long time: accept the rest position as the new start, by assumption.
       if (t - this.state.settledSinceMs > this.config.longCycleMs) {
         this.zeroAtStart();
@@ -247,7 +266,9 @@ export class RotationalRepDetector implements MotionDetector<RepEvent> {
     } else {
       this.state.settledSinceMs = null;
     }
-    if (Math.abs(this.angle) <= this.config.returnFraction * this.rom) this.state = { kind: 'idle' };
+    // The integrated angle may only end the return once the side of start is trusted; with a guessed side it can cross
+    // zero while the lever is actually moving further out (Codex P1, PR #31 round 2).
+    if (this.state.sideConfirmed && Math.abs(this.angle) <= this.config.returnFraction * this.rom) this.state = { kind: 'idle' };
   }
 
   private onMoving(t: number, settled: boolean, sample: RawSensorSample): RepEvent[] {
@@ -267,7 +288,7 @@ export class RotationalRepDetector implements MotionDetector<RepEvent> {
     if (excursion > this.config.returnFraction * this.rom) return [];
 
     this.state = { kind: 'idle' };
-    if (moving.peakSign !== 0) this.outwardSign = moving.peakSign;
+    if (moving.peakSign !== 0) this.observeOutwardSign(moving.peakSign);
     return [
       {
         session_id: this.sessionId,
@@ -290,7 +311,7 @@ export class RotationalRepDetector implements MotionDetector<RepEvent> {
   /** Sample gap: integration across it is meaningless, so the position reference is lost. */
   private loseReference(lastSeenMs: number): void {
     // The interrupted cycle shows which side of start the movement goes to, even before any rep completes.
-    if (this.state.kind === 'moving' && this.state.peakSign !== 0) this.outwardSign = this.state.peakSign;
+    if (this.state.kind === 'moving' && this.state.peakSign !== 0) this.observeOutwardSign(this.state.peakSign);
     this.closeUnfinished('interrupted', 'sample_gap', lastSeenMs);
     this.state = { kind: 'syncing' };
     this.rawAngle = 0;
@@ -323,7 +344,14 @@ export class RotationalRepDetector implements MotionDetector<RepEvent> {
       this.state = { kind: 'idle' };
     } else {
       this.setWindowAngle(this.outwardSign * fromGravity);
-      this.state = { kind: 'returning', settledSinceMs: null, anchorRaw: this.windowMeanRaw(), anchorRad: fromGravity };
+      this.state = {
+        kind: 'returning',
+        settledSinceMs: null,
+        anchorRaw: this.windowMeanRaw(),
+        anchorRad: fromGravity,
+        side: this.outwardSign,
+        sideConfirmed: this.outwardSignObserved,
+      };
     }
     this.hadReference = true;
   }
@@ -331,17 +359,29 @@ export class RotationalRepDetector implements MotionDetector<RepEvent> {
   /**
    * Settled while returning: gravity gives the unsigned distance from start now, and the gyro gives the signed motion
    * since the anchor. Only one side of start fits both, which corrects a wrong `outwardSign` guess (e.g. a gap before
-   * any cycle on a mirrored mount). Ambiguous or inconsistent readings leave the angle unchanged.
+   * any cycle on a mirrored mount). The side changes only when gravity rules the current one out and fits the other;
+   * ambiguous readings (e.g. no motion since the anchor, where both sides fit) never flip it, so noise cannot either.
    */
   private resolveReturningSide(state: Extract<State, { kind: 'returning' }>): void {
     const now = this.gravityExcursion();
     if (now === null) return;
     const moved = this.windowMeanRaw() - state.anchorRaw;
     const fit = (side: number) => Math.abs(Math.abs(side * state.anchorRad + moved) - now);
-    const side = fit(this.outwardSign) <= fit(-this.outwardSign) ? this.outwardSign : -this.outwardSign;
-    if (fit(side) > this.config.startFraction * this.rom) return;
-    this.outwardSign = side;
-    this.setWindowAngle(Math.sign(side * state.anchorRad + moved) * now);
+    const tolerance = this.config.startFraction * this.rom;
+    const current = fit(state.side) <= tolerance;
+    const other = fit(-state.side) <= tolerance;
+    if (!current && !other) return; // inconsistent: change nothing
+    if (current !== other) {
+      if (other) state.side = -state.side;
+      state.sideConfirmed = true;
+      this.observeOutwardSign(state.side);
+    }
+    this.setWindowAngle(Math.sign(state.side * state.anchorRad + moved) * now);
+  }
+
+  private observeOutwardSign(sign: number): void {
+    this.outwardSign = sign;
+    this.outwardSignObserved = true;
   }
 
   /** The settled window is the start position: its mean angle becomes zero and its gravity the reference. */

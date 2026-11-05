@@ -2,6 +2,9 @@
 
 - **Date:** 2026-10-15
 - **Status:** Proposed (implemented in Sprint 1; thresholds unvalidated on real hardware)
+- **Detector section:** a revision, `rotational-rep-fsm-0.2.0`, is proposed in
+  [ADR 0009](0009-pause-aware-rep-cycle-semantics.md) (RO-032). Until the owner accepts it, the section below records
+  0.1.0. The contract sections are unchanged.
 
 ## Sensor contract
 

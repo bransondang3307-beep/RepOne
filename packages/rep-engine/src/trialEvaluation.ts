@@ -92,6 +92,7 @@ export function validateTrial(trial: RecordedTrial): string[] {
   const problems: string[] = [];
   if (trial.format !== TRIAL_FORMAT) problems.push(`format must be ${TRIAL_FORMAT}`);
   if (!trial.trial_id) problems.push('trial_id is required');
+  if (!trial.scenario) problems.push('scenario is required');
   if (trial.provenance !== 'synthetic' && trial.provenance !== 'sensor') problems.push('provenance must be synthetic or sensor');
   if (trial.split !== 'tuning' && trial.split !== 'evaluation') problems.push('split must be tuning or evaluation');
   if (!(trial.calibration?.full_rom_rad > 0)) problems.push('calibration.full_rom_rad must be positive');

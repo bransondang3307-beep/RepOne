@@ -44,16 +44,19 @@ function parseArgs(argv) {
     else if (a === '--split') args.split = argv[++i];
     else if (a === '--detector') args.detector = argv[++i];
     else if (a === '--timing-tolerance-ms') args.timingToleranceMs = Number(argv[++i]);
-    else if (a === '--write-synthetic') args.writeSynthetic = argv[++i];
+    else if (a === '--write-synthetic') args.writeSynthetic = fromCaller(argv[++i]);
     else if (a === '--help' || a === '-h') args.help = true;
     else if (a.startsWith('--')) throw new Error(`unknown option ${a}`);
-    else args.inputs.push(a);
+    else args.inputs.push(fromCaller(a));
   }
   if (args.split && !['evaluation', 'tuning'].includes(args.split)) throw new Error('--split must be evaluation or tuning');
   if (!['current', 'legacy'].includes(args.detector)) throw new Error('--detector must be current or legacy');
   if (!(args.timingToleranceMs > 0)) throw new Error('--timing-tolerance-ms must be positive');
   return args;
 }
+
+// `npm run -w` runs in the package directory; resolve user paths against where the command was typed.
+const fromCaller = (p) => path.resolve(process.env.INIT_CWD || process.cwd(), p);
 
 function listTrialFiles(input) {
   const stat = fs.statSync(input);

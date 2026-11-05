@@ -6,7 +6,7 @@
 > - After your work PR merges, set your row to `done` in your own status-update PR (`AGENTS.md` §3 step 9).
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-030**.
+> - Next free ID: **RO-033** (RO-030 and RO-031 are recorded on their open branches; RO-032 below).
 
 ## Board
 
@@ -41,6 +41,7 @@
 | RO-027 | Dependency security: targeted Expo SDK 57 patch (`expo` 57.0.31, `expo-router` 57.0.29, `node-forge` 1.4.2) | Claude Code | P1 | done | — | [PR #21](https://github.com/bransondang3307-beep/RepOne/pull/21) — merged `4d6ce0c` |
 | RO-028 | iOS: home and History content starts under the translucent navigation header | Claude Code | P2 | todo | — | — |
 | RO-029 | Real-sensor pipeline over BLE: wire protocol, codec, firmware, iPhone BLE adapter (owner-directed) | Claude Code | P1 | in-progress | RO-012 (done); RO-025 before the BLE adapter lands | — |
+| RO-032 | Pause-aware rep detection: cycle semantics, regression scenarios, offline evaluation (owner-directed) | Claude Code | P1 | in-review | — | `claude/RO-032-pause-aware-rep-detection`; PR link in the handoff |
 
 ## Task details
 
@@ -406,3 +407,24 @@
     compiled;
   - Codex has reviewed each PR's final head;
   - hardware and iPhone validation are reported as outstanding until the owner performs them.
+
+### RO-032 — Pause-aware rep detection (owner-directed, 2026-11-04)
+- **Goal:** a rep detector that tracks a complete movement cycle. Pauses and renewed acceleration must not count as new
+  reps. Owner requirement: moving up, stopping halfway, then continuing up is one movement, not another rep.
+- **Scope (owner prompt, which also authorised recording this task):**
+  - Owned files: `packages/rep-engine/` (detector, evaluation, algorithm fixtures and tests);
+    `docs/decisions/0009-pause-aware-rep-cycle-semantics.md` (Proposed);
+    `docs/experiments/rep-detection-capture-protocol.md`; the RO-032 handoff; a pointer line in ADR 0002.
+  - Not touched: Bluetooth transport, firmware, sensor units and shared contracts, UI screens, the database schema,
+    other agents' branches.
+- **Completion criteria:**
+  - the current detector is audited and the owner scenario reproduced;
+  - a Proposed ADR defines the cycle semantics;
+  - labelled synthetic regression scenarios assert timing and classification, with the pause invariant and negative
+    controls;
+  - an offline replay and evaluation command and a capture protocol exist;
+  - `npm run verify` is green;
+  - Codex has reviewed the final head;
+  - the owner decides on ADR 0009 §8;
+  - real-data validation is reported as outstanding until recordings exist (RO-018).
+

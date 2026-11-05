@@ -41,7 +41,7 @@
 | RO-027 | Dependency security: targeted Expo SDK 57 patch (`expo` 57.0.31, `expo-router` 57.0.29, `node-forge` 1.4.2) | Claude Code | P1 | done | — | [PR #21](https://github.com/bransondang3307-beep/RepOne/pull/21) — merged `4d6ce0c` |
 | RO-028 | iOS: home and History content starts under the translucent navigation header | Claude Code | P2 | todo | — | — |
 | RO-029 | Real-sensor pipeline over BLE: wire protocol, codec, firmware, iPhone BLE adapter (owner-directed) | Claude Code | P1 | in-progress | RO-012 (done); RO-025 before the BLE adapter lands | — |
-| RO-032 | Pause-aware rep detection: cycle semantics, regression scenarios, offline evaluation (owner-directed) | Claude Code | P1 | in-review | — | `claude/RO-032-pause-aware-rep-detection`; PR link in the handoff |
+| RO-032 | Pause-aware rep detection: cycle semantics, regression scenarios, offline evaluation (owner-directed) | Claude Code | P1 | in-review | — | [PR #31](https://github.com/bransondang3307-beep/RepOne/pull/31) (`claude/RO-032-pause-aware-rep-detection`) |
 
 ## Task details
 

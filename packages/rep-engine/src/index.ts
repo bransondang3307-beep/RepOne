@@ -23,3 +23,16 @@ export {
   type ChannelRepEvent,
   type MultiChannelRepDetectorOptions,
 } from './MultiChannelRepDetector';
+export {
+  TRIAL_FORMAT,
+  evaluateTrial,
+  formatEvaluationReport,
+  summarizeEvaluations,
+  validateTrial,
+  type EvaluationGroup,
+  type RecordedTrial,
+  type TrialCycleLabel,
+  type TrialEvaluation,
+  type TrialEvaluationOptions,
+  type TrialStillLabel,
+} from './trialEvaluation';

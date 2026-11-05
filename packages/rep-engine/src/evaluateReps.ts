@@ -9,6 +9,8 @@ export interface RepEvaluation {
   readonly recall: number | null;
   /** Of matched reps, fraction whose full/partial class agrees with the label. */
   readonly classificationAgreement: number | null;
+  /** Every label–detection pair, in label order. */
+  readonly matched: ReadonlyArray<{ label: GroundTruthRep; event: RepEvent }>;
   readonly unmatchedDetections: readonly RepEvent[];
   readonly missedLabels: readonly GroundTruthRep[];
   readonly misclassified: ReadonlyArray<{ label: GroundTruthRep; event: RepEvent }>;
@@ -52,6 +54,7 @@ export function evaluateReps(
     precision: ratio(tp, detections.length),
     recall: ratio(tp, labels.length),
     classificationAgreement: ratio(tp - misclassified.length, tp),
+    matched,
     unmatchedDetections,
     missedLabels,
     misclassified,

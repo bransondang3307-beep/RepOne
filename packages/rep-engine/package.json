@@ -10,7 +10,8 @@
   },
   "scripts": {
     "test": "jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "evaluate:trials": "node scripts/evaluate-trials.cjs"
   },
   "dependencies": {
     "@repone/sensor-contracts": "*"

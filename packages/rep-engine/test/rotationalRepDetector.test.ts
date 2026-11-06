@@ -62,13 +62,29 @@ describe('RotationalRepDetector', () => {
     }
   });
 
-  it('documents a known limitation: at 0.12 rad/s noise, stillness is rarely detected and reps are missed', () => {
-    let missed = 0;
-    for (let seed = 1; seed <= 10; seed++) {
-      const trace = generateTrace(LABELLED_SET_SCRIPT, { ...BASE_SIMULATION, seed, gyroNoiseRadS: 0.12 });
-      missed += evaluateReps(run(trace.samples), trace.labels).falseNegatives;
+  it('stays accurate at 0.12–0.2 rad/s noise, where 0.1.0 missed reps (position-band stillness, ADR 0009 §4)', () => {
+    for (const gyroNoiseRadS of [0.12, 0.2]) {
+      for (let seed = 1; seed <= 10; seed++) {
+        const trace = generateTrace(LABELLED_SET_SCRIPT, { ...BASE_SIMULATION, seed, gyroNoiseRadS });
+        const result = evaluateReps(run(trace.samples), trace.labels);
+        expect({ gyroNoiseRadS, seed, fp: result.falsePositives, fn: result.falseNegatives }).toEqual({
+          gyroNoiseRadS,
+          seed,
+          fp: 0,
+          fn: 0,
+        });
+      }
     }
-    expect(missed).toBeGreaterThan(0);
+  });
+
+  it('documents a known limitation: at 0.5 rad/s noise, integration noise causes missed and extra reps', () => {
+    let errors = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      const trace = generateTrace(LABELLED_SET_SCRIPT, { ...BASE_SIMULATION, seed, gyroNoiseRadS: 0.5 });
+      const result = evaluateReps(run(trace.samples), trace.labels);
+      errors += result.falseNegatives + result.falsePositives;
+    }
+    expect(errors).toBeGreaterThan(0);
   });
 
   it('works on a non-default axis when calibrated from a reference rep with gyro bias', () => {

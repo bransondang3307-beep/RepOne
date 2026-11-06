@@ -10,9 +10,11 @@ export {
 } from './calibration';
 export {
   DEFAULT_ROTATIONAL_REP_CONFIG,
+  DETECTOR_QUALITY_FLAGS,
   ROTATIONAL_REP_ALGORITHM_VERSION,
   RotationalRepDetector,
   type RotationalRepDetectorConfig,
+  type UnfinishedCycle,
 } from './RotationalRepDetector';
 export { evaluateReps, type RepEvaluation } from './evaluateReps';
 export {
@@ -21,3 +23,16 @@ export {
   type ChannelRepEvent,
   type MultiChannelRepDetectorOptions,
 } from './MultiChannelRepDetector';
+export {
+  TRIAL_FORMAT,
+  evaluateTrial,
+  formatEvaluationReport,
+  summarizeEvaluations,
+  validateTrial,
+  type EvaluationGroup,
+  type RecordedTrial,
+  type TrialCycleLabel,
+  type TrialEvaluation,
+  type TrialEvaluationOptions,
+  type TrialStillLabel,
+} from './trialEvaluation';

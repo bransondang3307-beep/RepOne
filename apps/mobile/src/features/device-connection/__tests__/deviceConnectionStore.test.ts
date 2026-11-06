@@ -180,4 +180,51 @@ describe('deviceConnectionStore', () => {
     scheduler.advance(5000); // the cancelled attempt's link teardown finishes (its grace period)
     expect(central.peripheral('p1').connected).toBe(false);
   });
+
+  // Codex P1 on PR #28 at c4d9ce7 (fix round 4, owner-authorized 2026-11-06): fails on c4d9ce7, where the new device
+  // connected at once and the old device's late disconnect then tore its link down.
+  it("reconnecting the same sensor after a switch waits out the old device's teardown, so the new link survives", async () => {
+    const scheduler = new ManualScheduler();
+    const central = new FakeBleCentral(scheduler, [new FakePeripheral({ id: 'p1' })]);
+    const store = createDeviceConnectionStore(container(device(), central, scheduler));
+    const flush = async () => {
+      for (let i = 0; i < 30; i++) await Promise.resolve();
+    };
+    await store.getState().chooseBle();
+    await store.getState().selectSensor('p1');
+
+    // 1. Hold the device-info read and the central's disconnect while the first device is mid-handshake.
+    const releaseRead = central.hold('read');
+    const releaseOldDisconnect = central.hold('disconnect');
+    void store.getState().connect();
+    await flush();
+    expect(store.getState().connectionState).toBe('connecting');
+    expect(central.peripheral('p1').connected).toBe(true); // the OS link is up; the handshake is stuck at the read
+
+    // 2. Switch to Simulated: the stuck attempt is cancelled at once; its teardown waits on the held disconnect.
+    await store.getState().chooseSimulated();
+    expect(store.getState().sensorKind).toBe('simulated');
+    releaseRead(); // the old read answers into its cancelled attempt
+
+    // 3. Pick and connect the same peripheral again.
+    await store.getState().chooseBle();
+    await store.getState().selectSensor('p1');
+    const reconnecting = store.getState().connect();
+    await flush();
+
+    // 4. Release the old disconnect: the OS drops the old link and reports it.
+    releaseOldDisconnect();
+    await flush();
+    scheduler.advance(2000); // the old teardown's grace period (its device was disposed, so the event is not its own)
+    await reconnecting;
+    await flush();
+
+    // The new connection is up after the old teardown, and stays up.
+    expect(store.getState()).toMatchObject({ sensorKind: 'ble', connectionState: 'connected', error: null });
+    expect(central.peripheral('p1').connected).toBe(true);
+    scheduler.advance(10_000);
+    await flush();
+    expect(store.getState().connectionState).toBe('connected');
+    expect(central.peripheral('p1').connected).toBe(true);
+  });
 });

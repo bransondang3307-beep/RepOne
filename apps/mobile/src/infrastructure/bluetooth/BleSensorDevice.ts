@@ -40,6 +40,34 @@ export interface BleSensorDeviceOptions {
   readonly streamTimeoutMs?: number;
   /** This many undecodable packets in a row fail the streaming channels with `invalid_data`. Default 5. */
   readonly maxConsecutiveBadPackets?: number;
+  /**
+   * Link teardowns still in flight, per peripheral. Every device that may connect the same peripheral must share one,
+   * so that a new device never connects while an earlier device's teardown can still disconnect it (Codex round 4).
+   * Default: a registry of this device's own.
+   */
+  readonly teardowns?: BleTeardownRegistry;
+}
+
+/**
+ * Link teardowns still in flight, per peripheral. A device's teardown (its disconnect call plus the OS's event, or
+ * the grace period) outlives the device when the app switches sensors and disposes it. A later device for the same
+ * peripheral waits here for it, so the old disconnect can never cut the new link (Codex round 4 on PR #28).
+ */
+export class BleTeardownRegistry {
+  private readonly inFlight = new Map<string, Promise<void>>();
+
+  /** The unfinished teardown of `peripheralId`'s link, or null. */
+  pending(peripheralId: string): Promise<void> | null {
+    return this.inFlight.get(peripheralId) ?? null;
+  }
+
+  /** Record a teardown; it is forgotten once it finishes (unless a later one replaced it). */
+  track(peripheralId: string, teardown: Promise<void>): void {
+    this.inFlight.set(peripheralId, teardown);
+    void teardown.then(() => {
+      if (this.inFlight.get(peripheralId) === teardown) this.inFlight.delete(peripheralId);
+    });
+  }
 }
 
 const WATCHDOG_TICK_MS = 250;
@@ -148,9 +176,11 @@ export class BleSensorDevice implements DeviceConnection {
   /** Set while we expect the OS's event for our own disconnect: that event is ours, not a link loss. */
   private ownDisconnect: (() => void) | null = null;
   private readonly unsubscribeCentral: Unsubscribe[];
+  private readonly teardowns: BleTeardownRegistry;
 
   constructor(private readonly options: BleSensorDeviceOptions) {
     this.central = options.central;
+    this.teardowns = options.teardowns ?? new BleTeardownRegistry();
     this.scheduler = options.scheduler ?? systemScheduler;
     this.tracker = new StreamTracker({ sourceIdFor: (channel) => this.sourceIdFor(channel) });
     this.unsubscribeCentral = [
@@ -209,8 +239,10 @@ export class BleSensorDevice implements DeviceConnection {
     if (this.state === 'connected') return Promise.resolve();
     if (this.pending) return this.pending;
     if (this.closing) return this.closing.then(() => this.connect());
-    // A failed attempt's link is still being torn down: never let its late disconnect hit this attempt.
-    if (this.teardown) return this.teardown.then(() => this.connect());
+    // A link of this peripheral is still being torn down, by this device after a failed attempt or by an earlier
+    // device the app switched away from: never let its late disconnect hit this attempt (Codex rounds 1 and 4).
+    const teardown = this.teardowns.pending(this.options.peripheralId);
+    if (teardown) return teardown.then(() => this.connect());
     let settle!: { resolve: () => void; reject: (error: unknown) => void };
     const pending = new Promise<void>((resolve, reject) => {
       settle = { resolve, reject };
@@ -300,6 +332,7 @@ export class BleSensorDevice implements DeviceConnection {
       if (this.teardown === teardown) this.teardown = null;
     });
     this.teardown = teardown;
+    this.teardowns.track(this.options.peripheralId, teardown);
     return teardown;
   }
 

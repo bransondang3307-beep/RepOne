@@ -145,6 +145,30 @@ Simulation must keep working, and the app must never fall back to it silently.
   - the bundle identifier;
   - the wireless board.
 
+## Review round 4 (owner-authorized 2026-11-06; Codex reviewed `c4d9ce7`)
+- **Authorization:** the owner's
+  [decision comment](https://github.com/bransondang3307-beep/RepOne/pull/28#issuecomment-6692326262) allows exactly one
+  fourth round, limited to the reconnect race and its regression tests.
+- **[P1] `sensorSelection.ts:116`, preserve the teardown barrier across sensor replacement.**
+  - **The defect.** Switching away during a handshake cancels the attempt and starts its link teardown. The old
+    device is then disposed, and its teardown barrier was private to it. A new device for the same peripheral
+    connected at once, and the old device's late disconnect then cut the new link.
+  - **The fix,** as proposed on the PR:
+    - a `BleTeardownRegistry` keeps link teardowns in flight per peripheral;
+    - `createSensorSelection` shares one registry among all the BLE devices it creates;
+    - `connect()` waits for any unfinished teardown of its peripheral, whichever device started it. The wait is
+      bounded by the native disconnect plus the existing 2 s grace.
+    - Switching away stays immediate. Nothing else changed.
+  - **Regression tests:**
+    - the owner's exact sequence through the app's store (`deviceConnectionStore.test.ts`): device-info read and
+      disconnect held → switch to Simulated → reconnect the same peripheral → release the old disconnect → the new
+      connection is up and stays up;
+    - a device-level test with a shared registry, plus a negative control with separate registries that shows the
+      link being cut.
+    - The store test fails on `c4d9ce7` with `connection_lost`, and passes with the fix.
+- **Checks:** fix commit, `npm run verify`, the exports and the reviewed head are in the PR's round-4 summary comment.
+  No further fix round is authorized.
+
 ## Known limitations / risks
 - **Placeholder calibration.** Real-sensor sets use the existing synthetic calibration (policy unchanged), so their rep
   counts are meaningless until a calibration step exists. The UI says so.

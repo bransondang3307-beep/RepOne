@@ -10,6 +10,7 @@ import {
 import {
   BleSensorDevice,
   BleSensorScanner,
+  BleTeardownRegistry,
   type BleCentral,
   type BlePeripheralSeen,
   type BleSensorInfo,
@@ -92,6 +93,8 @@ class NoSensorPicked implements DeviceConnection {
 export function createSensorSelection(options: SensorSelectionOptions): SensorSelection {
   const { simulated, central } = options;
   const scanner = central ? new BleSensorScanner(central, options.scheduler) : null;
+  // Shared by every BLE device created here: a sensor picked again waits out the teardown of the device it replaced.
+  const teardowns = new BleTeardownRegistry();
   const listeners = new Set<() => void>();
   let kind: SensorKind = 'simulated';
   let device: DeviceConnection = simulated;
@@ -154,7 +157,7 @@ export function createSensorSelection(options: SensorSelectionOptions): SensorSe
       const ble = requireBle();
       if (kind === 'ble' && selectedPeripheralId === peripheralId) return;
       await scanner?.stop();
-      await replaceDevice(new BleSensorDevice({ central: ble, peripheralId, scheduler: options.scheduler }), 'ble', peripheralId);
+      await replaceDevice(new BleSensorDevice({ central: ble, peripheralId, scheduler: options.scheduler, teardowns }), 'ble', peripheralId);
     },
     async scanForSensors(onFound, onStopped) {
       requireBle();

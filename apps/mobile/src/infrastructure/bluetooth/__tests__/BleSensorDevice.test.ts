@@ -1,7 +1,7 @@
 import { DeviceConnectError, SensorStartError, type RawSensorSample, type SensorStatus } from '@repone/sensor-contracts';
 import { ManualScheduler, describeDeviceConnectionContract, describeSensorSourceContract } from '@repone/sensor-contracts/testing';
 import { BLE_UUIDS, encodeDeviceInfo } from '@repone/sensor-protocol';
-import { BleSensorDevice } from '../BleSensorDevice';
+import { BleSensorDevice, BleTeardownRegistry } from '../BleSensorDevice';
 import { BleSensorScanner } from '../BleSensorScanner';
 import { FakeBleCentral, FakePeripheral, type FakePeripheralOptions } from './FakeBleCentral';
 
@@ -534,6 +534,54 @@ describe('BleSensorDevice: a connect handshake that never answers (Codex round 3
     await flush();
     await device.connect();
     expect(device.getState()).toBe('connected');
+  });
+
+  // Codex P1 on PR #28 at c4d9ce7 (fix round 4, owner-authorized 2026-11-06): a replaced device's late teardown cut
+  // the next device's link to the same peripheral, because each device kept its teardown barrier to itself.
+  it.each([
+    ['shared registry: the new device waits out the old teardown and its link survives', true],
+    ['negative control, separate registries: the old teardown cuts the new link', false],
+  ])('a device replaced mid-handshake: %s', async (_label, share) => {
+    const scheduler = new ManualScheduler();
+    const peripheral = new FakePeripheral();
+    const central = new FakeBleCentral(scheduler, [peripheral]);
+    const shared = new BleTeardownRegistry();
+    const make = () =>
+      new BleSensorDevice({ central, peripheralId: peripheral.id, scheduler, teardowns: share ? shared : undefined });
+
+    // The old device is stuck at the device-info read; the central's disconnect is held.
+    const releaseRead = central.hold('read');
+    const releaseOldDisconnect = central.hold('disconnect');
+    const old = make();
+    const oldConnecting = old.connect().catch(() => undefined);
+    await flush();
+    expect(peripheral.connected).toBe(true);
+    // Switch away, as SensorSelection.replaceDevice() does: cancel, disconnect, dispose.
+    old.cancelConnect();
+    await old.disconnect();
+    old.dispose();
+    await oldConnecting;
+    releaseRead();
+
+    // A new device for the same peripheral connects; then the old disconnect lands.
+    const next = make();
+    const connecting = next.connect().catch((e: unknown) => e);
+    await flush();
+    releaseOldDisconnect();
+    await flush();
+    scheduler.advance(2000); // the old teardown's grace period
+    await flush();
+    expect(await connecting).toBeUndefined();
+    if (share) {
+      expect(next.getState()).toBe('connected');
+      expect(peripheral.connected).toBe(true);
+      scheduler.advance(10_000);
+      await flush();
+      expect(next.getState()).toBe('connected');
+    } else {
+      expect(next.getState()).toBe('failed');
+      expect(next.getLastError()?.code).toBe('connection_lost');
+    }
   });
 
   it("iOS's permission prompt: an `unknown` radio report while preparing is not a link loss", async () => {

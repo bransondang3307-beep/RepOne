@@ -24,7 +24,7 @@
 | RO-010 | Decide whether to record the app layout in source of truth §6 | Owner (ChatGPT prepares) | P3 | todo | RO-003 merged | — |
 | RO-011 | Architecture review of Milestone 1 layout (ADR 0003) | Gemini | P2 | done | RO-005 | [PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8) — merged `f41309c` |
 | RO-012 | Alignment Milestone 2: contracts, multi-channel engine wrapper, device connectivity | Claude Code | P2 | done | RO-003 merged, owner go-ahead (both met 2026-10-23) | [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14) `9a42cf0` · [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15) `9b93b32` · [PR #16](https://github.com/bransondang3307-beep/RepOne/pull/16) `058bfe4` · [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) `f1df6b2` — all merged |
-| RO-013 | Alignment Milestone 3: workout domain + persistence | Claude Code | P2 | in-progress | RO-012 (done); owner go-ahead (given 2026-11-06) | Part 1: `claude/RO-013-workout-domain` (PR link in its handoff); part 2 next. Plan: [`docs/plans/RO-013-milestone-3-plan.md`](docs/plans/RO-013-milestone-3-plan.md) |
+| RO-013 | Alignment Milestone 3: workout domain + persistence | Claude Code | P2 | in-progress | RO-012 (done); owner go-ahead (given 2026-11-06) | Part 1: [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33) (`claude/RO-013-workout-domain`); part 2 next. Plan: [`docs/plans/RO-013-milestone-3-plan.md`](docs/plans/RO-013-milestone-3-plan.md) |
 | RO-014 | Alignment Milestone 4: mobile UI | Claude Code | P2 | todo | RO-013 | — |
 | RO-015 | Alignment Milestone 5: integration + Sprint 1 close-out | Claude Code + Codex | P2 | todo | RO-014 | — |
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
@@ -192,7 +192,7 @@
   - **Owner go-ahead, 2026-11-06** (software-first while the hardware is away): "If Milestone 3 can proceed
     independently of open PRs, begin implementation." It can: no open PR touches `packages/workout-domain`,
     `infrastructure/database` or `WorkoutSessionController`.
-  - **Part 1 (pure domain):** in review on `claude/RO-013-workout-domain`.
+  - **Part 1 (pure domain):** in review, [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33).
     [ADR 0010](docs/decisions/0010-workout-domain-model.md) is Proposed. Plan decisions 1–4 follow the owner's
     direction; decisions 5 and 6 use the plan's recommendations and await confirmation.
   - **Part 2 (SQLite persistence):** next, stacked on part 1.

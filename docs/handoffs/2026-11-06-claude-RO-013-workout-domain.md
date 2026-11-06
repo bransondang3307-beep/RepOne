@@ -7,7 +7,7 @@
 | **Task** | RO-013 (`TASKS.md`), part 1 of 2 ([plan](../plans/RO-013-milestone-3-plan.md) §3) |
 | **Branch** | `claude/RO-013-workout-domain` (base: `main` @ `b414307`) |
 | **Commits** | in the PR (this handoff is part of the first commit) |
-| **Pull request** | see the PR that adds this file |
+| **Pull request** | [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33) |
 | **Status** | implemented · verified (unit tests) · ADR 0010 **proposed** |
 
 ## Objective

@@ -6,13 +6,14 @@ import {
   createSyntheticCalibration,
   systemClock,
   type Clock,
-  type DeviceConnection,
   type RepCalibration,
   type Scheduler,
   type SensorSource,
 } from '@repone/sensor-contracts';
 import type { Repositories } from '@repone/workout-domain';
+import { createNativeBleCentral, type BleCentral } from '../infrastructure/bluetooth';
 import { createSqliteRepositories, migrate, openExpoSqliteDatabase } from '../infrastructure/database';
+import { createSensorSelection, type SensorSelection } from './sensorSelection';
 import { WorkoutSessionController } from './services/WorkoutSessionController';
 
 /** Application services exposed to features. Features never see infrastructure. */
@@ -20,20 +21,20 @@ export interface AppContainer {
   readonly repositories: Repositories;
   readonly controller: WorkoutSessionController;
   /**
-   * The sensor device (ADR 0007 §4). Milestone 2: a simulated single-IMU device. Real USB-serial or BLE
-   * adapters plug in here later; nothing downstream depends on which one is used.
+   * Which sensor device sessions record from (ADR 0007 §4, RO-029): the simulated device, or a real BLE sensor the
+   * user picked. Nothing downstream depends on which one is used.
    */
-  readonly device: DeviceConnection;
+  readonly sensors: SensorSelection;
   /**
-   * Connects the device if needed and returns the source for the next session: its first channel. The device's
-   * channels are checked first, so two sensors can never share a `source_id` within a session (ADR 0007 §2).
+   * Connects the chosen device if needed and returns the source for the next session: its first channel. The
+   * device's channels are checked first, so two sensors can never share a `source_id` within a session (ADR 0007 §2).
    */
   readonly getSessionSensor: () => Promise<SensorSource>;
   /**
-   * Test control: drops the simulated device's connection, to exercise the failure path on a phone. Present only
-   * for the simulated device; null for real devices.
+   * Test control: drops the simulated device's connection, to exercise the failure path on a phone. It acts only
+   * while the simulated device is the chosen one; real devices are never affected.
    */
-  readonly simulateConnectionLoss: (() => void) | null;
+  readonly simulateConnectionLoss: () => void;
   readonly getCalibration: () => RepCalibration;
 }
 
@@ -42,6 +43,8 @@ export interface AssembleOptions {
   readonly scheduler?: Scheduler;
   /** Seed of the simulated motion. Default: random per app start. */
   readonly seed?: number;
+  /** The BLE central: tests pass a fake, or null for "no BLE". Default: the native one, null in Expo Go. */
+  readonly bleCentral?: BleCentral | null;
 }
 
 export const createLocalId = (): string =>
@@ -59,7 +62,7 @@ export function assembleContainer(
     createId: createLocalId,
     createDetector: (sessionId, calibration) => new RotationalRepDetector(sessionId, calibration),
   });
-  const device = new SimulatedDevice({
+  const simulated = new SimulatedDevice({
     deviceId: 'simulated-device-01',
     scheduler: options.scheduler,
     channels: [
@@ -75,16 +78,25 @@ export function assembleContainer(
       },
     ],
   });
+  const sensors = createSensorSelection({
+    simulated,
+    central: options.bleCentral !== undefined ? options.bleCentral : createNativeBleCentral(),
+    scheduler: options.scheduler,
+  });
   return {
     repositories,
     controller,
-    device,
+    sensors,
     getSessionSensor: async () => {
+      const device = sensors.device;
       await device.connect();
       const [channel] = combineChannels(device.getChannels()).channels;
-      return channel!.source;
+      if (!channel) throw new Error('The sensor offers no channels');
+      return channel.source;
     },
-    simulateConnectionLoss: () => device.simulateConnectionLoss('connection loss simulated from the app'),
+    simulateConnectionLoss: () => {
+      if (sensors.device === simulated) simulated.simulateConnectionLoss('connection loss simulated from the app');
+    },
     getCalibration: () => createSyntheticCalibration(clock.now()),
   };
 }

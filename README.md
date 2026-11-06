@@ -28,7 +28,7 @@ apps/mobile/
   src/application/      Composition root + application services (WorkoutSessionController)
   src/features/         rep-tracking, workouts (exercises, machines, device-connection: planned)
   src/shared/           Feature-agnostic components + theme
-  src/infrastructure/   database (expo-sqlite adapter, migrations)
+  src/infrastructure/   database (expo-sqlite adapter, migrations), bluetooth (BLE sensor adapter; development build only)
 packages/
   sensor-contracts/     Sensor + derived-event contracts, deterministic simulation
   rep-engine/           Pure TS rep detection, calibration, evaluation

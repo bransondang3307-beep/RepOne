@@ -1,8 +1,9 @@
 # ADR 0009 — Pause-aware rep-cycle semantics for the rotational detector
 
 - **Date:** 2026-11-04
-- **Status:** **Proposed.** Implemented on `claude/RO-032-pause-aware-rep-detection` as `rotational-rep-fsm-0.2.0`.
-  It needs owner acceptance before it counts as the accepted design (§8).
+- **Status:** **Accepted provisionally** by the owner on 2026-11-06, as prototype policy and subject to physical
+  validation. The decisions are recorded in §8. Implemented on `claude/RO-032-pause-aware-rep-detection` as
+  `rotational-rep-fsm-0.2.0`. This is not merge approval and not a claim of validated real-hardware accuracy.
 - **Task:** RO-032 (owner-assigned, 2026-11-04)
 - **Revises:** the detector section of [ADR 0002](0002-sensor-contract-and-rep-detector.md) (`rotational-rep-fsm-0.1.0`).
   Sensor units, `RawSensorSample`, `RepEvent`, `RepCalibration` and `MotionDetector` are **unchanged**.
@@ -210,7 +211,22 @@ add vibration that is not yet measured.
   Until then the app behaves as before: it simply never sees unfinished cycles. `MultiChannelRepDetector` is
   unchanged and still wraps the per-channel detector.
 
-## 8. Decisions requested from the owner
+## 8. Owner decisions (recorded 2026-11-06)
+
+Recorded from the owner's
+[decision comment on PR #31](https://github.com/bransondang3307-beep/RepOne/pull/31#issuecomment-6692327423). These
+decisions set provisional prototype policy. They are not merge approval, and they do not authorize unrelated
+implementation.
+
+| | Decision |
+|---|---|
+| **A** | **Accepted, provisionally,** as the working prototype rule, subject to physical validation. Pauses do not end or split a cycle, and completion requires a return to the start band. |
+| **B** | **B0.** Long cycles stay open and are flagged `long_cycle`. A cycle is never abandoned or split merely for being long. |
+| **C** | **Left open for further study.** The current return-band behaviour remains a documented prototype limitation, not a validated final rule. |
+| **D** | **Separate research,** tracked in [issue #32](https://github.com/bransondang3307-beep/RepOne/issues/32). The rotational prototype is not assumed to support straight-line weight-stack machines. |
+| **E** | **Accepted as implemented,** with its documented observability and agreement limits and flags, subject to physical validation. |
+
+### The options as proposed
 
 - **A. Accept the cycle semantics in §2**, including that a pause never ends a cycle and completion fires on
   re-entering the return band.
@@ -222,7 +238,7 @@ add vibration that is not yet measured.
   B1 never counts a minute-long hold as a rep. It also discards legitimate slow or lockout-hold reps.
 - **C. Touch-and-go.** Keep the 10 % return band (implemented), or count a reversal near start (for example below
   20 %) as a boundary. The second option risks splitting a cycle that pauses near start.
-- **D. Translation.** Approve a separate research task (proposed in the RO-032 handoff; no ID taken), only after H0 recordings
+- **D. Translation.** Approve a separate research task (proposed in the RO-032 handoff), only after H0 recordings
   exist.
 - **E. Gravity reference.** Accept accelerometer use at rest (§3), or keep 0.2.0 gyro-only via
   `minGravityPlaneFraction > 1`.

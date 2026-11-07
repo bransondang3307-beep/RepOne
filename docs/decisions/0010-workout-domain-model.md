@@ -1,7 +1,9 @@
 # ADR 0010 — Workout domain model and lifecycle (Milestone 3)
 
 - **Date:** 2026-11-06
-- **Status:** **Proposed.** Part 1 (pure domain) is implemented on `claude/RO-013-workout-domain`. The owner must
+- **Status:** **Proposed.** Part 1 (pure domain) is implemented on `claude/RO-013-workout-domain`
+  ([PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33)); part 2 (persistence) on
+  `claude/RO-013-sqlite-persistence`. The owner must
   confirm the decisions in §5 before this counts as accepted; merging alone does not accept it.
 - **Task:** RO-013, following [the Milestone 3 plan](../plans/RO-013-milestone-3-plan.md). The owner's go-ahead
   came on 2026-11-06 ("If Milestone 3 can proceed independently of open PRs, begin implementation").
@@ -70,18 +72,46 @@ It does this without touching existing data or the sensor contracts.
   record built outside the lifecycle functions cannot be stored inconsistent.
 - **Active duration** = end (or now) − start − pauses.
 
-## 4. Persistence (part 2, planned; stacked on this branch)
+## 4. Persistence (part 2, `claude/RO-013-sqlite-persistence`)
 
-- **Recordings stay as they are.** A set links to one through `recording_session_id`
-  (`ON DELETE SET NULL`).
-- **Migration v2** is append-only and additive:
-  - new tables for machines, exercises, links, workouts, pauses, workout exercises and sets;
-  - nullable `end_reason` and `sensor_error_code` on `workout_sessions`;
-  - nullable `source_id` on `rep_events`.
-- **Constraints:**
-  - CHECK constraints enforce `resistance_source = 'user_entered'`, the status values and the end-reason values;
-  - deleting a workout never deletes a recording.
-- **Acceptance criteria:** the plan's §5 migration criteria apply unchanged.
+**Implemented as planned:**
+- Recordings stay as they are; a set links to one through `recording_session_id` (`ON DELETE SET NULL`).
+- Migration v2 is append-only and additive:
+  - tables `machines`, `exercises`, `exercise_machines`, `workouts`, `workout_pauses`, `workout_exercises` and
+    `workout_sets`;
+  - nullable `end_reason` and `sensor_error_code` on `workout_sessions`, and nullable `source_id` on `rep_events`.
+- CHECK constraints enforce `resistance_source = 'user_entered'`, a positive `resistance_kg`, a known unit, a fully
+  filled or fully empty resistance, the status values and the end-reason values.
+- Foreign keys reject sets of missing workout exercises.
+- Deleting a workout never deletes a recording, its samples or its rep events.
+- The plan's §5 migration criteria are each covered by a test (`migrations.test.ts`).
+
+**Deviations from the plan, all for compatibility with open PRs:**
+- **`WorkoutSession` and `WorkoutSessionSummary` are unchanged.** PR #30 builds these objects in its tests, so new
+  required fields would break it after merge. Instead:
+  - `markEnded` takes an **optional** `outcome`;
+  - `getOutcome(sessionId)` reads it back;
+  - `repEvents.append` takes an **optional** `sourceId`, and `listSourceIdsBySession` reads it.
+  - Callers that omit them keep working; the value is then stored as unknown (null).
+- **Sets are saved with their workout.** The planned `WorkoutSetRepository` is folded into
+  `WorkoutRepository.save(record)`, which stores the whole aggregate atomically after `validateWorkoutRecord`. That
+  keeps the invariants in one place.
+- **Writes are serialized inside the SQLite repositories.** expo-sqlite transactions are not exclusive, and a
+  workout save during a recording could otherwise interleave with sample writes.
+
+**History queries:**
+- `workouts.listRecent`: summaries with rep totals from the sets' recordings;
+- `workouts.listSetResults`: each set with its rep counts and its recording's provenance;
+- `workouts.listExerciseHistory`: an exercise's recorded sets, newest first, with the resistance entered, for "last
+  time".
+
+**Recording outcome.** The controller stores `stopped`, `stream_ended`, `sensor_error`, `start_failed` or
+`write_failed`, with the sensor's error code. A failed write outranks the sensor. A sensor failure before `start()`
+resolves is `start_failed`. A late start failure after a stop replaces the stored `stopped` and keeps the end time.
+Rep events are stored with the sensor's `source_id`.
+
+**Known edge.** If a recording is ever deleted, its sets keep `status = 'completed'` with no recording. Re-saving
+that workout would then fail `validateWorkoutRecord`. The app has no way to delete a recording today.
 
 ## 5. Decisions for the owner (the plan's §4)
 
@@ -96,7 +126,8 @@ It does this without touching existing data or the sensor contracts.
 
 ## 6. Consequences
 
-- Part 1 adds types and pure functions only. No existing export, port or table changes, so it cannot affect saved
-  data or any open PR.
+- Part 1 adds types and pure functions only.
+- Part 2 adds a migration, ports and an adapter. Existing rows, columns and port signatures stay compatible: the new
+  parameters are optional.
 - There is no UI until Milestone 4 (RO-014); the rules are verified by unit tests.
 - Brand-free names throughout (ADR 0006).

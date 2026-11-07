@@ -12,7 +12,7 @@ import type {
   SensorStatus,
   Unsubscribe,
 } from '@repone/sensor-contracts';
-import type { Repositories } from '@repone/workout-domain';
+import type { Repositories, SessionOutcome } from '@repone/workout-domain';
 
 export type SessionStatus = 'idle' | 'starting' | 'recording' | 'stopping' | 'finished' | 'error';
 
@@ -94,6 +94,20 @@ interface Session {
   sensorError: SensorError | null;
   /** Set when finalisation begins; resolves once its outcome has been published. */
   released: Promise<void> | null;
+  /** True once sensor.start() resolved: a sensor failure before that is a failed start. */
+  started: boolean;
+  /** What ended the recording when nothing failed: a stop, or a finite stream ending. */
+  endedBy: 'stopped' | 'stream_ended' | null;
+  /** When the session was marked ended; reused if a late start failure changes the stored outcome. */
+  endedAtEpochMs: number | null;
+}
+
+/** Why the recording ended, as stored with it (ADR 0007 Decision 1; RO-013). A failed write outranks the sensor. */
+function outcomeOf(session: Session): SessionOutcome {
+  const code = session.sensorError?.code ?? null;
+  if (session.writeError !== null) return { end_reason: 'write_failed', sensor_error_code: code };
+  if (session.sensorError !== null) return { end_reason: session.started ? 'sensor_error' : 'start_failed', sensor_error_code: code };
+  return { end_reason: session.endedBy ?? 'stopped', sensor_error_code: null };
 }
 
 /**
@@ -165,6 +179,9 @@ export class WorkoutSessionController {
         writeError: null,
         sensorError: null,
         released: null,
+        started: false,
+        endedBy: null,
+        endedAtEpochMs: null,
       };
       session = current;
       this.active = current;
@@ -174,6 +191,7 @@ export class WorkoutSessionController {
       );
       this.update({ status: 'recording' });
       await sensor.start();
+      current.started = true;
       // stop() may have won the race while start() was pending: don't leave the sensor streaming.
       if (current.released) await sensor.stop();
       return id;
@@ -185,7 +203,10 @@ export class WorkoutSessionController {
   }
 
   async stop(): Promise<void> {
-    if (this.active) return this.finalize(this.active);
+    if (this.active) {
+      this.active.endedBy ??= 'stopped';
+      return this.finalize(this.active);
+    }
     await this.releasing?.released;
   }
 
@@ -202,8 +223,10 @@ export class WorkoutSessionController {
   private onSensorStatus(session: Session, status: SensorStatus): void {
     if (this.active !== session) return;
     // A finite source (e.g. replay) ending on its own finalises the session as finished.
-    if (status === 'stopped') void this.finalize(session);
-    else if (status === 'error') {
+    if (status === 'stopped') {
+      session.endedBy ??= 'stream_ended';
+      void this.finalize(session);
+    } else if (status === 'error') {
       session.sensorError ??= session.sensor.getLastError() ?? { code: 'unknown', message: 'no reason given' };
       void this.finalize(session);
     }
@@ -216,7 +239,11 @@ export class WorkoutSessionController {
    */
   private async recordStartFailure(session: Session, reason: SensorError): Promise<void> {
     session.sensorError ??= reason;
+    const alreadyEnded = session.released !== null;
     await this.finalize(session);
+    // stop() won the race and stored "stopped": store the start failure instead, with the same end time.
+    if (alreadyEnded) this.markEnded(session);
+    await this.writeQueue;
     this.publishOutcome(session);
   }
 
@@ -238,12 +265,20 @@ export class WorkoutSessionController {
         session.sensorError ??= { code: 'unknown', message: `stopping the sensor failed: ${messageOf(error)}` };
       }
       this.flush(session);
-      this.enqueue(session, () => this.deps.repositories.sessions.markEnded(session.id, this.deps.clock.now()));
+      this.markEnded(session);
       await this.writeQueue;
     } finally {
       this.releasing = null;
     }
     this.publishOutcome(session);
+  }
+
+  /** The outcome is decided when this write runs, after every earlier write, so a late write failure counts. */
+  private markEnded(session: Session): void {
+    this.enqueue(session, () => {
+      session.endedAtEpochMs ??= this.deps.clock.now();
+      return this.deps.repositories.sessions.markEnded(session.id, session.endedAtEpochMs, outcomeOf(session));
+    });
   }
 
   /** Publish the session's outcome, unless a newer session (or a reset) owns the snapshot by now. */
@@ -263,7 +298,8 @@ export class WorkoutSessionController {
     const events = session.detector.push(sample);
     let { fullReps, partialReps } = this.snapshot;
     for (const event of events) {
-      this.enqueue(session, () => this.deps.repositories.repEvents.append(event));
+      // The sensor's id is its channel's source_id (ADR 0007 §2), stored with the event (RO-013).
+      this.enqueue(session, () => this.deps.repositories.repEvents.append(event, session.sensor.id));
       if (event.classification === 'full') fullReps += 1;
       else partialReps += 1;
     }

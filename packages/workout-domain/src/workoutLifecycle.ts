@@ -320,6 +320,22 @@ export function validateWorkoutRecord(record: WorkoutRecord): string[] {
   };
   if (!statusShape[workout.status]) problems.push(`times and pauses do not fit status ${workout.status}`);
 
+  // Every timestamp is a finite number, and created ≤ started ≤ ended (Codex P1, PR #33): the status check above only
+  // establishes which ones are present.
+  const times = [
+    workout.created_at_epoch_ms,
+    workout.started_at_epoch_ms,
+    workout.ended_at_epoch_ms,
+    ...workout.pauses.flatMap((p) => [p.start_epoch_ms, p.end_epoch_ms]),
+  ];
+  if (times.some((t) => t !== null && !Number.isFinite(t))) problems.push('a timestamp is not a finite number');
+  if (workout.started_at_epoch_ms !== null && workout.started_at_epoch_ms < workout.created_at_epoch_ms) {
+    problems.push('the workout starts before it was created');
+  }
+  if (workout.ended_at_epoch_ms !== null && workout.ended_at_epoch_ms < (workout.started_at_epoch_ms ?? workout.created_at_epoch_ms)) {
+    problems.push('the workout ends before it starts');
+  }
+
   let previousEnd = workout.started_at_epoch_ms ?? -Infinity;
   for (const [i, pause] of workout.pauses.entries()) {
     if (pause.start_epoch_ms < previousEnd) problems.push(`pause ${i} overlaps the previous pause or precedes the start`);

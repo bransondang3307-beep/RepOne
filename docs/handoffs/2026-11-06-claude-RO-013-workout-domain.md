@@ -82,5 +82,14 @@ No Expo export is needed: no app code changed. Part 2 will run the Android and i
    - verify plus the Android and iOS exports.
 2. **RO-014 (Milestone 4)** planning against PR #30's redesign.
 
+## Review round 1 (Codex, reviewed `5471636`)
+- **[P1] `workoutLifecycle.ts:323`, validate timestamp order and finiteness.** **Valid; fixed.**
+  - The defect: `validateWorkoutRecord` only checked which timestamps were present. A finished workout ending before
+    it started, or a `NaN` start, passed.
+  - The fix: it now requires every timestamp (workout and pauses) to be finite, and created ≤ started ≤ ended.
+  - Two tests: the bad records are reported, and every record the lifecycle functions produce still validates. The
+    first fails on `5f2f9b6`.
+- Fix commit and verify result: in the PR's round-1 summary comment.
+
 ## Questions for the owner
 - Confirm ADR 0010 decisions 5 (pause only between sets) and 6 (store the end reason and rep-event `source_id`).

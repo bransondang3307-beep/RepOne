@@ -267,6 +267,37 @@ describe('rep counts per set', () => {
 });
 
 describe('validateWorkoutRecord (the invariants persistence relies on)', () => {
+  // Codex P1 on PR #33 at 5471636: these passed validation because only nullability was checked.
+  it('reports workout times that are out of order or not finite', () => {
+    const finished = finishWorkout(started(), T0 + 5000);
+    const at = (patch: Partial<WorkoutRecord['workout']>): WorkoutRecord => ({ ...finished, workout: { ...finished.workout, ...patch } });
+    expect(validateWorkoutRecord(at({ created_at_epoch_ms: 1000, started_at_epoch_ms: 2000, ended_at_epoch_ms: 1500 }))).toEqual([
+      'the workout ends before it starts',
+    ]);
+    expect(validateWorkoutRecord(at({ started_at_epoch_ms: T0 - 1 }))).toEqual(['the workout starts before it was created']);
+    const active = started();
+    expect(validateWorkoutRecord({ ...active, workout: { ...active.workout, started_at_epoch_ms: Number.NaN } })).toEqual([
+      'a timestamp is not a finite number',
+    ]);
+    expect(validateWorkoutRecord(at({ created_at_epoch_ms: Number.POSITIVE_INFINITY }))).toContain('a timestamp is not a finite number');
+    const paused = pauseWorkout(started(), T0 + 2000);
+    expect(
+      validateWorkoutRecord({ ...paused, workout: { ...paused.workout, pauses: [{ start_epoch_ms: Number.NaN, end_epoch_ms: null }] } }),
+    ).toContain('a timestamp is not a finite number');
+  });
+
+  it('accepts every record the lifecycle functions produce', () => {
+    let r = started();
+    expect(validateWorkoutRecord(r)).toEqual([]);
+    r = pauseWorkout(r, T0 + 2000);
+    expect(validateWorkoutRecord(r)).toEqual([]);
+    r = resumeWorkout(r, T0 + 3000);
+    r = beginSetRecording(r, 's1', 'rec');
+    expect(validateWorkoutRecord(r)).toEqual([]);
+    r = finishWorkout(endSetRecording(r, 's1'), T0 + 4000);
+    expect(validateWorkoutRecord(r)).toEqual([]);
+  });
+
   it('reports records that the lifecycle functions could never produce', () => {
     const r = started();
     const broken: WorkoutRecord = {

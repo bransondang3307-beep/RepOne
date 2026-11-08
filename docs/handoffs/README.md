@@ -23,6 +23,7 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 
 | Date | Agent | Task | File |
 |---|---|---|---|
+| 2026-11-08 | Claude Code | RO-014 PR 1 (prep): WorkoutController design mapped to PR #35's APIs; integration tests defined (it.todo) | [2026-11-08-claude-RO-014-pr1-prep.md](2026-11-08-claude-RO-014-pr1-prep.md) |
 | 2026-11-07 | Codex | RO-013: recording-to-history integration regression through SQLite (PR #36, merged into PR #35) | [2026-11-07-codex-RO-013.md](2026-11-07-codex-RO-013.md) |
 | 2026-11-06 | Claude Code | RO-013 part 2: SQLite persistence, migration v2, history queries, recording outcome | [2026-11-06-claude-RO-013-sqlite-persistence.md](2026-11-06-claude-RO-013-sqlite-persistence.md) |
 | 2026-11-06 | Claude Code | RO-013 part 1: workout domain model, user-entered resistance, workout lifecycle; ADR 0010 (Proposed) | [2026-11-06-claude-RO-013-workout-domain.md](2026-11-06-claude-RO-013-workout-domain.md) |

@@ -26,6 +26,8 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 | 2026-11-07 | Codex | RO-013: recording-to-history integration regression through SQLite (PR #36, merged into PR #35) | [2026-11-07-codex-RO-013.md](2026-11-07-codex-RO-013.md) |
 | 2026-11-06 | Claude Code | RO-013 part 2: SQLite persistence, migration v2, history queries, recording outcome | [2026-11-06-claude-RO-013-sqlite-persistence.md](2026-11-06-claude-RO-013-sqlite-persistence.md) |
 | 2026-11-06 | Claude Code | RO-013 part 1: workout domain model, user-entered resistance, workout lifecycle; ADR 0010 (Proposed) | [2026-11-06-claude-RO-013-workout-domain.md](2026-11-06-claude-RO-013-workout-domain.md) |
+| 2026-10-31 | Claude Code | RO-030 mobile UI redesign: light/dark design system, tabs, dashboard, live set, history | [2026-10-31-claude-RO-030-ui-redesign.md](2026-10-31-claude-RO-030-ui-redesign.md) |
+| 2026-10-31 | Claude Code | RO-031 Expo SDK 58 upgrade (current Expo Go), single React via root override | [2026-10-31-claude-RO-031-expo-sdk-58.md](2026-10-31-claude-RO-031-expo-sdk-58.md) |
 | 2026-10-31 | Claude Code | Milestone 2 closeout status (PRs #21, #14–#17 merged after the owner's device check; ADR 0007 Accepted); RO-013 plan; RO-028 and RO-029 recorded | [2026-10-31-claude-RO-012-m2-closeout-status.md](2026-10-31-claude-RO-012-m2-closeout-status.md) |
 | 2026-10-29 | Claude Code | RO-027 dependency security patch (PR #21) | [2026-10-29-claude-RO-027-dependency-security.md](2026-10-29-claude-RO-027-dependency-security.md) |
 | 2026-10-23 | Claude Code | RO-012 part 4: app device integration, RO-023 badge fix (PR #17) | [2026-10-23-claude-RO-012-app-device.md](2026-10-23-claude-RO-012-app-device.md) |

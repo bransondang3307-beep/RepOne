@@ -14,7 +14,19 @@ import {
   type SimulationOptions,
 } from '@repone/sensor-contracts';
 import { ManualScheduler } from '@repone/sensor-contracts/testing';
-import type { Repositories } from '@repone/workout-domain';
+import {
+  addExercise,
+  addSet,
+  beginSetRecording,
+  endSetRecording,
+  enterResistance,
+  finishWorkout,
+  formatResistance,
+  newExercise,
+  newWorkout,
+  startWorkout,
+  type Repositories,
+} from '@repone/workout-domain';
 import { WorkoutSessionController, type SessionSnapshot } from '../../../application/services/WorkoutSessionController';
 import { createSqliteRepositories } from '../createSqliteRepositories';
 import { migrate } from '../migrations';
@@ -109,5 +121,38 @@ describe('WorkoutSessionController × SQLite (integration)', () => {
     expect(stored!.ended_at_epoch_ms).not.toBeNull();
     const [summary] = await repositories.sessions.listRecent(1);
     expect(summary).toMatchObject({ id: sessionId, full_rep_count: 8, partial_rep_count: 2 });
+  });
+
+  it('reads a recorded workout, its set, and its last entered resistance from SQLite history', async () => {
+    const { controller, repositories } = createController(createSqliteRepositories(db));
+    await repositories.exercises.save(newExercise({ id: 'row', name: 'Row', nowEpochMs: 1 }));
+    let workout = startWorkout(newWorkout('workout-1', 1), 2);
+    workout = addExercise(workout, { id: 'workout-row', exerciseId: 'row' });
+    const resistance = enterResistance(100, 'lb');
+    workout = addSet(workout, { id: 'set-1', workoutExerciseId: 'workout-row', resistance });
+    await repositories.workouts.save(workout);
+
+    const sensor = new ReplaySensorSource({
+      id: 'replay-row',
+      samples: labelledSetTrace().samples,
+      provenance: 'simulated',
+    });
+    const sessionId = await controller.start({ sensor, calibration });
+    workout = beginSetRecording(workout, 'set-1', sessionId);
+    await repositories.workouts.save(workout);
+    expect((await settled(controller)).status).toBe('finished');
+    workout = finishWorkout(endSetRecording(workout, 'set-1'), 1_700_000_010_000);
+    await repositories.workouts.save(workout);
+
+    const counts = { full_rep_count: 8, partial_rep_count: 2 };
+    const [summary] = await repositories.workouts.listRecent(1);
+    expect(summary).toMatchObject({ workout: workout.workout, completed_set_count: 1, ...counts });
+    const [result] = await repositories.workouts.listSetResults('workout-1');
+    expect(result).toMatchObject({ set: workout.sets[0], provenance: 'simulated', ...counts });
+    const [last] = await repositories.workouts.listExerciseHistory('row', 1);
+    expect(last).toMatchObject({ workout_id: 'workout-1', resistance, provenance: 'simulated', ...counts });
+    expect(formatResistance(last!.resistance!)).toBe('100 lb');
+    expect(await repositories.sessions.getOutcome(sessionId)).toEqual({ end_reason: 'stream_ended', sensor_error_code: null });
+    expect(await repositories.repEvents.listSourceIdsBySession(sessionId)).toEqual(Array(10).fill('replay-row'));
   });
 });

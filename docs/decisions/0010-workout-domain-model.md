@@ -1,10 +1,10 @@
 # ADR 0010 — Workout domain model and lifecycle (Milestone 3)
 
 - **Date:** 2026-11-06
-- **Status:** **Proposed.** Part 1 (pure domain) is implemented on `claude/RO-013-workout-domain`
-  ([PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33)); part 2 (persistence) on
-  `claude/RO-013-sqlite-persistence`. The owner must
-  confirm the decisions in §5 before this counts as accepted; merging alone does not accept it.
+- **Status:** **Accepted (2026-11-08).** The owner confirmed every §5 decision. Decisions 1–4 follow the owner's
+  direction of 2026-11-06. Decisions 5 and 6 were confirmed on 2026-11-08: "I approve all six defaults. … Milestone 3: Workouts pause only between sets. SQLite stores why each recording ended and the source ID for each rep."
+  Part 1 (pure domain) is [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33), merged 2026-11-08 (`b5a8538`); part 2 (persistence) is
+  [PR #35](https://github.com/bransondang3307-beep/RepOne/pull/35) (`claude/RO-013-sqlite-persistence`).
 - **Task:** RO-013, following [the Milestone 3 plan](../plans/RO-013-milestone-3-plan.md). The owner's go-ahead
   came on 2026-11-06 ("If Milestone 3 can proceed independently of open PRs, begin implementation").
 - **Builds on:**
@@ -122,8 +122,8 @@ that workout would then fail `validateWorkoutRecord`. The app has no way to dele
 | 2 | Existing History rows (all simulated) | **(a)** leave them as standalone recordings, outside any workout | Same; no invented structure |
 | 3 | Machine–exercise link | **(a)** many-to-many | Owner direction: "machine/exercise associations" |
 | 4 | Resistance storage | **(a)** canonical kg + entered unit, source `user_entered` only | Owner direction: "user-entered resistance and measurement units" |
-| 5 | When can a workout pause? | **(a)** only between sets | Plan recommendation. **Please confirm.** |
-| 6 | Include the ADR 0007 deferrals (end reason, rep-event `source_id`)? | **(a)** yes, in part 2 | Plan recommendation. **Please confirm.** |
+| 5 | When can a workout pause? | **(a)** only between sets | Plan recommendation; **confirmed by the owner, 2026-11-08** |
+| 6 | Include the ADR 0007 deferrals (end reason, rep-event `source_id`)? | **(a)** yes, in part 2 | Plan recommendation; **confirmed by the owner, 2026-11-08** |
 
 ## 6. Consequences
 

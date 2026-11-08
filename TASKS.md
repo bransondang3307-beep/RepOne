@@ -192,9 +192,10 @@
   - **Owner go-ahead, 2026-11-06** (software-first while the hardware is away): "If Milestone 3 can proceed
     independently of open PRs, begin implementation." It can: no open PR touches `packages/workout-domain`,
     `infrastructure/database` or `WorkoutSessionController`.
-  - **Part 1 (pure domain):** in review, [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33).
-    [ADR 0010](docs/decisions/0010-workout-domain-model.md) is Proposed. Plan decisions 1–4 follow the owner's
-    direction; decisions 5 and 6 use the plan's recommendations and await confirmation.
+  - **Part 1 (pure domain):** merged 2026-11-08, [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33) (`b5a8538`).
+    [ADR 0010](docs/decisions/0010-workout-domain-model.md) is **Accepted** (2026-11-08). Plan decisions 1–4
+    follow the owner's direction; the owner confirmed decisions 5 and 6 (pause only between sets; store the end
+    reason and each rep event's `source_id`) on 2026-11-08.
   - **Part 2 (SQLite persistence):** in review, [PR #35](https://github.com/bransondang3307-beep/RepOne/pull/35), stacked on part 1:
     - migration v2, meeting plan §5 criteria 1–8 and 10 in tests;
     - the SQLite and in-memory repositories and the shared contract suite;

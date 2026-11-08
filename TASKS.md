@@ -193,8 +193,9 @@
     independently of open PRs, begin implementation." It can: no open PR touches `packages/workout-domain`,
     `infrastructure/database` or `WorkoutSessionController`.
   - **Part 1 (pure domain):** in review, [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33).
-    [ADR 0010](docs/decisions/0010-workout-domain-model.md) is Proposed. Plan decisions 1–4 follow the owner's
-    direction; decisions 5 and 6 use the plan's recommendations and await confirmation.
+    [ADR 0010](docs/decisions/0010-workout-domain-model.md) is **Accepted** (2026-11-08). Plan decisions 1–4
+    follow the owner's direction; the owner confirmed decisions 5 and 6 (pause only between sets; store the end
+    reason and each rep event's `source_id`) on 2026-11-08.
   - **Part 2 (SQLite persistence):** next, stacked on part 1.
 - **RO-014 (M4):** home dashboard, exercise selection, pause/reset via application services. Criteria: typecheck,
   tests, Android/iOS export; owner Expo Go check.

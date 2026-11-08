@@ -7,7 +7,7 @@
 | **Task** | RO-013 (`TASKS.md`), part 2 of 2 ([plan](../plans/RO-013-milestone-3-plan.md) §3) |
 | **Branch** | `claude/RO-013-sqlite-persistence`, stacked on `claude/RO-013-workout-domain` ([PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33)) |
 | **Commits** | in the PR |
-| **Pull request** | see the PR that adds this file (base: `claude/RO-013-workout-domain`) |
+| **Pull request** | [PR #35](https://github.com/bransondang3307-beep/RepOne/pull/35) (base: `claude/RO-013-workout-domain`); includes [PR #36](https://github.com/bransondang3307-beep/RepOne/pull/36) |
 | **Status** | implemented · verified (tests, exports) · ADR 0010 **proposed** |
 
 ## Objective
@@ -59,7 +59,9 @@ Existing saved data must be preserved, and the sensor contracts must stay compat
 | Command | Result |
 |---|---|
 | `npx jest src/application src/infrastructure/database` (mobile) | 52/52 |
-| `npm run verify`, Android and iOS `npx expo export` | in the PR description (run on the final head) |
+| `npm run verify` at `420df7e` (Node 22.22.0, clean `npm ci`) | exit 0. Boundaries OK (80 files, no cycles). Workflow policy OK. Typecheck OK. Script tests 62/62. Jest 231/231: mobile 63, rep-engine 27, sensor-contracts 103, workout-domain 38 |
+| `WorkoutSessionController.sqlite.test.ts` at `420df7e` (includes PR #36) | 3/3, including *"reads a recorded workout, its set, and its last entered resistance from SQLite history"* |
+| Android and iOS `npx expo export` | in the PR's final-head comment |
 
 **Migration criteria (plan §5) and their tests**, all in `migrations.test.ts`:
 1. fresh install;
@@ -84,9 +86,34 @@ Existing saved data must be preserved, and the sensor contracts must stay compat
   §4). The app cannot delete recordings today.
 - **The device upgrade is untested** on a real `repone.db` (criterion 9). The existing data is simulated only.
 
+## Integration regression (PR #36, Codex)
+PR #36 was merged into this branch at `420df7e`, so its coverage is part of this delivery. It runs the labelled
+synthetic trace through the real `WorkoutSessionController` and Node SQLite, links the recording to a workout set,
+and reads it back through the history queries:
+- workout totals and per-set full/partial counts;
+- simulated provenance;
+- the stored end reason;
+- the channel `source_id`s;
+- the last user-entered resistance, 100 lb.
+
+Its handoff: [`2026-11-07-codex-RO-013.md`](2026-11-07-codex-RO-013.md). Node SQLite exercises the shared database
+port, not the native iPhone upgrade (criterion 9).
+
+## Owner device check (criterion 9)
+The App Store's Expo Go opens only SDK 58 projects, and this branch is on SDK 57. The check therefore runs on a
+**combined candidate**: this branch merged with PR #30's head `4f847cf` (the redesign, which includes PR #29's
+SDK 58). It is branch `claude/RO-013-m3-phone-candidate`; its exact SHA is posted on PR #35.
+1. **Before the upgrade:** open PR #30's head in Expo Go and make sure History has at least one set.
+2. **The upgrade:** open the candidate. The first launch runs migration v2.
+3. **Old sets survive:** History and Today show the same sets as before, with the same counts and badges.
+4. **New set:** record and save one simulated set. It appears in History.
+5. **Persistence:** force-quit Expo Go and reopen the candidate. Every set is still there.
+6. **Do not go back:** after the upgrade, any schema-v1 build (`main` today, PR #30 alone) stops at "Could not open
+   local storage: Database schema v2 is newer than this app supports (v1)". That is the newer-schema guard working.
+   So run PR #30's own acceptance check **before** step 2.
+
 ## Next steps
-1. **Owner device check (recommended):** install the part 2 build on the phone that already has History. Open the
-   app (this runs the upgrade), confirm History shows the same sets, then record one simulated set.
+1. **Owner device check:** the section above.
 2. **Milestone 4 (RO-014):** UI for exercise selection, workouts and resistance entry, on PR #30's design.
 
 ## Review round 1 (Codex, reviewed `08b4b93`)

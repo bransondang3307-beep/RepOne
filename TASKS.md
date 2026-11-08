@@ -24,7 +24,7 @@
 | RO-010 | Decide whether to record the app layout in source of truth §6 | Owner (ChatGPT prepares) | P3 | todo | RO-003 merged | — |
 | RO-011 | Architecture review of Milestone 1 layout (ADR 0003) | Gemini | P2 | done | RO-005 | [PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8) — merged `f41309c` |
 | RO-012 | Alignment Milestone 2: contracts, multi-channel engine wrapper, device connectivity | Claude Code | P2 | done | RO-003 merged, owner go-ahead (both met 2026-10-23) | [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14) `9a42cf0` · [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15) `9b93b32` · [PR #16](https://github.com/bransondang3307-beep/RepOne/pull/16) `058bfe4` · [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) `f1df6b2` — all merged |
-| RO-013 | Alignment Milestone 3: workout domain + persistence | Claude Code | P2 | in-progress | RO-012 (done); owner go-ahead (given 2026-11-06) | Part 1: [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33) (`claude/RO-013-workout-domain`); part 2: `claude/RO-013-sqlite-persistence` (stacked; PR link in its handoff). Plan: [`docs/plans/RO-013-milestone-3-plan.md`](docs/plans/RO-013-milestone-3-plan.md) |
+| RO-013 | Alignment Milestone 3: workout domain + persistence | Claude Code | P2 | in-progress | RO-012 (done); owner go-ahead (given 2026-11-06) | Part 1: [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33) (`claude/RO-013-workout-domain`); part 2: [PR #35](https://github.com/bransondang3307-beep/RepOne/pull/35) (`claude/RO-013-sqlite-persistence`, stacked), which includes the history integration regression from [PR #36](https://github.com/bransondang3307-beep/RepOne/pull/36). Plan: [`docs/plans/RO-013-milestone-3-plan.md`](docs/plans/RO-013-milestone-3-plan.md) |
 | RO-014 | Alignment Milestone 4: mobile UI | Claude Code | P2 | todo | RO-013 | — |
 | RO-015 | Alignment Milestone 5: integration + Sprint 1 close-out | Claude Code + Codex | P2 | todo | RO-014 | — |
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
@@ -195,13 +195,17 @@
   - **Part 1 (pure domain):** in review, [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33).
     [ADR 0010](docs/decisions/0010-workout-domain-model.md) is Proposed. Plan decisions 1–4 follow the owner's
     direction; decisions 5 and 6 use the plan's recommendations and await confirmation.
-  - **Part 2 (SQLite persistence):** in review on `claude/RO-013-sqlite-persistence`, stacked on part 1:
+  - **Part 2 (SQLite persistence):** in review, [PR #35](https://github.com/bransondang3307-beep/RepOne/pull/35), stacked on part 1:
     - migration v2, meeting plan §5 criteria 1–8 and 10 in tests;
     - the SQLite and in-memory repositories and the shared contract suite;
     - history queries;
-    - the recording outcome and the rep-event `source_id`.
+    - the recording outcome and the rep-event `source_id`;
+    - the recording-to-history integration regression ([PR #36](https://github.com/bransondang3307-beep/RepOne/pull/36), Codex, merged into part 2). A synthetic
+      recording is linked to a SQLite workout and read back through the history queries: totals, per-set counts,
+      provenance, end reason, `source_id`s and the last entered resistance.
 
-    Criterion 9 (the owner's device upgrade check) is outstanding.
+    Criterion 9 (the owner's device upgrade check) is outstanding. The App Store's Expo Go opens only SDK 58, so it
+    runs on a combined candidate (part 2 + PR #30, which includes SDK 58); the part-2 handoff gives the steps.
 - **RO-014 (M4):** home dashboard, exercise selection, pause/reset via application services. Criteria: typecheck,
   tests, Android/iOS export; owner Expo Go check.
 - **RO-015 (M5):** boundary validation, full test run, Expo Go, docs + Sprint 1 summary. Codex runs the independent review.

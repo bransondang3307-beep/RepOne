@@ -6,7 +6,7 @@
 - **Starts when** all of these are true:
   - PR #29 (Expo SDK 58) and PR #30 (UI redesign) are merged;
   - Milestone 3 is merged: [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33) and its stacked part 2;
-  - the owner has answered §5 and says go.
+  - the owner has answered §5 (done: approved 2026-11-08) and says go.
 
   `TASKS.md`: "each starts only after the previous one is merged and the owner approves".
 - **Sources:**
@@ -93,13 +93,17 @@ Each PR:
 6. **Linear warning.** Choosing a `linear` machine shows the rotating-only warning.
 7. **Themes.** Everything works in light and dark mode, with no red screen.
 
-## 5. Owner decisions needed before starting
-| # | Question | Options | Recommendation |
+## 5. Owner decisions (approved 2026-11-08)
+The owner approved all four recommendations on 2026-11-08: "Milestone 4: A set that ends in a sensor error counts as
+completed and shows the error and saved reps. Remember the last resistance unit, start workouts from Today, and keep
+standalone quick sets."
+
+| # | Question | Options | Decision |
 |---|---|---|---|
-| 1 | What happens to a set whose recording ends in a sensor error? | (a) mark it completed, showing the reason and the reps saved; (b) leave it planned so it can be re-recorded | **(a):** the data is real and saved; the reason is visible. Re-recording adds a new set |
-| 2 | Default unit for resistance | (a) remember the last unit used; (b) fixed kg; (c) a settings choice | **(a)**, no settings screen yet |
-| 3 | Where workouts start | (a) the Home dashboard; (b) a new tab | **(a)**, using PR #30's tab bar unchanged |
-| 4 | Standalone recordings (no workout) | (a) keep "quick set" recording as today; (b) every set needs a workout | **(a)**, so nothing existing breaks |
+| 1 | What happens to a set whose recording ends in a sensor error? | (a) mark it completed, showing the reason and the reps saved; (b) leave it planned so it can be re-recorded | **(a), approved:** the data is real and saved; the reason is visible. Re-recording adds a new set |
+| 2 | Default unit for resistance | (a) remember the last unit used; (b) fixed kg; (c) a settings choice | **(a), approved:** no settings screen yet |
+| 3 | Where workouts start | (a) the Home dashboard; (b) a new tab | **(a), approved:** the Today dashboard; PR #30's tab bar unchanged |
+| 4 | Standalone recordings (no workout) | (a) keep "quick set" recording as today; (b) every set needs a workout | **(a), approved:** quick sets stay, so nothing existing breaks |
 
 ## 6. Risks
 - **Dependent PRs.** PR #29, #30, #33 and Milestone 3 part 2 must merge first. Starting earlier would mean building

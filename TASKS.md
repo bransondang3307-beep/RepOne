@@ -25,7 +25,7 @@
 | RO-011 | Architecture review of Milestone 1 layout (ADR 0003) | Gemini | P2 | done | RO-005 | [PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8) — merged `f41309c` |
 | RO-012 | Alignment Milestone 2: contracts, multi-channel engine wrapper, device connectivity | Claude Code | P2 | done | RO-003 merged, owner go-ahead (both met 2026-10-23) | [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14) `9a42cf0` · [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15) `9b93b32` · [PR #16](https://github.com/bransondang3307-beep/RepOne/pull/16) `058bfe4` · [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) `f1df6b2` — all merged |
 | RO-013 | Alignment Milestone 3: workout domain + persistence | Claude Code | P2 | in-progress | RO-012 (done); owner go-ahead (given 2026-11-06) | Part 1: [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33) (`claude/RO-013-workout-domain`); part 2 next. Plan: [`docs/plans/RO-013-milestone-3-plan.md`](docs/plans/RO-013-milestone-3-plan.md) |
-| RO-014 | Alignment Milestone 4: mobile UI | Claude Code | P2 | todo | RO-013 | — |
+| RO-014 | Alignment Milestone 4: mobile UI | Claude Code | P2 | todo | RO-013; PR #29 and PR #30 merged; §5 decisions approved by the owner 2026-11-08 | Plan: [`docs/plans/RO-014-milestone-4-plan.md`](docs/plans/RO-014-milestone-4-plan.md) |
 | RO-015 | Alignment Milestone 5: integration + Sprint 1 close-out | Claude Code + Codex | P2 | todo | RO-014 | — |
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
@@ -199,6 +199,11 @@
   - **Part 2 (SQLite persistence):** next, stacked on part 1.
 - **RO-014 (M4):** home dashboard, exercise selection, pause/reset via application services. Criteria: typecheck,
   tests, Android/iOS export; owner Expo Go check.
+  - **Plan:** [`docs/plans/RO-014-milestone-4-plan.md`](docs/plans/RO-014-milestone-4-plan.md) (2026-11-06, at the
+    owner's direction). It builds on PR #30's redesign and Milestone 3, in three PRs, with four owner decisions. Not
+    started.
+  - **Hardware-dependent checks** for every milestone are listed as future acceptance tests in
+    [`docs/acceptance/hardware-acceptance-tests.md`](docs/acceptance/hardware-acceptance-tests.md).
 - **RO-015 (M5):** boundary validation, full test run, Expo Go, docs + Sprint 1 summary. Codex runs the independent review.
 - **Rule:** each starts only after the previous one is merged and the owner approves.
 

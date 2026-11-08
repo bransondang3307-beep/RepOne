@@ -23,6 +23,7 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 
 | Date | Agent | Task | File |
 |---|---|---|---|
+| 2026-11-06 | Claude Code | RO-014 plan (Milestone 4 on PR #30's redesign) and hardware-dependent acceptance tests (docs) | [2026-11-06-claude-RO-014-plan.md](2026-11-06-claude-RO-014-plan.md) |
 | 2026-11-06 | Claude Code | RO-013 part 1: workout domain model, user-entered resistance, workout lifecycle; ADR 0010 (Proposed) | [2026-11-06-claude-RO-013-workout-domain.md](2026-11-06-claude-RO-013-workout-domain.md) |
 | 2026-10-31 | Claude Code | Milestone 2 closeout status (PRs #21, #14–#17 merged after the owner's device check; ADR 0007 Accepted); RO-013 plan; RO-028 and RO-029 recorded | [2026-10-31-claude-RO-012-m2-closeout-status.md](2026-10-31-claude-RO-012-m2-closeout-status.md) |
 | 2026-10-29 | Claude Code | RO-027 dependency security patch (PR #21) | [2026-10-29-claude-RO-027-dependency-security.md](2026-10-29-claude-RO-027-dependency-security.md) |

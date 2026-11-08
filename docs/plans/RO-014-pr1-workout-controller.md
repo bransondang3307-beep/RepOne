@@ -77,24 +77,55 @@ Pausing (decision 5) must nevertheless be refused for the whole recording, not o
 
    Then set the controller's lock: `recordingSetId = setId`. From this moment, `pause()` and `finish()` throw
    `WorkoutRuleError('set_recording')`, the same code as the domain's own check.
-2. **Subscribe before starting**, so a short replay that ends during `start()` is not missed.
-3. **`sessionId = await recorder.start(...)`**, then `beginSetRecording(record, setId, sessionId)` and save.
-4. **When the recording settles** (`finished` or `error`, for this session id): `endSetRecording(record, setId)`,
-   then save, then refresh `listSetResults`. Then release the lock.
+2. **Open a recording attempt, then start** (Codex P2 on PR #37). The attempt is
+   `{ setId, sessionId: null, terminal: null, linked: false, completed: false }`, and the controller subscribes to
+   the recording controller before calling `start()`.
+   - **The session id comes from the snapshot, not from `start()`.** `WorkoutSessionController.start()` publishes
+     `{ status: 'starting', sessionId }` synchronously, before its first `await`. The subscriber records that id in
+     the attempt. No other recording can start in between, because the recording controller refuses a second
+     session while one is busy.
+   - **A terminal snapshot is buffered, never dropped or processed early.** A `finished` or `error` snapshot whose
+     `sessionId` equals the attempt's is stored in `attempt.terminal`. It can arrive before `start()` resolves: for
+     example a short replay, or a sensor that ends during `start()`. Snapshots for any other session id are ignored.
+3. **Link the set:** `await recorder.start(...)`, then `beginSetRecording(record, setId, attempt.sessionId)`, then
+   save, then set `attempt.linked = true`.
+4. **Complete exactly once.** `completeOnce()` runs when **both** `attempt.linked` and `attempt.terminal` are set,
+   whichever comes last, and only if `attempt.completed` is false. In order, it:
+   - calls `endSetRecording(record, setId)`;
+   - saves;
+   - refreshes `listSetResults` and reads `sessions.getOutcome`;
+   - releases the lock (`recordingSetId = null`);
+   - resolves the attempt's **workout-level** completion (§3a).
 5. **Sensor error during the set** (decision 1): the same path as step 4.
    - The set is **completed**.
    - Its reps are the ones saved before the failure (`listSetResults`).
    - The reason comes from `sessions.getOutcome(sessionId)`, for example `{ end_reason: 'sensor_error',
      sensor_error_code: 'connection_lost' }`, together with the recording controller's message.
    - Re-recording means adding a new set.
-6. **Start failure:** `start()` rejects.
-   - If the recording row exists (`sessions.getById(sessionId)` is non-null), apply decision 1 uniformly: link it,
-     then complete the set with outcome `start_failed` and 0 reps. No orphan recording is left in History.
+6. **Start failure:** `start()` rejects. The recording controller publishes its terminal `error` snapshot before the
+   rejection, so it is already in `attempt.terminal`.
+   - If the recording row exists (`sessions.getById(attempt.sessionId)` is non-null), apply decision 1 uniformly:
+     link it (step 3), then `completeOnce()` (step 4). The set completes with outcome `start_failed` and 0 reps, and
+     no orphan recording is left in History.
    - If the row does not exist (the failure came before `sessions.create`), the set stays planned and the error is
      shown.
    - In both cases, release the lock.
 7. **Save failure** after the recording ends: the recording itself is already stored. The set keeps `recording` in
    memory, the error is shown, and the save is retried by the next action.
+
+### 3a. Workout-level completion, the signal callers and tests wait for (Codex P2 on PR #37)
+
+`recordSet(setId)` returns `{ sessionId, settled }`. `settled` is a `Promise<SettledSet>`, where `SettledSet` holds:
+- the set as saved;
+- its `SetResult` (reps and provenance);
+- its `SessionOutcome`;
+- the recording controller's error message, or null.
+
+`settled` resolves only after `completeOnce()` has saved the completed set, refreshed the results and released the
+lock. The recording controller's own `finished` / `error` snapshot is **not** that signal: it comes earlier, while the
+workout is still mid-update. The controller's snapshot also exposes the same moment as `recordingSetId === null` with
+the refreshed results, for the UI. If the post-recording save fails, `settled` rejects with that error and the lock is
+kept (step 7).
 
 **Open point for review:** a set left `recording` by an app crash. On `load`:
 - if the linked recording has `ended_at_epoch_ms`, complete the set;
@@ -107,20 +138,24 @@ The recording keeps what was saved.
 **File:** `apps/mobile/src/infrastructure/database/__tests__/WorkoutController.sqlite.test.ts`, added in this PR as
 `it.todo`.
 
-**Harness:** the one in #36's `WorkoutSessionController.sqlite.test.ts`, reused as is:
+**Harness:** the one in #36's `WorkoutSessionController.sqlite.test.ts`:
 - `openNodeSqliteDatabase` + `migrate`;
 - `createSqliteRepositories`;
 - a recording controller with a step clock and `RotationalRepDetector`;
-- `createSyntheticCalibration(0)`;
-- the `settled` helper.
+- `createSyntheticCalibration(0)`.
+
+**What the tests wait for:** every post-recording assertion and action waits for the **workout-level** `settled`
+promise that `recordSet` returns (§3a). #36's recorder-level `settled` helper resolves before the controller has
+saved the set and released its lock, so it is not used for that.
 
 **Fixtures:** "Row" on "Seated row" (rotational), and a set at 100 lb.
 
 | # | Test | Setup | Expected |
 |---|---|---|---|
-| 1 | **Normal completion:** a recorded set completes and reads back through history | `ReplaySensorSource` over `LABELLED_SET_SCRIPT` (8 full + 2 partial, synthetic). `create`, `addExercise`, `addSet` (100 lb), `start`, `recordSet`, wait for settled, `finish` | The set is `completed` and linked to the recording. `listSetResults`: 8 full, 2 partial, provenance `simulated`. `getOutcome`: `stream_ended`. `listRecent`: `completed_set_count` 1, workout `finished`. `listExerciseHistory('row', 1)`: 100 lb (shown as "100 lb"). A new workout's `addSet` for Row prefills 100 lb, and `defaultResistanceUnit()` is `lb` |
-| 2 | **Sensor failure with saved reps:** the set completes with the reason and the reps saved (decision 1) | `SimulatedSensorSource` over `LABELLED_SET_SCRIPT` with `fault: { afterSamples: N, code: 'connection_lost' }`. N is chosen at implementation so that at least one rep is detected first. `recordSet`, advance the scheduler until settled | The set is `completed`. `listSetResults` shows full + partial = the rep events stored for the recording, and more than 0. `getOutcome`: `{ end_reason: 'sensor_error', sensor_error_code: 'connection_lost' }`. The workout is still `active`. A new set can be added and recorded (re-recording adds a set) |
-| 3 | **No pause during a recording** (decision 5) | Two windows: (a) while `start()` is pending, using a deferred-start sensor like `DeferredStartSensor` in `WorkoutSessionController.outcome.test.ts`; (b) while recording, using `SimulatedSensorSource` with a `ManualScheduler` | In both windows, `pause()` and `finish()` reject with `WorkoutRuleError` code `set_recording`, and the stored workout stays `active` with no pauses. After `stopSet()` settles, `pause()` succeeds (stored `paused`, one open pause), and `resume()` returns it to `active` |
+| 1 | **Normal completion:** a recorded set completes and reads back through history | `ReplaySensorSource` over `LABELLED_SET_SCRIPT` (8 full + 2 partial, synthetic). `create`, `addExercise`, `addSet` (100 lb), `start`, `recordSet`, await its workout-level `settled`, then `finish` | The set is `completed` and linked to the recording. `listSetResults`: 8 full, 2 partial, provenance `simulated`. `getOutcome`: `stream_ended`. `listRecent`: `completed_set_count` 1, workout `finished`. `listExerciseHistory('row', 1)`: 100 lb (shown as "100 lb"). A new workout's `addSet` for Row prefills 100 lb, and `defaultResistanceUnit()` is `lb` |
+| 2 | **Sensor failure with saved reps:** the set completes with the reason and the reps saved (decision 1) | `SimulatedSensorSource` over `LABELLED_SET_SCRIPT` with `fault: { afterSamples: N, code: 'connection_lost' }`. N is chosen at implementation so that at least one rep is detected first. `recordSet`, advance the scheduler, then await the workout-level `settled` | The set is `completed`. `listSetResults` shows full + partial = the rep events stored for the recording, and more than 0. `getOutcome`: `{ end_reason: 'sensor_error', sensor_error_code: 'connection_lost' }`. The workout is still `active`. A new set can be added and recorded (re-recording adds a set) |
+| 3 | **No pause during a recording** (decision 5) | Two windows: (a) while `start()` is pending, using a deferred-start sensor like `DeferredStartSensor` in `WorkoutSessionController.outcome.test.ts`; (b) while recording, using `SimulatedSensorSource` with a `ManualScheduler` | In both windows, `pause()` and `finish()` reject with `WorkoutRuleError` code `set_recording`, and the stored workout stays `active` with no pauses. After `stopSet()` and the workout-level `settled`, `pause()` succeeds (stored `paused`, one open pause), and `resume()` returns it to `active` |
+| 4 | **A recording that settles before `start()` resolves** completes the set exactly once, after the link is saved (Codex P2 on PR #37) | A sensor whose `start()` delivers its samples and publishes `stopped` before it resolves, so the recording controller publishes `finished` while `start()` is still pending | The terminal snapshot is buffered: no `set_not_recording` error, and nothing is dropped. The set is linked, then completed **once** (one save of the completed set). `settled` resolves with the set's reps and `stream_ended`, and the lock is released |
 
 **Also in PR 1, as unit tests on in-memory repositories:**
 - a quick set (recording controller only) stays standalone, and `recordSet` refuses while one runs;

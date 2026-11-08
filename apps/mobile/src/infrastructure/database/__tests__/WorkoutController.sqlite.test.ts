@@ -2,6 +2,8 @@
 // the implementation (docs/plans/RO-014-pr1-workout-controller.md §4). Implemented on this branch once PR #35, #29
 // and #30 merge. The harness will be the one in WorkoutSessionController.sqlite.test.ts (PR #36): node:sqlite +
 // migrate + createSqliteRepositories, a recording controller with a step clock, the labelled synthetic trace.
+// Post-recording assertions wait for the WORKOUT-level `settled` promise that recordSet returns (plan §3a), never for
+// the recording controller's own finished/error snapshot, which comes before the set is saved and the lock released.
 // Every recording here is SYNTHETIC (simulated or replayed): nothing measures real reps.
 
 describe('WorkoutController × SQLite (integration, RO-014 PR 1)', () => {
@@ -14,6 +16,10 @@ describe('WorkoutController × SQLite (integration, RO-014 PR 1)', () => {
   );
 
   it.todo(
-    'pause and finish are refused with set_recording while a set is starting or recording, and work once the recording settles',
+    'pause and finish are refused with set_recording while a set is starting or recording, and work once the set has settled',
+  );
+
+  it.todo(
+    'a recording that settles before start() resolves is buffered and completes the set exactly once, after its link is saved',
   );
 });

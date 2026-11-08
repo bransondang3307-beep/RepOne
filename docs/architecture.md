@@ -45,10 +45,10 @@ track empty folders.
 | `@repone/sensor-contracts` | nothing internal | any `@repone/*`; React, RN, Expo, Zustand, SQLite, BLE |
 | `@repone/rep-engine`, `@repone/workout-domain` | `@repone/sensor-contracts` | each other; platform libraries |
 | `application/services` | `@repone/*` packages | React/RN/Expo/Zustand, features, shared, infrastructure |
-| `application` (composition root, providers) | packages, services, infrastructure | features, shared, routes |
+| `application` (composition root, providers) | packages, services, infrastructure — via each adapter's `index.ts` | features, shared, routes; an adapter's internal files |
 | `features/<x>` | packages, `application` (index), `shared` (index), own files | other features, infrastructure |
 | `shared` | packages, React/RN, own files | features, application, infrastructure |
-| `infrastructure/<x>` | packages, driver libraries, own files | application, features, shared |
+| `infrastructure/<x>` (each adapter is its own layer) | packages, driver libraries, own files | application, features, shared, other adapters (`infrastructure/<y>`) |
 | routes (`app/`) | features, shared, application — via their `index.ts` | infrastructure |
 
 Additional rules: no deep imports into packages (`@repone/x/src/...`); `@repone/x/testing` only

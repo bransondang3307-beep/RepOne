@@ -122,16 +122,41 @@ const toSetResult = (r: SetResultRow): SetResult => ({
 /**
  * SQLite-backed repositories. Call `migrate(db)` before use.
  *
- * Every write goes through one queue. expo-sqlite transactions are not exclusive, so without it a workout save and a
- * recording's sample writes could interleave inside one transaction (RO-013).
+ * Every operation, reads included, runs on one queue: one at a time, in call order. The app shares one connection,
+ * and expo-sqlite transactions are not exclusive. Without the queue, a workout save and a recording's sample writes
+ * could interleave inside one transaction. A read could also see a save between deleting a workout's children and
+ * re-inserting them (Codex P1 on PR #35).
  */
 export function createSqliteRepositories(db: SqlDatabase): Repositories {
-  let writes: Promise<unknown> = Promise.resolve();
-  const write = <T>(work: () => Promise<T>): Promise<T> => {
-    const result = writes.then(work);
-    writes = result.catch(() => undefined);
+  const repos = createUnqueuedRepositories(db);
+  let queue: Promise<unknown> = Promise.resolve();
+  const serial = <T>(work: () => Promise<T>): Promise<T> => {
+    const result = queue.then(work);
+    queue = result.catch(() => undefined);
     return result;
   };
+  const queued = <R extends object>(repo: R): R =>
+    Object.fromEntries(
+      Object.entries(repo).map(([name, method]) => [
+        name,
+        (...args: unknown[]) => serial(() => (method as (...a: unknown[]) => Promise<unknown>)(...args)),
+      ]),
+    ) as R;
+  return {
+    sessions: queued(repos.sessions),
+    rawSamples: queued(repos.rawSamples),
+    repEvents: queued(repos.repEvents),
+    calibrations: queued(repos.calibrations),
+    machines: queued(repos.machines),
+    exercises: queued(repos.exercises),
+    workouts: queued(repos.workouts),
+  };
+}
+
+/** The repositories without the queue. Each method must not call another queued method (it would wait on itself). */
+function createUnqueuedRepositories(db: SqlDatabase): Repositories {
+  /** Runs at once; ordering is the queue's job (see createSqliteRepositories). */
+  const write = <T>(work: () => Promise<T>): Promise<T> => work();
 
   const loadPauses = async (workoutId: string) =>
     db.all<{ start_epoch_ms: number; end_epoch_ms: number | null }>(

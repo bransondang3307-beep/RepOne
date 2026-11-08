@@ -89,5 +89,16 @@ Existing saved data must be preserved, and the sensor contracts must stay compat
    app (this runs the upgrade), confirm History shows the same sets, then record one simulated set.
 2. **Milestone 4 (RO-014):** UI for exercise selection, workouts and resistance entry, on PR #30's design.
 
+## Review round 1 (Codex, reviewed `08b4b93`)
+- **[P1] `createSqliteRepositories.ts:434`, serialize aggregate reads with workout writes.** **Valid; fixed.**
+  - The defect: reads bypassed the write queue on the shared connection. A `getById` or `listSetResults` issued
+    during `save()` saw the workout with its children deleted but not yet re-inserted.
+  - The fix: every repository operation, reads included, now runs on one queue at the boundary
+    (`createSqliteRepositories` wraps the unqueued repositories). Inner methods never call queued ones.
+  - Regression test: an instrumented database pauses the save right after the deletes, and reads are issued during
+    the pause. On `08b4b93` `getById` returned empty `exercises` and `sets`; now the reads wait for the whole save.
+- Also on this branch: part 1's round-1 fix (timestamp validation, `a4b3152`), brought in by a merge (`d4215b9`).
+- Fix commit, verify, the exports and CI: in the PR's round-1 summary comment.
+
 ## Questions for the owner
 - Confirm ADR 0010 decisions 5 and 6.

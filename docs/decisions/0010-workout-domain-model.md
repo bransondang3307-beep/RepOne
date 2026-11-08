@@ -96,8 +96,9 @@ It does this without touching existing data or the sensor contracts.
 - **Sets are saved with their workout.** The planned `WorkoutSetRepository` is folded into
   `WorkoutRepository.save(record)`, which stores the whole aggregate atomically after `validateWorkoutRecord`. That
   keeps the invariants in one place.
-- **Writes are serialized inside the SQLite repositories.** expo-sqlite transactions are not exclusive, and a
-  workout save during a recording could otherwise interleave with sample writes.
+- **Every SQLite repository operation, reads included, runs on one queue.** expo-sqlite transactions are not
+  exclusive and the connection is shared. Without the queue, a workout save could interleave with sample writes, and
+  a read could see a save half done (Codex P1 on PR #35).
 
 **History queries:**
 - `workouts.listRecent`: summaries with rep totals from the sets' recordings;

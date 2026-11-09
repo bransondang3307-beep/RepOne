@@ -19,7 +19,7 @@
 | RO-005 | Open PR for `sprint-1-alignment` → `main` | Claude Code | P1 | done | RO-004 | [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) — merged `cd884fc` |
 | RO-006 | Review Milestone 1 PR | Codex | P1 | done | RO-005 | Reviews on [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) — approved `6f48f1d` |
 | RO-007 | Run Milestone 1 app in Expo Go | Owner | P1 | done | — | [Result on PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3#issuecomment-6227338609) — passed (iPhone, simulated data) |
-| RO-008 | Update `docs/architecture.md` §6 ownership to `AGENTS.md` roles; correct the routes location note | Claude Code | P2 | in-review | RO-003 merged | [PR #42](https://github.com/bransondang3307-beep/RepOne/pull/42) |
+| RO-008 | Update `docs/architecture.md` §6 ownership to `AGENTS.md` roles; correct the routes location note | Claude Code | P2 | done | RO-003 merged | [PR #42](https://github.com/bransondang3307-beep/RepOne/pull/42) — merged `96862d3` |
 | RO-009 | Choose a project license | Owner | P3 | todo | — | — |
 | RO-010 | Decide whether to record the app layout in source of truth §6 | Owner (ChatGPT prepares) | P3 | todo | RO-003 merged | — |
 | RO-011 | Architecture review of Milestone 1 layout (ADR 0003) | Gemini | P2 | done | RO-005 | [PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8) — merged `f41309c` |
@@ -40,7 +40,7 @@
 | RO-026 | Decide where simulation lives: root barrel vs a `./simulation` subpath export (RO-011 §3.2) | Gemini (proposal) → owner decides | P3 | todo | RO-012 merged | — |
 | RO-027 | Dependency security: targeted Expo SDK 57 patch (`expo` 57.0.31, `expo-router` 57.0.29, `node-forge` 1.4.2) | Claude Code | P1 | done | — | [PR #21](https://github.com/bransondang3307-beep/RepOne/pull/21) — merged `4d6ce0c` |
 | RO-028 | iOS: home and History content starts under the translucent navigation header | Claude Code | P2 | todo | — | — |
-| RO-029 | Real-sensor pipeline over BLE: wire protocol, codec, firmware, iPhone BLE adapter (owner-directed) | Claude Code | P1 | in-progress | RO-012 (done); RO-025 before the BLE adapter lands | Part 1: [PR #26](https://github.com/bransondang3307-beep/RepOne/pull/26) — merged `75322ea` (ADR 0008 Proposed); part 2: [PR #27](https://github.com/bransondang3307-beep/RepOne/pull/27) — merged `3dbc051`; part 3: [PR #28](https://github.com/bransondang3307-beep/RepOne/pull/28) open, parked at its fix-round limit |
+| RO-029 | Real-sensor pipeline over BLE: wire protocol, codec, firmware, iPhone BLE adapter (owner-directed) | Claude Code | P1 | in-progress | RO-012 (done); RO-025 before the BLE adapter lands | Part 1: [PR #26](https://github.com/bransondang3307-beep/RepOne/pull/26) — merged `75322ea` (ADR 0008 Proposed); part 2: [PR #27](https://github.com/bransondang3307-beep/RepOne/pull/27) — merged `3dbc051`; firmware → decoder stream regression (synthetic): [PR #41](https://github.com/bransondang3307-beep/RepOne/pull/41) — merged `9664fc5`; part 3: [PR #28](https://github.com/bransondang3307-beep/RepOne/pull/28) open, parked at its fix-round limit |
 
 ## Task details
 

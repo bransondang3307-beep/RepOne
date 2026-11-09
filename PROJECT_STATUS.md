@@ -260,11 +260,10 @@ Assessed 2026-11-09 against `main` @ `96862d3`.
 
    Then PRs #29, #30 and #35 merge, and PR #24 closes as superseded.
 2. **Claude Code, after those merges:** Milestone 4 in three PRs, starting with PR 4.1 (#37).
-3. **Claude Code, meanwhile:** software work that avoids the held PRs. Done 2026-11-09:
-   - PR #40's upgrade test (in #35);
-   - PR #41's boundary test;
-   - RO-008 (PR #42);
-   - #37's last fix round.
+3. **Claude Code, meanwhile:** software work that avoids the held PRs.
+   - Merged into `main` on 2026-11-09: PR #41's boundary test and RO-008 (PR #42).
+   - Progress on open PRs, not done: PR #40's upgrade test is in #35's branch, and #37's last fix round is clean.
+     Both are listed under "Open branches / PRs".
 
    Remaining Claude Code `todo` tasks touch code that #30 rewrites: RO-024's display names and RO-028, which #30
    supersedes.

@@ -10,6 +10,7 @@ export { ProvenanceBadge, provenanceLabel } from './components/ProvenanceBadge';
 export { PulseDot } from './components/PulseDot';
 export { RingChart, type Ring, type RingSegment } from './components/RingChart';
 export { Screen, ScreenHeader, useScreenContentStyle } from './components/Screen';
+export { SegmentedControl } from './components/SegmentedControl';
 export { SpinningArc } from './components/SpinningArc';
 export { StatTile } from './components/StatTile';
 export { TabBar } from './components/TabBar';

@@ -128,4 +128,13 @@ They:
   values, repeated-start reads, signed big-endian decoding, temperature skipped, NACK and short-read failures. That
   is not real I²C.
 
+They also check the firmware against the app's decoder on whole streams (`firmware/tools/firmware-to-decoder.test.mjs`).
+`test/host/emit_serial_capture.cpp` prints a capture the way the Uno sketch does, from the same library calls and
+line format with **synthetic** samples. The app's decoder and `StreamTracker` must then read it back for:
+- one sample per packet (Uno) and five per packet (BLE-style);
+- a refused packet;
+- a refused first packet;
+- an IMU failure and a new stream;
+- the 32-bit `millis()` wrap.
+
 CI runs them on Linux.

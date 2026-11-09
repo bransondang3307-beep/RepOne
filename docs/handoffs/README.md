@@ -23,6 +23,7 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 
 | Date | Agent | Task | File |
 |---|---|---|---|
+| 2026-11-09 | Claude Code | RO-029: firmware → decoder cross-boundary regression on whole streams (synthetic, test only) | [2026-11-09-claude-RO-029-firmware-decoder-boundary.md](2026-11-09-claude-RO-029-firmware-decoder-boundary.md) |
 | 2026-11-09 | Claude Code | Status closeout of the 2026-11-08 merges (PRs #33, #34, #25, #26, #27); RO-025 done | [2026-11-09-claude-status-closeout.md](2026-11-09-claude-status-closeout.md) |
 | 2026-11-06 | Claude Code | RO-014 plan (Milestone 4 on PR #30's redesign) and hardware-dependent acceptance tests (docs) | [2026-11-06-claude-RO-014-plan.md](2026-11-06-claude-RO-014-plan.md) |
 | 2026-11-06 | Claude Code | RO-013 part 1: workout domain model, user-entered resistance, workout lifecycle; ADR 0010 (Proposed) | [2026-11-06-claude-RO-013-workout-domain.md](2026-11-06-claude-RO-013-workout-domain.md) |

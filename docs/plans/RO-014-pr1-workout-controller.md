@@ -127,6 +127,48 @@ workout is still mid-update. The controller's snapshot also exposes the same mom
 the refreshed results, for the UI. If the post-recording save fails, `settled` rejects with that error and the lock is
 kept (step 7).
 
+### 3b. Repeated actions, save failures and stale recording events
+
+These rules apply wherever persisted state can change.
+
+- **One mutation at a time.** Every controller operation that changes the workout runs on one internal queue, as #35's
+  SQLite adapter does. Each operation therefore starts from the latest saved record, and saves land in call order.
+- **The in-memory record changes only after a save succeeds.** Each operation:
+  1. computes `next = domainFunction(record, …)`;
+  2. `await repositories.workouts.save(next)`, which is atomic (#35);
+  3. only then sets `record = next`.
+
+  A domain refusal (`WorkoutRuleError`, `WorkoutTransitionError`) or a failed save leaves both the stored and the
+  in-memory record unchanged.
+- **Repeated actions:**
+
+  | Action | Behaviour |
+  |---|---|
+  | `recordSet` on the set already recording, or any `recordSet` while the lock is held | `WorkoutRuleError('set_recording')` |
+  | `recordSet` on a completed set | The domain's `set_not_planned` |
+  | `stopSet` | Calls `recorder.stop()`, which is idempotent. With no attempt, it is a no-op |
+  | `pause`, `resume`, `finish` twice | The domain's `WorkoutTransitionError` |
+  | `start` twice | The domain's `WorkoutTransitionError` |
+
+  None of these refusals saves anything.
+- **Save failures:**
+  - *Link save fails* (step 3): the recording keeps running and the set stays `planned`, both stored and in memory.
+    When the terminal snapshot arrives, `completeOnce()` applies `beginSetRecording` then `endSetRecording` and saves
+    once.
+  - *Completion save fails:* `settled` rejects with the error. The attempt keeps its buffered terminal snapshot and
+    `completed = false`, and **the lock is kept**, so the workout cannot pause or finish around an unsaved set.
+    `retryPendingSave()`, or the next mutating call, re-runs `completeOnce()` first.
+  - The lock is released only after a successful completion save.
+- **Stale recording events:**
+  - Snapshots whose `sessionId` is not the attempt's are ignored. That covers quick sets, earlier attempts, and
+    snapshots left after `reset()`.
+  - Each attempt has its own subscription, removed when it completes.
+  - **`completeOnce()` also waits for `start()` to have settled.** The recording controller can publish a second
+    terminal snapshot for the same session: a late start failure replaces `stopped` (`recordStartFailure`). Since
+    linking happens only after `start()` resolves or rejects, and the recording controller publishes before it
+    rejects, the outcome read in `completeOnce()` is final.
+- **Crash recovery:** the open point below.
+
 **Open point for review:** a set left `recording` by an app crash. On `load`:
 - if the linked recording has `ended_at_epoch_ms`, complete the set;
 - if not, it was cut off mid-recording: complete the set and show "recording interrupted".
@@ -157,10 +199,109 @@ saved the set and released its lock, so it is not used for that.
 | 3 | **No pause during a recording** (decision 5) | Two windows: (a) while `start()` is pending, using a deferred-start sensor like `DeferredStartSensor` in `WorkoutSessionController.outcome.test.ts`; (b) while recording, using `SimulatedSensorSource` with a `ManualScheduler` | In both windows, `pause()` and `finish()` reject with `WorkoutRuleError` code `set_recording`, and the stored workout stays `active` with no pauses. After `stopSet()` and the workout-level `settled`, `pause()` succeeds (stored `paused`, one open pause), and `resume()` returns it to `active` |
 | 4 | **A recording that settles before `start()` resolves** completes the set exactly once, after the link is saved (Codex P2 on PR #37) | A sensor whose `start()` delivers its samples and publishes `stopped` before it resolves, so the recording controller publishes `finished` while `start()` is still pending | The terminal snapshot is buffered: no `set_not_recording` error, and nothing is dropped. The set is linked, then completed **once** (one save of the completed set). `settled` resolves with the set's reps and `stream_ended`, and the lock is released |
 
+### 4a. Implementation checklist for the four tests
+
+**Prerequisites:**
+- PRs #29, #30 and #35 merged.
+- The repository API used here is #35's at `26fe72a`. Its code is identical to the `fae478e` head that Codex
+  reviewed: the commits since then change docs only.
+- The domain functions are `main`'s (`b5a8538`, ADR 0010 Accepted).
+
+**Shared setup:**
+- `const db = openNodeSqliteDatabase(); await migrate(db)`, then `repositories = createSqliteRepositories(db)`.
+- A recording controller with a step clock and `RotationalRepDetector` (#36's `createController`).
+- `WorkoutController({ repositories, recorder, clock, createId, getSessionSensor, getCalibration })`, with
+  `getSessionSensor` swapped per test.
+- `createExercise('Row', { name: 'Seated row', motion_type: 'rotational' })`, then `create()`,
+  `addExercise('row', 'seated-row')`, `addSet(…)` and `setResistance(set, 100, 'lb')`, then `start()`.
+
+**T1 — Normal completion links exactly one session.**
+- **Sensor:** `ReplaySensorSource` (id `replay-row`, `simulated`) over the labelled trace, which has 8 full and
+  2 partial reps (synthetic).
+- **Event order:**
+  1. `recordSet(set1)`;
+  2. recorder `starting` (session id captured), then `recording`, then `finished`;
+  3. the link save;
+  4. `completeOnce`;
+  5. `settled` resolves;
+  6. `finish()`.
+- **Persisted state:**
+  - `workouts.getById` gives `finished`, with `set1` = `{ status: 'completed', recording_session_id: S,
+    resistance: 100 lb entered }`.
+  - Exactly one set references S, and `sessions.listRecent` has exactly one session, S.
+  - `listSetResults`: 8 full, 2 partial, `simulated`. `getOutcome(S)` is `stream_ended`.
+  - `listRecent(1)`: `completed_set_count` 1, with 8 / 2.
+  - `listExerciseHistory('row', 1)` gives 100 lb, shown as "100 lb".
+  - A second workout's `addSet` for Row prefills 100 lb, and `defaultResistanceUnit()` is `lb`.
+  - The controller snapshot has `recordingSetId === null`.
+
+**T2 — A sensor failure completes the set, keeping its saved reps and the error outcome.**
+- **Sensor:** `SimulatedSensorSource` over the labelled script, with a `ManualScheduler` and
+  `fault: { afterSamples: N, code: 'connection_lost' }`. N is computed in the test: run the detector over the same
+  trace, take the sample index of its first rep event, and add 50. At least one rep is then saved.
+- **Event order:**
+  1. `recordSet(set1)`;
+  2. `starting`, then `recording`;
+  3. `scheduler.advance(…)`;
+  4. the fault, then the recorder's `error` snapshot ("…The N samples received before the failure were saved.");
+  5. `completeOnce`;
+  6. `settled` **resolves**, with `error` non-null.
+- **Persisted state:**
+  - `set1` is `completed` and linked to S. `listSetResults` reps equal `repEvents.listBySession(S).length`, which is
+    greater than 0 and less than 10.
+  - `getOutcome(S)` is `{ end_reason: 'sensor_error', sensor_error_code: 'connection_lost' }`.
+    `rawSamples.listBySession(S)` holds the delivered samples.
+  - The workout is still `active`, with no pauses.
+  - Then `addSet` + `recordSet` (with a replay sensor) completes `set2`: two completed sets, two sessions.
+
+**T3 — A pause during a recording is refused, and the workout and recording stay consistent.**
+- **(a) Before the link,** with a deferred-start sensor (`WorkoutSessionController.outcome.test.ts`'s
+  `DeferredStartSensor`):
+  1. `recordSet` (start pending);
+  2. `pause()` and `finish()` reject with `set_recording`;
+  3. check stored state: workout `active`, `pauses: []`, `set1` still `planned`;
+  4. release the start; the link is saved;
+  5. `stopSet()`, then `settled`.
+- **(b) While recording,** with `SimulatedSensorSource` and a `ManualScheduler`:
+  1. `recordSet`; the link is saved;
+  2. `pause()` rejects with `set_recording`;
+  3. check stored state: `set1` `recording` and linked, workout `active`, `pauses: []`. The recorder is still
+     `recording` and its sample count still rises after `scheduler.advance`, so the refused pause did not stop it;
+  4. `stopSet()`, then `settled`: `set1` is `completed`.
+- **Then, for both:**
+  - `pause()` stores `paused` with one open pause;
+  - `resume()` stores `active` with that pause closed;
+  - `activeDurationMs` excludes the pause.
+
+**T4 — A recording that finishes before `start()` resolves is finalized after its set is linked.**
+- **Sensor:** a test sensor whose `start()` delivers the labelled trace's samples, publishes `stopped`, then awaits a
+  gate that the test controls.
+- **Event order:**
+  1. `recordSet(set1)`;
+  2. recorder `starting` (S captured), then `finished`, while `start()` is still pending;
+  3. check: the terminal snapshot is buffered; `set1` is still `planned` in storage; no `set_not_recording` error;
+  4. release the gate;
+  5. `start()` resolves;
+  6. the link save;
+  7. `completeOnce`;
+  8. `settled` resolves.
+- **Persisted state:**
+  - A spy on `workouts.save` records exactly **one** save with `set1` `completed`, after one save with it
+    `recording`.
+  - The test checks history only after `settled`: `listSetResults` 8 / 2 `simulated`, and `getOutcome(S)`
+    `stream_ended`.
+  - The lock is released.
+
 **Also in PR 1, as unit tests on in-memory repositories:**
 - a quick set (recording controller only) stays standalone, and `recordSet` refuses while one runs;
 - the two start-failure cases of §3 step 6;
-- every refusal leaves the stored record unchanged.
+- every refusal leaves the stored record unchanged, including each repeated action in §3b's table;
+- **save failures** (a `workouts.save` stub that fails once):
+  - a failed link save completes the set with one combined save at the end;
+  - a failed completion save rejects `settled` and keeps the lock; `retryPendingSave()` then completes the set exactly
+    once and releases the lock;
+- **stale events:** a terminal snapshot for another session id is ignored, and a second terminal snapshot for the
+  same session (a late start failure) does not complete the set twice.
 
 ## 5. Done when
 

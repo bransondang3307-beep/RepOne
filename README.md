@@ -33,7 +33,9 @@ packages/
   sensor-contracts/     Sensor + derived-event contracts, deterministic simulation
   rep-engine/           Pure TS rep detection, calibration, evaluation
   workout-domain/       Workout models + repository interfaces
-docs/                   architecture.md, hardware-protocol.md, decisions/
+  sensor-protocol/      IMU stream wire protocol codec (ADR 0008, proposed)
+firmware/               Uno R3 USB bring-up + portable protocol layer (compiled, not hardware-verified); BLE backend pending
+docs/                   architecture.md, hardware-protocol.md, protocols/, decisions/
 scripts/                check-boundaries.mjs
 ```
 

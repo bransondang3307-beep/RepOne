@@ -24,8 +24,8 @@
 | RO-010 | Decide whether to record the app layout in source of truth §6 | Owner (ChatGPT prepares) | P3 | todo | RO-003 merged | — |
 | RO-011 | Architecture review of Milestone 1 layout (ADR 0003) | Gemini | P2 | done | RO-005 | [PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8) — merged `f41309c` |
 | RO-012 | Alignment Milestone 2: contracts, multi-channel engine wrapper, device connectivity | Claude Code | P2 | done | RO-003 merged, owner go-ahead (both met 2026-10-23) | [PR #14](https://github.com/bransondang3307-beep/RepOne/pull/14) `9a42cf0` · [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15) `9b93b32` · [PR #16](https://github.com/bransondang3307-beep/RepOne/pull/16) `058bfe4` · [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) `f1df6b2` — all merged |
-| RO-013 | Alignment Milestone 3: workout domain + persistence | Claude Code | P2 | in-progress | RO-012 (done); owner go-ahead (given 2026-11-06) | Part 1: [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33) (`claude/RO-013-workout-domain`); part 2: [PR #35](https://github.com/bransondang3307-beep/RepOne/pull/35) (`claude/RO-013-sqlite-persistence`, stacked), which includes the history integration regression from [PR #36](https://github.com/bransondang3307-beep/RepOne/pull/36). Plan: [`docs/plans/RO-013-milestone-3-plan.md`](docs/plans/RO-013-milestone-3-plan.md) |
-| RO-014 | Alignment Milestone 4: mobile UI | Claude Code | P2 | todo | RO-013 | — |
+| RO-013 | Alignment Milestone 3: workout domain + persistence | Claude Code | P2 | in-progress | RO-012 (done); owner go-ahead (given 2026-11-06) | Part 1: [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33) — merged `b5a8538`; part 2: [PR #35](https://github.com/bransondang3307-beep/RepOne/pull/35) (in review; awaits the owner's device check), which includes the history integration regression from [PR #36](https://github.com/bransondang3307-beep/RepOne/pull/36) and the file-backed upgrade test from [PR #40](https://github.com/bransondang3307-beep/RepOne/pull/40). Plan: [`docs/plans/RO-013-milestone-3-plan.md`](docs/plans/RO-013-milestone-3-plan.md) |
+| RO-014 | Alignment Milestone 4: mobile UI | Claude Code | P2 | todo | RO-013; PR #29 and PR #30 merged; §5 decisions approved by the owner 2026-11-08 | Plan: [`docs/plans/RO-014-milestone-4-plan.md`](docs/plans/RO-014-milestone-4-plan.md) — [PR #34](https://github.com/bransondang3307-beep/RepOne/pull/34) merged `7de56f6`; PR 4.1 prepared as draft [PR #37](https://github.com/bransondang3307-beep/RepOne/pull/37) |
 | RO-015 | Alignment Milestone 5: integration + Sprint 1 close-out | Claude Code + Codex | P2 | todo | RO-014 | — |
 | RO-016 | Research: H0 serial packet schema and sample rate | Gemini | P2 | todo | — | — |
 | RO-017 | Add ESLint config and lint step to CI | Codex | P3 | todo | RO-004 merged | — |
@@ -36,11 +36,11 @@
 | RO-022 | Windows CI job for the boundary checker (Linux CI retained) | Claude Code | P2 | done | RO-021 | [PR #10](https://github.com/bransondang3307-beep/RepOne/pull/10) — merged `8a70565` |
 | RO-023 | Simulated-data warning badge clips on iPhone | Claude Code | P3 | done | — | [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) — merged `f1df6b2`; owner device check passed 2026-10-30 |
 | RO-024 | Brand configuration for display names (ADR 0006 follow-up) | Claude Code | P2 | todo | RO-020 merged | — |
-| RO-025 | Boundary-checker hardening: per-adapter infrastructure layers; `application/` imports infrastructure only via its index (RO-011 finding 2) | Claude Code | P3 | todo | before a second `src/infrastructure/<adapter>` lands | — |
+| RO-025 | Boundary-checker hardening: per-adapter infrastructure layers; `application/` imports infrastructure only via its index (RO-011 finding 2) | Claude Code | P3 | done | before a second `src/infrastructure/<adapter>` lands | [PR #25](https://github.com/bransondang3307-beep/RepOne/pull/25) — merged `15471f5` |
 | RO-026 | Decide where simulation lives: root barrel vs a `./simulation` subpath export (RO-011 §3.2) | Gemini (proposal) → owner decides | P3 | todo | RO-012 merged | — |
 | RO-027 | Dependency security: targeted Expo SDK 57 patch (`expo` 57.0.31, `expo-router` 57.0.29, `node-forge` 1.4.2) | Claude Code | P1 | done | — | [PR #21](https://github.com/bransondang3307-beep/RepOne/pull/21) — merged `4d6ce0c` |
 | RO-028 | iOS: home and History content starts under the translucent navigation header | Claude Code | P2 | todo | — | — |
-| RO-029 | Real-sensor pipeline over BLE: wire protocol, codec, firmware, iPhone BLE adapter (owner-directed) | Claude Code | P1 | in-progress | RO-012 (done); RO-025 before the BLE adapter lands | — |
+| RO-029 | Real-sensor pipeline over BLE: wire protocol, codec, firmware, iPhone BLE adapter (owner-directed) | Claude Code | P1 | in-progress | RO-012 (done); RO-025 before the BLE adapter lands | Part 1: [PR #26](https://github.com/bransondang3307-beep/RepOne/pull/26) — merged `75322ea` (ADR 0008 Proposed); part 2: [PR #27](https://github.com/bransondang3307-beep/RepOne/pull/27) — merged `3dbc051`; part 3: [PR #28](https://github.com/bransondang3307-beep/RepOne/pull/28) open, parked at its fix-round limit |
 
 ## Task details
 
@@ -196,7 +196,7 @@
     [ADR 0010](docs/decisions/0010-workout-domain-model.md) is **Accepted** (2026-11-08). Plan decisions 1–4
     follow the owner's direction; the owner confirmed decisions 5 and 6 (pause only between sets; store the end
     reason and each rep event's `source_id`) on 2026-11-08.
-  - **Part 2 (SQLite persistence):** in review, [PR #35](https://github.com/bransondang3307-beep/RepOne/pull/35), stacked on part 1:
+  - **Part 2 (SQLite persistence):** in review, [PR #35](https://github.com/bransondang3307-beep/RepOne/pull/35), now based on `main`:
     - migration v2, meeting plan §5 criteria 1–8 and 10 in tests;
     - the SQLite and in-memory repositories and the shared contract suite;
     - history queries;
@@ -204,11 +204,19 @@
     - the recording-to-history integration regression ([PR #36](https://github.com/bransondang3307-beep/RepOne/pull/36), Codex, merged into part 2). A synthetic
       recording is linked to a SQLite workout and read back through the history queries: totals, per-set counts,
       provenance, end reason, `source_id`s and the last entered resistance.
+    - a file-backed v1 → v2 upgrade test across app launches ([PR #40](https://github.com/bransondang3307-beep/RepOne/pull/40), merged into part 2): v1 history
+      seeded on disk, migrated and read back unchanged, a new recording saved, then closed and reopened.
 
     Criterion 9 (the owner's device upgrade check) is outstanding. The App Store's Expo Go opens only SDK 58, so it
     runs on a combined candidate (part 2 + PR #30, which includes SDK 58); the part-2 handoff gives the steps.
 - **RO-014 (M4):** home dashboard, exercise selection, pause/reset via application services. Criteria: typecheck,
   tests, Android/iOS export; owner Expo Go check.
+  - **Plan:** [`docs/plans/RO-014-milestone-4-plan.md`](docs/plans/RO-014-milestone-4-plan.md) (2026-11-06, at the
+    owner's direction), merged with [PR #34](https://github.com/bransondang3307-beep/RepOne/pull/34) (`7de56f6`). It builds on PR #30's redesign and Milestone 3, in
+    three PRs. The owner approved its four §5 decisions on 2026-11-08. Implementation has not started: PR 4.1 is
+    prepared as draft [PR #37](https://github.com/bransondang3307-beep/RepOne/pull/37) (design and test definitions) until PRs #29, #30 and #35 merge.
+  - **Hardware-dependent checks** for every milestone are listed as future acceptance tests in
+    [`docs/acceptance/hardware-acceptance-tests.md`](docs/acceptance/hardware-acceptance-tests.md).
 - **RO-015 (M5):** boundary validation, full test run, Expo Go, docs + Sprint 1 summary. Codex runs the independent review.
 - **Rule:** each starts only after the previous one is merged and the owner approves.
 

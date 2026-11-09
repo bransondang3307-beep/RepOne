@@ -23,6 +23,7 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 
 | Date | Agent | Task | File |
 |---|---|---|---|
+| 2026-11-09 | Claude Code | RO-014 PR 4.2: workout flow UI — picker, resistance entry, recording flow (draft, on the M4 integration branch) | [2026-11-09-claude-RO-014-pr2-workout-flow.md](2026-11-09-claude-RO-014-pr2-workout-flow.md) |
 | 2026-11-09 | Claude Code | RO-034: development-host controller, read-only prototype (owner-action report; no AI API, no GitHub writes) | [2026-11-09-claude-RO-034-dev-host-controller.md](2026-11-09-claude-RO-034-dev-host-controller.md) |
 | 2026-11-09 | Claude Code | RO-008: ownership table aligned with `AGENTS.md` §2; routes live in `apps/mobile/app/` (docs only) | [2026-11-09-claude-RO-008-ownership-table.md](2026-11-09-claude-RO-008-ownership-table.md) |
 | 2026-11-09 | Claude Code | RO-014 PR 1: `WorkoutController`, wiring, unit and SQLite integration tests (draft; waits for PRs #29, #30, #35) | [2026-11-09-claude-RO-014-pr1-implementation.md](2026-11-09-claude-RO-014-pr1-implementation.md) |

@@ -32,18 +32,21 @@ export default function RootLayout() {
         <Tabs.Screen name="index" options={{ title: 'Today' }} />
         <Tabs.Screen name="record" options={{ title: 'Record' }} />
         <Tabs.Screen name="history" options={{ title: 'History' }} />
+        <Tabs.Screen name="workout" options={{ title: 'Workout' }} />
       </Tabs>
     </AppServicesProvider>
   );
 }
 
 const ICONS = { index: 'home', record: 'record', history: 'history' } as const;
+/** Routes reached from a screen rather than a tab: the workout opens from Today (RO-014 decision 3). */
+const HIDDEN = { workout: 'index' } as const;
 
 /** The tab bar, with a live dot on Record while a set is recording there. */
 function AppTabBar(props: BottomTabBarProps) {
   const status = useLiveSession((s) => s.session.status);
   const live = status === 'starting' || status === 'recording' || status === 'stopping';
-  return <TabBar {...props} icons={ICONS} liveRoute={live ? 'record' : null} />;
+  return <TabBar {...props} icons={ICONS} hiddenRoutes={HIDDEN} liveRoute={live ? 'record' : null} />;
 }
 
 const styles = StyleSheet.create({

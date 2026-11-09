@@ -19,7 +19,7 @@
 | RO-005 | Open PR for `sprint-1-alignment` → `main` | Claude Code | P1 | done | RO-004 | [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) — merged `cd884fc` |
 | RO-006 | Review Milestone 1 PR | Codex | P1 | done | RO-005 | Reviews on [PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3) — approved `6f48f1d` |
 | RO-007 | Run Milestone 1 app in Expo Go | Owner | P1 | done | — | [Result on PR #3](https://github.com/bransondang3307-beep/RepOne/pull/3#issuecomment-6227338609) — passed (iPhone, simulated data) |
-| RO-008 | Update `docs/architecture.md` §6 ownership to `AGENTS.md` roles; correct the routes location note | Claude Code | P2 | todo | RO-003 merged | — |
+| RO-008 | Update `docs/architecture.md` §6 ownership to `AGENTS.md` roles; correct the routes location note | Claude Code | P2 | in-review | RO-003 merged | [PR #42](https://github.com/bransondang3307-beep/RepOne/pull/42) |
 | RO-009 | Choose a project license | Owner | P3 | todo | — | — |
 | RO-010 | Decide whether to record the app layout in source of truth §6 | Owner (ChatGPT prepares) | P3 | todo | RO-003 merged | — |
 | RO-011 | Architecture review of Milestone 1 layout (ADR 0003) | Gemini | P2 | done | RO-005 | [PR #8](https://github.com/bransondang3307-beep/RepOne/pull/8) — merged `f41309c` |

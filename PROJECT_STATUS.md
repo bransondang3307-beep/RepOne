@@ -8,11 +8,11 @@
 
 | | |
 |---|---|
-| **Last updated** | 2026-10-31 by Claude Code: the Milestone 2 closeout, as directed by the owner (PRs #21 and #14–#17 merged after the owner's device acceptance; ADR 0007 Accepted) |
-| **`main` at** | `f1df6b2` — "Merge PR #17: RO-012 part 4, app device integration; RO-023 badge fix" |
-| **CI on `main`** | GitHub Actions `CI` on every push and PR: Linux `verify` (boundaries, workflow policy, typecheck, tests) and a Windows job (boundary checker + script tests); handoff check on PRs. Last run on `main`: [41148527229](https://github.com/bransondang3307-beep/RepOne/actions/runs/41148527229) on `f1df6b2` — Linux ✅, Windows ✅ (the handoff check runs on PRs only) |
-| **Current phase** | Sprint 1. **Milestone 1 is closed out. Milestone 2 (RO-012) is done:** merged on 2026-10-31 after the owner's iPhone check on 2026-10-30, with ADR 0007 Accepted. The dependency patch (RO-027) is merged too. **The owner's priority is now the real-sensor BLE pipeline (RO-029)** (owner direction, 2026-10-31), ahead of further workout and UI milestones. RO-013 (Milestone 3) has a written plan and is not started. Sprint 2 **not started**. |
-| **Hardware** | No real sensor connected to the software yet (source of truth §2). All rep data is simulated. RO-029 prepares the software path; the MPU-6050 and the wireless board are not physically verified or selected. |
+| **Last updated** | 2026-11-09 by Claude Code: the closeout of its 2026-11-08 merges (PRs #33, #34, #25, #26, #27) under the owner's standing merge authorization; ADR 0010 Accepted, ADR 0008 still Proposed |
+| **`main` at** | `3dbc051` — "Merge PR #27: RO-029 part 2 — firmware: Uno R3 USB bring-up, portable protocol layer, serial-capture decoder" |
+| **CI on `main`** | GitHub Actions `CI` on every push and PR: Linux `verify` (boundaries, workflow policy, typecheck, tests) and a Windows job (boundary checker + script tests); handoff check on PRs. Last run on `main`: [42462827043](https://github.com/bransondang3307-beep/RepOne/actions/runs/42462827043) on `3dbc051` — Linux ✅, Windows ✅ (the handoff check runs on PRs only) |
+| **Current phase** | Sprint 1. Milestones 1 and 2 are done. **Milestone 3 (RO-013) is in progress:** part 1 (the workout domain) is merged, with ADR 0010 Accepted; part 2 (SQLite, PR #35) waits for the owner's device check. **Milestone 4 (RO-014):** the plan is merged, with its owner decisions approved; PR 4.1 is prepared as a draft. **RO-029:** the protocol, codec and firmware are merged (ADR 0008 Proposed); the iPhone BLE adapter (PR #28) is parked. The owner's iPhone checks (PRs #29, #30, #35) are deferred. Sprint 2 **not started**. |
+| **Hardware** | No real sensor connected to the software yet (source of truth §2). All rep data is simulated. The protocol, codec and Uno USB firmware are merged, but **compiled and host-tested only**: nothing has been flashed, and the MPU-6050 and a BLE-capable board are not physically verified or selected. |
 | **AI cost** | **$0 additional AI API spending** (owner rule, ADR 0005): subscriptions only, no AI API keys or paid AI services; enforced in CI by `npm run check:workflows` |
 
 ## Merged into `main`
@@ -36,6 +36,11 @@
 | 2026-10-31 | [PR #15](https://github.com/bransondang3307-beep/RepOne/pull/15) | `9b93b32` | **RO-012** part 2: channels and the per-channel rep-engine wrapper | [41148218361](https://github.com/bransondang3307-beep/RepOne/actions/runs/41148218361) ✅ |
 | 2026-10-31 | [PR #16](https://github.com/bransondang3307-beep/RepOne/pull/16) | `058bfe4` | **RO-012** part 3: `DeviceConnection` contract, `SimulatedDevice`, device contract suite | [41148386831](https://github.com/bransondang3307-beep/RepOne/actions/runs/41148386831) ✅ |
 | 2026-10-31 | [PR #17](https://github.com/bransondang3307-beep/RepOne/pull/17) | `f1df6b2` | **RO-012** part 4: app device integration — **RO-012 done**; **RO-023** badge fix — **done** | [41148527229](https://github.com/bransondang3307-beep/RepOne/actions/runs/41148527229) ✅ |
+| 2026-11-08 | [PR #33](https://github.com/bransondang3307-beep/RepOne/pull/33) | `b5a8538` | **RO-013** part 1: workout domain model, user-entered resistance, workout lifecycle; ADR 0010 Accepted (RO-013 stays `in-progress`) | [42461066524](https://github.com/bransondang3307-beep/RepOne/actions/runs/42461066524) ✅ |
+| 2026-11-08 | [PR #34](https://github.com/bransondang3307-beep/RepOne/pull/34) | `7de56f6` | **RO-014** Milestone 4 plan, owner decisions approved 2026-11-08, and hardware-dependent acceptance tests (docs; RO-014 stays `todo`) | [42462033335](https://github.com/bransondang3307-beep/RepOne/actions/runs/42462033335) ✅ |
+| 2026-11-08 | [PR #25](https://github.com/bransondang3307-beep/RepOne/pull/25) | `15471f5` | **RO-025** boundary-checker hardening (per-adapter infrastructure layers) — **done** | [42462508673](https://github.com/bransondang3307-beep/RepOne/actions/runs/42462508673) ✅ |
+| 2026-11-08 | [PR #26](https://github.com/bransondang3307-beep/RepOne/pull/26) | `75322ea` | **RO-029** part 1: IMU stream protocol (ADR 0008 Proposed) and the `@repone/sensor-protocol` codec | [42462665518](https://github.com/bransondang3307-beep/RepOne/actions/runs/42462665518) ✅ |
+| 2026-11-08 | [PR #27](https://github.com/bransondang3307-beep/RepOne/pull/27) | `3dbc051` | **RO-029** part 2: Uno R3 USB firmware, portable protocol layer, serial-capture decoder (RO-029 stays `in-progress`) | [42462827043](https://github.com/bransondang3307-beep/RepOne/actions/runs/42462827043) ✅ |
 
 `TASKS.md` marks RO-003…RO-007, RO-011, RO-012, RO-019…RO-023 and RO-027 `done`, with the evidence under each task.
 - **RO-006** (assigned to Codex) and **RO-007** (assigned to the owner) were reconciled by Claude Code at the owner's
@@ -58,12 +63,34 @@
   seven checklist steps passed, and the owner then authorised the merges. Each merge was pinned to its verified head
   and followed by a passing `main` CI run before the next. After the last one, `main`'s code and lockfile equal the
   tested candidate.
+- **Reviews and gates of the 2026-11-08 merges.** The owner gave standing permission to merge eligible PRs on
+  2026-11-08, and full authorization the same day. Each merge was checked against its exact head, its base, CI, a
+  Codex review and its acceptance requirements. Each was pinned to that head and followed by a passing `main` CI run
+  before the next merge. Codex found no findings on each merged head:
+  - PR #33 at `dd56b3e`, after one P1 fixed at `a4b3152`; the final commit recorded ADR 0010 Accepted (docs);
+  - PR #34 at `fa86eea`, which records the owner's four Milestone 4 decisions and merges `main` (docs);
+  - PR #25 at `cfc2714`, PR #26 at `deba6da` and PR #27 at `b2f1f83` (PR #27 after one P1 in its serial decoder,
+    fixed in `b2f1f83`).
+
+  Before #25–#27 merged, a local combination of `main` @ `7de56f6`, PR #27's head (which contains #25 and #26) and
+  PR #35's head passed a clean `npm ci` and `npm run verify`. So the stricter boundary checker accepts PR #35's
+  database code. None of these merges needed a phone check: the domain package, docs, the boundary checker, the
+  codec and the firmware do not change the app.
 - **[PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2) closed unmerged** on 2026-10-28 as superseded by PR #19, after CI passed on `main`
   ([closing comment](https://github.com/bransondang3307-beep/RepOne/pull/2#issuecomment-6479887030)). Its branch is kept as history.
 
 ## Verified on `main`
 
 Evidence:
+- **This session, 2026-11-09.** Worktree of `main` @ `3dbc051`, Node 22.22.0, clean `npm ci`:
+  - `npm run verify`, exit 0:
+    - module boundaries OK (89 files, no circular imports);
+    - workflow policy OK (1 workflow, 0 action, 6 package, 1 lock files);
+    - script tests 67/67;
+    - Jest 265/265: mobile 31, rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 28.
+  - `npm run test:firmware`: protocol layer 62/62, MPU-6050 driver 16/16 (fake `Wire` bus), serial decoder 4/4.
+  - All of it is software only: the packets and traces are synthetic. The firmware is compiled and host-tested,
+    never flashed.
 - **This session, 2026-10-31.** Worktree of `main` @ `f1df6b2` with this PR's docs-only changes, Node 22.22.0,
   `npm ci`, then `npm run verify` (exit 0):
   - Module boundaries OK (74 files, no circular imports).
@@ -144,8 +171,8 @@ merged milestone.
 
 | Item | Task | State | Next |
 |---|---|---|---|
-| Home and History content start under the translucent iOS title bar (owner, 2026-10-30) | **RO-028** | `todo`, P2 (code) | Claude Code; then the owner's device check |
-| Boundary-checker hardening: per-adapter infrastructure layers, index-only `application/` imports (RO-011 finding 2) | **RO-025** | `todo` | Claude Code, before RO-029's BLE adapter (the second infrastructure adapter) |
+| Home and History content start under the translucent iOS title bar (owner, 2026-10-30) | **RO-028** | `todo`, P2 (code); fix in PR #24 | PR #30's redesign hides that header and covers the issue. PR #24 closes as superseded once #30 merges |
+| Boundary-checker hardening: per-adapter infrastructure layers, index-only `application/` imports (RO-011 finding 2) | **RO-025** | **done**: PR #25, merged `15471f5` | None |
 | Ownership table in `docs/architecture.md` §6, and the `apps/mobile/AGENTS.md` routes note (RO-011 finding 4) | RO-008 | `todo` (docs) | Claude Code, once prioritised |
 | Record the `apps/` + `packages/` layout in source of truth §6? | RO-010 | `todo` | Owner decision (ChatGPT prepares) |
 | Brand configuration for display names (ADR 0006 follow-up; RO-011 finding 5) | **RO-024** | `todo`, P2 (code) | Claude Code, once prioritised |
@@ -154,65 +181,70 @@ merged milestone.
 
 ## Open branches / PRs (not merged — not counted as done)
 
-Assessed 2026-10-31 against `main` @ `f1df6b2`. The merge states are GitHub's.
+Assessed 2026-11-09 against `main` @ `3dbc051`.
 
-| PR / branch | What it contributes | Still needed? | Recommended action |
+| PR / branch | What it contributes | Gate | Recommended action |
 |---|---|---|---|
-| [PR #22](https://github.com/bransondang3307-beep/RepOne/pull/22) (`claude/RO-025-dependency-security` @ `4027f14`, opened 2026-10-29 from another session) | The same Expo SDK 57 dependency patch as PR #21 | **No.** Superseded by PR #21 (merged `4d6ce0c`). Its task ID also collides with RO-025, boundary-checker hardening | Owner closes it unmerged as superseded |
-| `claude/RO-012-integration-candidate` @ `fe41d47` (no PR) | The candidate the owner tested on 2026-10-30: PR #17's head plus PR #21's head | No. `main` now has the same code | Owner deletes it (cloud sessions cannot delete branches) |
+| [PR #29](https://github.com/bransondang3307-beep/RepOne/pull/29) (`claude/RO-031-expo-sdk-58` @ `4cff3ca`) | Expo SDK 58: the App Store's Expo Go opens only SDK 58 | The owner's iPhone check (deferred) | Merge after the redesign check passes, then #30 |
+| [PR #30](https://github.com/bransondang3307-beep/RepOne/pull/30) (`claude/RO-030-ui-redesign` @ `4f847cf`, includes #29) | The redesigned app: Today / Record / History, light and dark | The owner's iPhone check of `4f847cf` (deferred) | Merge after #29; then close PR #24 |
+| [PR #35](https://github.com/bransondang3307-beep/RepOne/pull/35) (`claude/RO-013-sqlite-persistence` @ `26fe72a`) | Milestone 3 part 2: SQLite migration v2, history queries, recording outcome; includes PR #36's regression | The owner's upgrade check on candidate `da4493b` (deferred) | A docs-only index refresh against `main` when the check passes, then merge |
+| [PR #37](https://github.com/bransondang3307-beep/RepOne/pull/37) (draft, `claude/RO-014-workout-controller` @ `a3195cc`, stacked on #35) | Milestone 4 PR 4.1: `WorkoutController` design and integration-test definitions | PRs #29, #30 and #35 merged | Implement on this branch once they merge |
+| [PR #24](https://github.com/bransondang3307-beep/RepOne/pull/24) (`claude/RO-028-ios-header-inset` @ `6bb2514`) | RO-028's header-inset fix for the old screens | Superseded by #30 | Close once #30 merges |
+| [PR #28](https://github.com/bransondang3307-beep/RepOne/pull/28) (`claude/RO-029-ble-adapter` @ `da05347`) | RO-029 part 3: the iPhone BLE adapter | **Parked** at its fix-round limit, with an unresolved Codex finding (owner direction) | None until the owner decides |
+| [PR #31](https://github.com/bransondang3307-beep/RepOne/pull/31) (`claude/RO-032-pause-aware-rep-detection` @ `1c24f75`) | Pause-aware rep detection (ADR 0009) | **Parked** at its fix-round limit, with an unresolved Codex finding (owner direction) | None until the owner decides |
+| [PR #38](https://github.com/bransondang3307-beep/RepOne/pull/38) (`codex/RO-033-level-3-automation` @ `42784e2`, Codex) | A read-only PR coordination pilot | The owner's review, security pass and merge authorization | Owner |
+| `claude/RO-013-m3-phone-candidate` @ `da4493b` (no PR) | Phone build for the Milestone 3 upgrade check: PR #35 merged with PR #30's head | Kept for the owner's deferred check | Keep |
+| `claude/RO-029-sdk58-integration` @ `0c089ce` (no PR) | The BLE stack merged with SDK 58 and the redesign; development-build candidate | Waits for PR #28 | Keep |
+| `claude/RO-029-acceptance-candidate` @ `23addb5` (no PR) | An earlier BLE candidate | Superseded by `0c089ce` | Owner may delete it |
+| `claude/RO-012-integration-candidate` @ `fe41d47` (no PR) | The candidate the owner tested on 2026-10-30 | No: `main` has the same code | Owner deletes it |
 | `claude/RO-019-claude-codex-loop` @ `af8acd9` | Archive of the original API loop (PR #4, closed unmerged) | Kept on purpose (ADR 0005 §6) | Owner: archive tag (see Next steps) |
-| `claude/EXP-001-autofix-experiment` @ `9629bab` | [PR #18](https://github.com/bransondang3307-beep/RepOne/pull/18), the owner-authorised Auto-fix trigger experiment (2026-10-23), **closed unmerged**. Auto-fix is off again; workflow §10 is unchanged | Kept as evidence (owner, 2026-10-23) | None |
+| `claude/EXP-001-autofix-experiment` @ `9629bab` | [PR #18](https://github.com/bransondang3307-beep/RepOne/pull/18), the Auto-fix trigger experiment, **closed unmerged** | Kept as evidence (owner, 2026-10-23) | None |
 | `claude/RO-004-owner-decision` @ `15740e4` | [PR #2](https://github.com/bransondang3307-beep/RepOne/pull/2), closed unmerged as superseded by PR #19 | Kept as history | None |
 | `claude/RO-022-preview-{40d4a22,30e2dd3,6f48f1d,ro019}` | Temporary RO-022 CI previews | No | Owner deletes; harmless meanwhile |
-| Branches of merged or closed PRs: `sprint-1-alignment`, `claude/RO-004-agent-sync`, `claude/RO-019-pause`, `claude/RO-019-zero-cost-workflow`, `claude/RO-022-windows-ci`, `claude/RO-019-RO-022-status-done`, `claude/RO-003-m1-closeout`, `claude/RO-004-status-ownership`, `claude/RO-021-windows-path-repro`, `gemini/RO-011-milestone-1-arch-review`, `claude/RO-020-rebrandable-naming`, `codex/RO-004-antigravity-onboarding`, `claude/RO-003-RO-004-status`, `claude/RO-027-dependency-security`, `claude/RO-012-sensor-error-states`, `claude/RO-012-channel-rep-engine`, `claude/RO-012-device-connection`, `claude/RO-012-app-device` | Nothing beyond what merged (PR #5, from `claude/RO-019-pause`, closed unmerged) | No | Owner may delete them; harmless meanwhile |
-
-New PRs for RO-028, RO-025 and RO-029 are listed here by their own status updates once they merge; until then they
-are open work, not done.
+| Branches of merged or closed PRs, including PR #22 (closed 2026-10-31 as superseded by PR #21) and those of PRs #25, #26, #27, #33, #34 and #36 | Nothing beyond what merged | No | Owner may delete them; harmless meanwhile |
 
 ## Active milestone
 
-- **Milestone 1 (RO-003) is closed out** (merged `cd884fc`; closeout PRs #13, #19, #9, #8, #6, #7 and #20).
-- **Milestone 2 (RO-012) is done.**
-  - Merged on 2026-10-31 as PRs #14 → #17 (`9a42cf0` · `9b93b32` · `058bfe4` · `f1df6b2`).
-  - The owner's iPhone check passed on 2026-10-30, and ADR 0007 is Accepted.
-  - RO-023 (the badge fix) and RO-027 (the dependency patch) are done with it.
-- **Owner priority now: RO-029, the real-sensor BLE pipeline** (owner direction, 2026-10-31).
-  - Protocol and codec, firmware, then the iPhone BLE adapter. RO-025 lands before the adapter.
-  - Reviewable PRs only; the owner merges.
-  - Hardware and iPhone validation stay outstanding until the owner performs them.
-- **Milestones 3–5 (RO-013…RO-015)** follow later, each after the previous one merges and the owner approves.
-  - RO-013 has a written plan, [`docs/plans/RO-013-milestone-3-plan.md`](docs/plans/RO-013-milestone-3-plan.md), with
-    six owner decisions open.
+- **Milestones 1 and 2 are done** (closeouts on 2026-10-28 and 2026-10-31).
+- **Milestone 3 (RO-013) is in progress.**
+  - Part 1 (the workout domain) is merged (`b5a8538`); ADR 0010 is Accepted.
+  - Part 2 (SQLite, PR #35) has passed review and CI. It waits for the owner's upgrade check on candidate `da4493b`
+    (deferred).
+- **Milestone 4 (RO-014) is planned and ready.**
+  - The plan is merged (`7de56f6`), with its four decisions approved on 2026-11-08.
+  - PR 4.1 is prepared as draft #37.
+  - Coding starts after PRs #29, #30 and #35 merge.
+- **RO-029:**
+  - The protocol, codec and firmware are merged (`75322ea`, `3dbc051`); ADR 0008 stays Proposed.
+  - The iPhone BLE adapter (PR #28) is parked.
+  - Physical validation needs the hardware (RO-018) and a BLE-capable board.
+- **Milestone 5 (RO-015)** follows Milestone 4's acceptance and the owner's go-ahead.
 
 ## Blockers
 
 | Blocker | Blocks | Owner |
 |---|---|---|
+| The owner's iPhone checks are deferred: the redesign on `4f847cf`, then the SQLite upgrade on `da4493b` (that order: a v1 build refuses the upgraded v2 database) | Merging PRs #29, #30 and #35; Milestone 4 coding | Owner |
 | No real sensor data yet; the GY-521 / MPU-6050 is not physically verified (RO-018) | Any accuracy claim; detector tuning; physical validation of RO-029 | Owner (hardware) |
-| No wireless board selected; the Uno R3 has no Bluetooth | A physical BLE link for RO-029 | Owner decision (RO-029 lists the required capabilities) |
-| A BLE app needs a development build. Installing one on an iPhone needs a paid Apple Developer account (EAS cloud build), or a Mac for a free local build | Running RO-029's BLE adapter on the iPhone | Owner decision (cost) |
-| Device runs need the owner's phone; cloud sessions cannot run them | Device acceptance (RO-028, RO-029) | Owner |
-| Branch protection unavailable (private repo on GitHub Free). "PR + review before merge" is a process rule, not enforced | Workflow enforcement | Owner (optional: GitHub Pro or public repo) |
+| No BLE-capable board identified. The Uno R3 has no Bluetooth, and HC-05/HC-06/JDY-31 modules are Bluetooth Classic, which iPhone apps cannot use | A physical BLE link for RO-029 | Owner |
+| A BLE app needs a development build: a Mac with Xcode (free Apple ID), or EAS with a paid membership | Running RO-029's BLE adapter on the iPhone | Owner |
+| Branch protection unavailable (private repo on GitHub Free). "PR + review before merge" is a process rule, not enforced | Workflow enforcement | Owner (optional) |
 
 ## Next steps (priority order — details in `TASKS.md`)
 
-1. **RO-029, the owner's priority:** Claude Code opens reviewable PRs in order:
-   1. protocol, codec and fixtures;
-   2. firmware;
-   3. RO-025 (boundary hardening);
-   4. the BLE adapter with native configuration and a minimal UI.
-2. **RO-028:** a small PR fixing the iOS title-bar overlap; the owner's device check, then the owner merges.
-3. **ChatGPT / owner:** prioritise and assign the rest:
-   - RO-013's six decisions (plan document);
-   - RO-016 re-scoped against RO-029's protocol proposal;
-   - RO-008, RO-024 and RO-010;
-   - RO-026 (now unblocked).
-4. **Owner:** manual items this environment cannot do:
-   - close [PR #22](https://github.com/bransondang3307-beep/RepOne/pull/22) as superseded by PR #21;
-   - delete `claude/RO-012-integration-candidate`, the four `claude/RO-022-preview-*` branches and, optionally, the
-     merged branches listed above;
+1. **Owner, when ready:**
+   1. the redesign check on `4f847cf`;
+   2. then the SQLite upgrade check on `da4493b`.
+
+   Then PRs #29, #30 and #35 merge, and PR #24 closes as superseded.
+2. **Claude Code, after those merges:** Milestone 4 in three PRs, starting with PR 4.1 (#37).
+3. **Claude Code, meanwhile:** software work that avoids the held PRs.
+4. **Owner:** decisions on the parked PRs #28 and #31, and on Codex's PR #38.
+5. **Owner, manual items this environment cannot do:**
+   - delete `claude/RO-012-integration-candidate`, the `claude/RO-022-preview-*` branches and, optionally, merged
+     branches;
    - create the archive tag `archive/RO-019-api-loop-v1` on `af8acd9` (ADR 0005 §6);
-   - keep the account $0 settings: GitHub Actions budget $0; no Codex credits or Claude extra usage (ADR 0005).
+   - keep the account's $0 settings (ADR 0005).
 
 ## Known limitations (carried forward)
 
@@ -237,3 +269,4 @@ are open work, not done.
 | 2026-10-28 | Added Antigravity's native Windows verification of `b1c6ac1` (PR #7's merge), with Claude Code's independent re-run on the same laptop. The owner lifted the Milestone 2 pause; RO-012 is first in next steps, with a native Windows check of #17's head. No merges or task-state changes | Claude Code (owner's ecosystem update, 2026-10-28) |
 | 2026-10-29 | The owner confirmed the Milestone 2 pause-lift directly. Remaining "paused" statements reconciled: the handoff's batch-time wording and the `TASKS.md` RO-023 status (Codex P2 on PR #20). No task-state changes | Claude Code (PR #20 fix) |
 | 2026-10-31 | Reflects `main` @ `f1df6b2`, the Milestone 2 closeout: PRs #21 and #14–#17 merged after the owner's iPhone check of candidate `fe41d47` (2026-10-30), with CI green on `main` after each. RO-012, RO-023 and RO-027 done; ADR 0007 Accepted. RO-028 (title-bar overlap) and RO-029 (BLE pipeline, owner priority) recorded; RO-013 plan added; duplicate PR #22 flagged | Claude Code (its own work, plus the owner's device check, under the owner-directed exception) |
+| 2026-11-09 | Reflects `main` @ `3dbc051`: PRs #33, #34, #25, #26 and #27 merged on 2026-11-08 under the owner's standing merge authorization, with CI green on `main` after each. RO-025 done; RO-013 and RO-029 stay in progress; the RO-014 plan is merged with its decisions approved; ADR 0010 Accepted, ADR 0008 Proposed. Open-PR list, milestone, blockers and next steps refreshed | Claude Code (its own work) |

@@ -127,15 +127,51 @@ export function fixRoundsUsed(issueComments = [], maintainers = new Set()) {
 
 const OK_CONCLUSIONS = new Set(['success', 'neutral', 'skipped']);
 
-/** CI state at the head commit from its check runs. */
-export function ciState(checkRuns = []) {
-  if (checkRuns.length === 0) return { state: 'none', failing: [] };
+/** The CI workflow and the jobs it must run for a PR head (job `name:` values in that file; a test keeps them in sync). */
+export const CI_WORKFLOW_PATH = '.github/workflows/ci.yml';
+export const REQUIRED_CI_JOBS = Object.freeze([
+  'Boundaries, typecheck and tests',
+  'Windows — boundary checker and its tests',
+  'Handoff file present',
+]);
+
+/**
+ * CI state at the head commit. Green only when the newest pull_request run of the CI workflow concluded
+ * `success` AND every required job is present in that run's own check suite with conclusion `success`.
+ * A job of the same name from another workflow does not count. A missing required job makes the state
+ * `incomplete`; a skipped or unsuccessful required job, or an unsuccessful workflow, makes it `failing`.
+ * Any other check on the head that completed unsuccessfully also fails it.
+ * @returns {{ state: 'pending'|'failing'|'incomplete'|'green', failing: string[], missing: string[] }}
+ */
+export function ciState(checkRuns = [], workflowRuns = [], required = REQUIRED_CI_JOBS) {
   const failing = [];
   let pending = false;
-  for (const run of checkRuns) {
-    if (run.status !== 'completed') pending = true;
-    else if (!OK_CONCLUSIONS.has(run.conclusion)) failing.push(String(run.name ?? 'unnamed check'));
+
+  const ciRuns = workflowRuns.filter(
+    (run) => typeof run?.path === 'string' && run.path.split('@')[0] === CI_WORKFLOW_PATH && run.event === 'pull_request',
+  );
+  if (ciRuns.length === 0) return { state: 'incomplete', failing: [], missing: ['CI workflow run'] };
+  const run = ciRuns.reduce((newest, candidate) => (candidate.id > newest.id ? candidate : newest));
+  if (run.status !== 'completed') return { state: 'pending', failing: [], missing: [] };
+  if (run.conclusion !== 'success') failing.push(`CI workflow concluded ${String(run.conclusion ?? 'without a result')}`);
+
+  const jobs = checkRuns.filter((check) => check.check_suite?.id === run.check_suite_id);
+  const missing = [];
+  for (const name of required) {
+    const job = jobs.find((check) => check.name === name);
+    if (!job) missing.push(name);
+    else if (job.status !== 'completed') pending = true;
+    else if (job.conclusion !== 'success') failing.push(`${name} (${String(job.conclusion)})`);
   }
-  if (failing.length > 0) return { state: 'failing', failing };
-  return { state: pending ? 'pending' : 'green', failing };
+
+  for (const check of checkRuns) {
+    if (required.includes(check.name) && check.check_suite?.id === run.check_suite_id) continue;
+    if (check.status !== 'completed') pending = true;
+    else if (!OK_CONCLUSIONS.has(check.conclusion)) failing.push(String(check.name ?? 'unnamed check'));
+  }
+
+  if (failing.length > 0) return { state: 'failing', failing: [...failing, ...missing.map((name) => `${name} (missing)`)], missing };
+  if (pending) return { state: 'pending', failing: [], missing };
+  if (missing.length > 0) return { state: 'incomplete', failing: [], missing };
+  return { state: 'green', failing: [], missing: [] };
 }

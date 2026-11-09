@@ -20,6 +20,7 @@ const ALLOWED = [
   /^\/pulls\/[1-9][0-9]{0,8}\/comments\?per_page=100(?:&page=[1-9][0-9]?)?$/,
   /^\/issues\/[1-9][0-9]{0,8}\/comments\?per_page=100(?:&page=[1-9][0-9]?)?$/,
   /^\/commits\/[0-9a-f]{40}\/check-runs\?per_page=100(?:&page=[1-9][0-9]?)?$/,
+  /^\/actions\/runs\?head_sha=[0-9a-f]{40}&per_page=100(?:&page=[1-9][0-9]?)?$/,
 ];
 
 /** Pages read per list before the data is declared incomplete (10 x 100 items). */
@@ -103,6 +104,10 @@ export function createGitHubClient({ repo, token, fetchImpl = globalThis.fetch }
     async listCheckRuns(sha) {
       if (typeof sha !== 'string' || !SHA.test(sha)) throw new Error('Expected a full 40-character commit SHA.');
       return getAll(`/commits/${sha}/check-runs?per_page=100`, (body) => body?.check_runs);
+    },
+    async listWorkflowRuns(sha) {
+      if (typeof sha !== 'string' || !SHA.test(sha)) throw new Error('Expected a full 40-character commit SHA.');
+      return getAll(`/actions/runs?head_sha=${sha}&per_page=100`, (body) => body?.workflow_runs);
     },
   };
 }

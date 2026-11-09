@@ -40,8 +40,8 @@ node scripts/dev-host/dev-host.mjs report `
 | `--json` | Print the full snapshot as JSON instead of Markdown |
 | `--out <file>` | Also write the report to a file. Keep it outside the repository |
 
-Each open PR costs 4 GitHub API calls, plus 1 for the list. Without a token GitHub allows 60 calls per hour, which
-covers one run an hour for about 14 open PRs while the repository is public. For more, set
+Each open PR costs 5 GitHub API calls, plus 1 for the list. Without a token GitHub allows 60 calls per hour, which
+covers one run an hour for about 11 open PRs while the repository is public. For more, set
 `DEV_HOST_GITHUB_TOKEN` to a **fine-grained, read-only** token for this one repository. That is a GitHub token,
 not an AI key. The controller sends it only in the `Authorization` header to `api.github.com`, and never prints it.
 If a request fails (for example at the rate limit), the controller stops calling GitHub and prints a partial report
@@ -51,11 +51,12 @@ with a warning.
 
 | Verdict | Who | Meaning |
 |---|---|---|
-| `merge-decision` | owner | CI green and Codex reviewed **this head** with no open P0/P1, and every P2 answered. Then the owner checks device, hardware and security gates and the handoff, as in the [merge gate](claude-codex-workflow.md) |
+| `merge-decision` | owner | CI complete and green (every required job of the CI run passed) and Codex reviewed **this head** with no open P0/P1, and every P2 answered. Then the owner checks device, hardware and security gates and the handoff, as in the [merge gate](claude-codex-workflow.md) |
 | `escalate` | owner | Blocking findings at the fix-round cap, a P0/P1 answered "Not changed", a `Needs owner decision:` reply, or CI failing at the cap |
 | `fix-round` | agent | Codex findings at the head and rounds remain. The owner may start round *n*/2 by hand |
 | `review-needed` | agent | No Codex review of the current head. Comment `@codex review` |
-| `ci-failing`, `ci-missing` | agent | The PR's author fixes CI, or checks why it did not run |
+| `ci-failing` | agent | The CI run or a required job failed or was skipped. The PR's author fixes it, or re-runs CI if a job never started |
+| `ci-incomplete` | agent | A required CI job, or the CI run itself, is missing at the head. Re-run CI; no review or merge decision until it is complete |
 | `incomplete` | owner | The PR has more review history than the controller reads (over 1,000 items in a list). Check it by hand |
 | `draft`, `ci-pending`, `review-pending`, `waiting-on-base`, `unknown` | nobody | Wait, or a stacked PR waits for its base. `unknown` means GitHub could not be read |
 
@@ -82,17 +83,27 @@ GitHub text is **untrusted**: PR titles, bodies, comments, branch names and chec
    control and bidirectional characters. Markdown link, image and emphasis characters are escaped, and bare
    URLs are broken so GitHub does not turn them into links. `@` gets a word joiner, so a pasted report cannot
    ping anyone or trigger `@codex`.
-5. **Can only read.** The GitHub client has no method except `GET` and an allowlist of five read
+5. **Can only read.** The GitHub client has no method except `GET` and an allowlist of six read
    endpoints. It refuses redirects.
    - It reads every page of a list, up to 10 pages of 100 items. It builds each page URL itself and never
      follows one from a response.
    - A longer list is **not** assessed. The PR is reported as `incomplete`, for the owner to check by hand,
      because a missing page could hide a round record, a finding or a failing check.
    - A re-review of the head that is still running counts as `pending`, even if an earlier review of the same
-     head finished. Git runs through `execFileSync` with no shell, and only five argument
-   shapes are allowed (`remote get-url origin`, `rev-parse <ref>`, `show <ref>:TASKS.md`, `worktree list
-   --porcelain`, and the opt-in `fetch origin --prune`).
-6. **Costs $0 in AI spending** (ADR 0005). It calls no AI service and adds no dependency.
+     head finished.
+
+   Git runs through `execFileSync` with no shell, and only five argument shapes are allowed
+   (`remote get-url origin`, `rev-parse <ref>`, `show <ref>:TASKS.md`, `worktree list --porcelain`, and the
+   opt-in `fetch origin --prune`).
+6. **Counts CI as green only when it is complete.** The newest `pull_request` run of `.github/workflows/ci.yml`
+   for the head must have concluded `success`. Every required job (`REQUIRED_CI_JOBS`: Linux verify, Windows, and
+   Handoff) must also be present **in that run's check suite** and must have succeeded.
+   - A missing job makes CI `incomplete`.
+   - A skipped or failed required job, or a workflow that ended in failure, cancellation or a startup failure,
+     makes CI failing.
+   - A job with the same name from another workflow does not count.
+   - A test keeps the job list equal to the `name:` values in `ci.yml`.
+7. **Costs $0 in AI spending** (ADR 0005). It calls no AI service and adds no dependency.
    `scripts/dev-host/safety.test.mjs` fails if any controller file mentions a write method, merge, push, a shell,
    `eval`, or an AI provider endpoint or key.
 

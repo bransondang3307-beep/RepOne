@@ -120,10 +120,11 @@ export async function collectSnapshot({ options, git, github, now = new Date() }
       warnings.push(`PR #${pr.number}: unexpected head SHA; skipped.`);
       continue;
     }
-    let checkRuns, issueComments, reviews, reviewComments;
+    let checkRuns, workflowRuns, issueComments, reviews, reviewComments;
     if (!githubError) {
       try {
         checkRuns = await github.listCheckRuns(pr.headSha);
+        workflowRuns = await github.listWorkflowRuns(pr.headSha);
         issueComments = await github.listIssueComments(pr.number);
         reviews = await github.listReviews(pr.number);
         reviewComments = await github.listReviewComments(pr.number);
@@ -142,7 +143,7 @@ export async function collectSnapshot({ options, git, github, now = new Date() }
       pulls.push({ ...pr, assessment: { verdict: 'unknown', actor: 'none', action: 'State not read (GitHub request failed; see Warnings).' } });
       continue;
     }
-    const ci = ciState(checkRuns);
+    const ci = ciState(checkRuns, workflowRuns);
     const codex = codexReviewState({ headSha: pr.headSha, issueComments, reviews, reviewComments, maintainers });
     const rounds = fixRoundsUsed(issueComments, maintainers);
     const assessment = assessPullRequest({ pr, ci, codex, rounds, maxRounds: MAX_FIX_ROUNDS });

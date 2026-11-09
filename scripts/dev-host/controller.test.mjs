@@ -1,10 +1,12 @@
 // Unit tests for the development-host controller's pure logic (RO-034). No network, no git.
 // Run: node --test scripts/dev-host/controller.test.mjs
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
+import { parse } from 'yaml';
 import { assessPullRequest } from './pr-assessment.mjs';
 import { renderReport, sanitizeText } from './report.mjs';
-import { ciState, codexReviewState, fixRoundsUsed, MAX_FIX_ROUNDS } from './review-state.mjs';
+import { CI_WORKFLOW_PATH, ciState, codexReviewState, fixRoundsUsed, MAX_FIX_ROUNDS, REQUIRED_CI_JOBS } from './review-state.mjs';
 import { assessTasks, parseTaskBoard } from './tasks.mjs';
 import { branchBelongsTo, checkWorktrees, parseWorktreeList } from './worktrees.mjs';
 
@@ -135,12 +137,62 @@ describe('fixRoundsUsed', () => {
 });
 
 describe('ciState', () => {
-  const run = (name, status, conclusion = null) => ({ name, status, conclusion });
-  it('classifies check runs', () => {
-    assert.deepEqual(ciState([]), { state: 'none', failing: [] });
-    assert.equal(ciState([run('a', 'completed', 'success'), run('b', 'in_progress')]).state, 'pending');
-    assert.equal(ciState([run('a', 'completed', 'success'), run('b', 'completed', 'skipped'), run('c', 'completed', 'neutral')]).state, 'green');
-    assert.deepEqual(ciState([run('a', 'completed', 'failure'), run('b', 'in_progress'), run('c', 'completed', 'cancelled')]), { state: 'failing', failing: ['a', 'c'] });
+  const [LINUX, WINDOWS, HANDOFF] = REQUIRED_CI_JOBS;
+  const SUITE = 77;
+  const job = (name, conclusion = 'success', status = 'completed', suite = SUITE) => ({ name, status, conclusion, check_suite: { id: suite } });
+  const ciRun = (extra = {}) => ({ id: 9, path: CI_WORKFLOW_PATH, event: 'pull_request', status: 'completed', conclusion: 'success', check_suite_id: SUITE, ...extra });
+  const all = () => [job(LINUX), job(WINDOWS), job(HANDOFF)];
+
+  it('is green only with a successful CI run and every required job successful in its suite', () => {
+    assert.deepEqual(ciState(all(), [ciRun()]), { state: 'green', failing: [], missing: [] });
+    // Unrelated checks from other workflows may be skipped or neutral without failing the head.
+    assert.equal(ciState([...all(), job('PR handoff snapshot', 'skipped', 'completed', 5)], [ciRun()]).state, 'green');
+  });
+
+  it('regression (PR #44, run 42671430283): Linux job never started and the workflow failed', () => {
+    const result = ciState([job(WINDOWS), job(HANDOFF)], [ciRun({ conclusion: 'failure' })]);
+    assert.equal(result.state, 'failing');
+    assert.deepEqual(result.failing, ['CI workflow concluded failure', `${LINUX} (missing)`]);
+  });
+
+  it('regression (PR #44, run 42672522724): Handoff job never started and the workflow failed', () => {
+    assert.equal(ciState([job(LINUX), job(WINDOWS)], [ciRun({ conclusion: 'failure' })]).state, 'failing');
+  });
+
+  it('is incomplete when a required job or the CI run itself is missing', () => {
+    assert.deepEqual(ciState([job(WINDOWS), job(HANDOFF)], [ciRun()]), { state: 'incomplete', failing: [], missing: [LINUX] });
+    assert.deepEqual(ciState(all(), []), { state: 'incomplete', failing: [], missing: ['CI workflow run'] });
+    assert.equal(ciState([], []).state, 'incomplete');
+    // A run of another workflow, or a non-PR run of CI, is not the PR's CI run.
+    assert.equal(ciState(all(), [ciRun({ path: '.github/workflows/pr-tracking.yml' })]).state, 'incomplete');
+    assert.equal(ciState(all(), [ciRun({ event: 'workflow_dispatch' })]).state, 'incomplete');
+  });
+
+  it('does not accept a same-named job from another check suite (a PR-added look-alike workflow)', () => {
+    const spoof = [job(LINUX, 'success', 'completed', 999), job(WINDOWS), job(HANDOFF)];
+    assert.deepEqual(ciState(spoof, [ciRun()]).missing, [LINUX]);
+    assert.notEqual(ciState(spoof, [ciRun()]).state, 'green');
+  });
+
+  it('fails on a skipped or unsuccessful required job, and on any unsuccessful workflow', () => {
+    assert.deepEqual(ciState([job(LINUX, 'skipped'), job(WINDOWS), job(HANDOFF)], [ciRun()]), { state: 'failing', failing: [`${LINUX} (skipped)`], missing: [] });
+    assert.equal(ciState([job(LINUX), job(WINDOWS, 'failure'), job(HANDOFF)], [ciRun({ conclusion: 'failure' })]).state, 'failing');
+    for (const conclusion of ['failure', 'cancelled', 'timed_out', 'startup_failure', 'action_required', null]) {
+      assert.equal(ciState(all(), [ciRun({ conclusion })]).state, 'failing', String(conclusion));
+    }
+    assert.equal(ciState([...all(), job('other', 'failure', 'completed', 5)], [ciRun()]).state, 'failing');
+  });
+
+  it('is pending while the newest CI run or another check is still running', () => {
+    assert.equal(ciState(all(), [ciRun({ id: 8, conclusion: 'failure' }), ciRun({ id: 10, status: 'in_progress', conclusion: null })]).state, 'pending');
+    assert.equal(ciState([...all(), job('other', null, 'queued', 5)], [ciRun()]).state, 'pending');
+    // The newest run decides: an older failed run does not mask a newer green one.
+    assert.equal(ciState(all(), [ciRun({ id: 8, conclusion: 'failure', check_suite_id: 1 }), ciRun({ id: 10 })]).state, 'green');
+  });
+
+  it('lists exactly the job names of the CI workflow file', () => {
+    const workflow = parse(readFileSync(new URL(`../../${CI_WORKFLOW_PATH}`, import.meta.url), 'utf8'));
+    assert.deepEqual([...REQUIRED_CI_JOBS].sort(), Object.values(workflow.jobs).map((j) => j.name).sort());
   });
 });
 
@@ -169,9 +221,12 @@ describe('assessPullRequest', () => {
     assert.match(action, /and 2 more/);
   });
 
-  it('waits for running CI and running reviews, and flags missing CI', () => {
+  it('waits for running CI and running reviews, and never passes incomplete CI', () => {
     assert.equal(assess({ ci: { state: 'pending', failing: [] } }).verdict, 'ci-pending');
-    assert.equal(assess({ ci: { state: 'none', failing: [] } }).verdict, 'ci-missing');
+    const incomplete = assess({ ci: { state: 'incomplete', failing: [], missing: ['Boundaries, typecheck and tests'] } });
+    assert.deepEqual([incomplete.verdict, incomplete.actor], ['ci-incomplete', 'agent']);
+    assert.match(incomplete.action, /missing: Boundaries, typecheck and tests/);
+    assert.equal(assess({ ci: { state: 'bogus', failing: [] } }).verdict, 'ci-incomplete');
     assert.equal(assess({ codex: { status: 'pending', reviewedCommit: null, findings: [] } }).verdict, 'review-pending');
   });
 

@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { allowedGitArgs, main, parseArgs, repoFromRemote } from './dev-host.mjs';
+import { CI_WORKFLOW_PATH, REQUIRED_CI_JOBS } from './review-state.mjs';
 import { createGitHubClient, IncompleteDataError, isAllowedPath, MAX_PAGES } from './github-client.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -18,10 +19,10 @@ function response(body, { status = 200, link = null } = {}) {
 
 describe('GitHub client is read-only and allowlisted', () => {
   it('allows only the read endpoints the controller needs', () => {
-    for (const path of ['/pulls?state=open&per_page=100', '/pulls/38/reviews?per_page=100', '/pulls/38/comments?per_page=100', '/issues/38/comments?per_page=100', `/commits/${'a'.repeat(40)}/check-runs?per_page=100`]) {
+    for (const path of ['/pulls?state=open&per_page=100', '/pulls/38/reviews?per_page=100', '/pulls/38/comments?per_page=100', '/issues/38/comments?per_page=100', `/commits/${'a'.repeat(40)}/check-runs?per_page=100`, `/actions/runs?head_sha=${'a'.repeat(40)}&per_page=100`]) {
       assert.equal(isAllowedPath(path), true, path);
     }
-    for (const path of ['/pulls/38/merge', '/pulls/38', '/issues/38/comments?per_page=100&x=1', '/pulls/0/reviews?per_page=100', '/../user', '/git/refs/heads/main', `/commits/${'a'.repeat(40)}/statuses`]) {
+    for (const path of ['/pulls/38/merge', '/pulls/38', '/issues/38/comments?per_page=100&x=1', '/pulls/0/reviews?per_page=100', '/../user', '/git/refs/heads/main', `/commits/${'a'.repeat(40)}/statuses`, '/actions/runs?per_page=100', `/actions/runs/1/rerun`]) {
       assert.equal(isAllowedPath(path), false, path);
     }
   });
@@ -153,7 +154,8 @@ describe('end to end with fake GitHub and git', () => {
     '/pulls/2/reviews?per_page=100': [{ user: codexBot, commit_id: HEADS[2], submitted_at: '2026-11-01T00:00:00Z', body: '<!-- codex-review-receipt:v1 -->' }],
     '/pulls/2/comments?per_page=100': [{ id: 5, user: codexBot, original_commit_id: HEADS[2], path: 'a.ts', line: 1, body: '![P1 Badge](x) Bug' }],
   };
-  const green = { check_runs: [{ name: 'CI', status: 'completed', conclusion: 'success' }] };
+  const green = { check_runs: REQUIRED_CI_JOBS.map((name) => ({ name, status: 'completed', conclusion: 'success', check_suite: { id: 1 } })) };
+  const ciRuns = { workflow_runs: [{ id: 1, path: CI_WORKFLOW_PATH, event: 'pull_request', status: 'completed', conclusion: 'success', check_suite_id: 1 }] };
 
   function fakes({ failOn, override } = {}) {
     const gitCalls = [];
@@ -174,6 +176,7 @@ describe('end to end with fake GitHub and git', () => {
       const special = override?.(path);
       if (special) return special;
       if (path.includes('/check-runs')) return response(green);
+      if (path.startsWith('/actions/runs')) return response(ciRuns);
       return response(data[path] ?? []);
     };
     return { git, fetchImpl, gitCalls, fetchCalls };
@@ -201,7 +204,7 @@ describe('end to end with fake GitHub and git', () => {
     let printed = '';
     const snapshot = await main(['report'], { env: {}, git, fetchImpl, stdout: { write: (s) => (printed += s) } });
     assert.deepEqual(snapshot.pulls.map((p) => p.assessment.verdict), ['merge-decision', 'unknown', 'unknown']);
-    assert.equal(fetchCalls.length, 1 + 4 + 2); // list, PR #1 (4 calls), PR #2 check-runs + failed comments
+    assert.equal(fetchCalls.length, 1 + 5 + 3); // list, PR #1 (5 calls), PR #2 check-runs + workflow runs + failed comments
     assert.match(printed, /Stopped reading GitHub at PR \\#2: GitHub GET .* HTTP 403/); // warnings are escaped too
   });
 
@@ -233,7 +236,8 @@ describe('end to end with fake GitHub and git', () => {
       const seen = [];
       const fetchImpl = async (url, init) => {
         seen.push(init.headers.Authorization);
-        return url.includes('/check-runs') ? response(green) : response([]);
+        if (url.includes('/check-runs')) return response(green);
+        return url.includes('/actions/runs') ? response(ciRuns) : response([]);
       };
       const out = join(dir, 'nested', 'report.md');
       await main(['report', '--out', out], { env: { DEV_HOST_GITHUB_TOKEN: 'tok' }, git, fetchImpl, stdout: { write() {} } });
@@ -244,5 +248,26 @@ describe('end to end with fake GitHub and git', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('end to end: CI must be complete before any merge decision', () => {
+  it('regression (PR #44): a failed CI run with a required job missing never yields merge-decision', async () => {
+    const head = 'd'.repeat(40);
+    const codexBot = { login: 'chatgpt-codex-connector[bot]', type: 'Bot' };
+    const routes = {
+      '/pulls?state=open&per_page=100': [{ number: 44, title: 'x', draft: false, base: { ref: 'main' }, head: { ref: 'claude/RO-034-x', sha: head } }],
+      [`/commits/${head}/check-runs?per_page=100`]: { check_runs: REQUIRED_CI_JOBS.filter((n) => !n.startsWith('Boundaries')).map((name) => ({ name, status: 'completed', conclusion: 'success', check_suite: { id: 3 } })) },
+      [`/actions/runs?head_sha=${head}&per_page=100`]: { workflow_runs: [{ id: 3, path: CI_WORKFLOW_PATH, event: 'pull_request', status: 'completed', conclusion: 'failure', check_suite_id: 3 }] },
+      '/issues/44/comments?per_page=100': [{ user: codexBot, created_at: '2026-11-09T00:00:00Z', body: `<!-- codex-review-receipt:v1 -->\n**Reviewed commit:** \`${head.slice(0, 10)}\`` }],
+    };
+    const fetchImpl = async (url) => response(routes[url.replace('https://api.github.com/repos/o/r', '')] ?? []);
+    const git = (args) => (args[0] === 'remote' ? 'https://github.com/o/r.git' : args[0] === 'rev-parse' ? 'c'.repeat(40) : '');
+    const snapshot = await main(['report'], { env: {}, git, fetchImpl, stdout: { write() {} } });
+    const { ci, assessment } = snapshot.pulls[0];
+    assert.equal(ci.state, 'failing');
+    assert.notEqual(assessment.verdict, 'merge-decision');
+    assert.equal(assessment.verdict, 'ci-failing');
+    assert.match(assessment.action, /CI workflow concluded failure/);
   });
 });

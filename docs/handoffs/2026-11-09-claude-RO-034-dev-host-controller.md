@@ -26,7 +26,7 @@ must use no paid AI API, and it does not enable unattended AI coding.
 
 ## What changed
 - `scripts/dev-host/`: a dependency-free Node controller (`report` command), split into these modules:
-  - a read-only GitHub client: `GET` only, five allowlisted endpoints, redirects refused, optional read-only token;
+  - a read-only GitHub client: `GET` only, six allowlisted endpoints, redirects refused, optional read-only token;
   - Codex review state, from the Codex bot's receipt and state markers and its P0–P3 badges, checked by author
     login *and* account type;
   - fix rounds, from maintainer `Round n/m at <sha>` lines. The cap stays at 2, whatever a comment says;
@@ -71,7 +71,7 @@ covers. Re-running live with the fix waits for the limit to reset or a read-only
 - Advisory only. It cannot see device or hardware gates, "parked" decisions, or superseded PRs. For example,
   #24, #29 and #30 show "merge decision", and the owner must still apply the gates in `PROJECT_STATUS.md`.
 - Thread resolution is not visible over REST. Findings count against the newest head and maintainer replies.
-- Without a token: 60 API calls per hour (about 4 per open PR, more for long histories). A list longer than
+- Without a token: 60 API calls per hour (about 5 per open PR, more for long histories). A list longer than
   1,000 items marks that PR `incomplete` rather than assessing partial data.
 - The Codex markers (`codex-review-receipt:v1`, `codex-review-state:v1`, badges) are not a documented API. If
   Codex changes them, PRs show "review-needed" rather than a false "clean".
@@ -104,3 +104,49 @@ Mutation check: reverting the pagination fix fails 2 tests; reverting the review
 
 `npm run verify` after the fix: exit 0. Module boundaries OK (89 files); workflow policy OK; typecheck OK;
 script tests **116/116** (67 + 49); Jest 265/265.
+
+## Review round 2 (Codex at `76b3622`; owner-authorized, the last round)
+The owner authorised round 2 of 2. Codex reported 1× P1 at `76b3622`: `ciState` called any non-empty set of
+successful checks green, even when the Linux verify job never started.
+
+**Reproduced first.** A test with the job shape of run 42671430283 (Windows and Handoff succeeded, Linux absent,
+workflow `failure`) returned `green` on the unfixed code.
+
+**Correction to earlier records.** PR #44's own CI was **not green** at either head:
+- run [42671430283](https://github.com/bransondang3307-beep/RepOne/actions/runs/42671430283) at `5812fcd`:
+  the Linux job never started, and the run concluded `failure`;
+- run [42672522724](https://github.com/bransondang3307-beep/RepOne/actions/runs/42672522724) at `76b3622`:
+  the Handoff job never started, and the run concluded `failure`.
+
+Every job that ran passed. The round-1 summary called CI fine on the basis of the check runs alone, which is the
+same mistake this finding describes.
+
+**Fix (one commit):**
+- `ciState(checkRuns, workflowRuns)` takes the newest `pull_request` run of `.github/workflows/ci.yml` for the
+  head. It is green only if that run concluded `success` **and** each job in `REQUIRED_CI_JOBS` is present in that
+  run's check suite with conclusion `success`.
+- Missing required jobs, or no CI run, give `incomplete`, and the verdict becomes `ci-incomplete`: never a review
+  or merge decision.
+- A skipped or unsuccessful required job, or a workflow concluding anything other than `success`, gives `failing`.
+- Same-named jobs from other check suites are ignored. Any other check that completed unsuccessfully still fails
+  the head.
+- One new allowlisted read endpoint, `GET /actions/runs?head_sha=<sha>`. The API cost is now 5 calls per PR.
+- A test checks that `REQUIRED_CI_JOBS` equals the job `name:` values in `ci.yml`.
+
+**Tests:**
+- both observed runs as regressions;
+- missing CI run, wrong workflow and wrong event;
+- a look-alike job from another suite;
+- skipped, failed, cancelled, timed-out and startup-failure conclusions;
+- a pending newest run; an older failed run superseded by a newer green one;
+- the job-list sync with `ci.yml`;
+- an end-to-end check that a failed run with a missing job never yields `merge-decision`.
+
+**Mutation check:**
+- ignoring the workflow conclusion fails 4 tests;
+- ignoring missing jobs fails 3;
+- matching jobs from any suite fails 1.
+
+**Open for the owner, not code:** at both heads one required CI job never started. The cause is not visible
+through the API; it may be the runner or an Actions limit. Until a CI run of the head has all three jobs green,
+this PR does not meet the merge gate, whatever Codex says.

@@ -11,7 +11,7 @@ const BLOCKING = new Set(['P0', 'P1']);
 /**
  * @param {{
  *   pr: { number: number, title: string, draft: boolean, base: string, headSha: string, headRef: string },
- *   ci: { state: 'none'|'pending'|'failing'|'green', failing: string[] },
+ *   ci: { state: 'pending'|'failing'|'incomplete'|'green', failing: string[], missing?: string[] },
  *   codex: { status: string, reviewedCommit: string|null, findings: Array<{ priority: string, reply: string|null }> },
  *   rounds: { used: number },
  *   maxRounds?: number,
@@ -29,7 +29,11 @@ export function assessPullRequest({ pr, ci, codex, rounds, maxRounds = MAX_FIX_R
       : { verdict: 'ci-failing', actor: 'agent', action: `CI fails at \`${head}\` (${failingNames(ci)}). The PR's author fixes it.` };
   }
   if (ci.state === 'pending') return { verdict: 'ci-pending', actor: 'none', action: `CI is running at \`${head}\`. Wait.` };
-  if (ci.state === 'none') return { verdict: 'ci-missing', actor: 'agent', action: `No CI checks at \`${head}\`. Check that CI ran for this head.` };
+  if (ci.state !== 'green') {
+    // 'incomplete' (a required job or the CI run is missing) and any unknown state: never green.
+    const missing = (ci.missing ?? []).slice(0, 3).map((name) => sanitizeText(name, 50)).join(', ') || 'unknown';
+    return { verdict: 'ci-incomplete', actor: 'agent', action: `CI at \`${head}\` is incomplete (missing: ${missing}). Re-run CI; no review or merge decision until every required job passes.` };
+  }
 
   if (codex.status === 'pending') return { verdict: 'review-pending', actor: 'none', action: `Codex is reviewing \`${head}\`. Wait.` };
   if (codex.status === 'not-reviewed' || codex.status === 'stale') {

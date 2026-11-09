@@ -3,12 +3,20 @@
 
 export type {
   CalibrationRepository,
+  ExerciseHistoryEntry,
+  ExerciseRepository,
+  MachineRepository,
   RawSampleRepository,
   RepEventRepository,
   Repositories,
+  SessionEndReason,
+  SessionOutcome,
   SessionRepository,
+  SetResult,
+  WorkoutRepository,
   WorkoutSession,
   WorkoutSessionSummary,
+  WorkoutSummary,
 } from './repositories';
 export { createInMemoryRepositories } from './memory/createInMemoryRepositories';
 

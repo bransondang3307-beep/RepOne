@@ -25,8 +25,13 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 |---|---|---|---|
 | 2026-11-09 | Claude Code | RO-034: development-host controller, read-only prototype (owner-action report; no AI API, no GitHub writes) | [2026-11-09-claude-RO-034-dev-host-controller.md](2026-11-09-claude-RO-034-dev-host-controller.md) |
 | 2026-11-09 | Claude Code | RO-008: ownership table aligned with `AGENTS.md` §2; routes live in `apps/mobile/app/` (docs only) | [2026-11-09-claude-RO-008-ownership-table.md](2026-11-09-claude-RO-008-ownership-table.md) |
+| 2026-11-09 | Claude Code | RO-014 PR 1: `WorkoutController`, wiring, unit and SQLite integration tests (draft; waits for PRs #29, #30, #35) | [2026-11-09-claude-RO-014-pr1-implementation.md](2026-11-09-claude-RO-014-pr1-implementation.md) |
 | 2026-11-09 | Claude Code | RO-029: firmware → decoder cross-boundary regression on whole streams (synthetic, test only) | [2026-11-09-claude-RO-029-firmware-decoder-boundary.md](2026-11-09-claude-RO-029-firmware-decoder-boundary.md) |
 | 2026-11-09 | Claude Code | Status closeout of the 2026-11-08 merges (PRs #33, #34, #25, #26, #27); RO-025 done | [2026-11-09-claude-status-closeout.md](2026-11-09-claude-status-closeout.md) |
+| 2026-11-09 | Claude Code | RO-013: file-backed v1 → v2 upgrade test across app launches (test only, stacked on PR #35) | [2026-11-09-claude-RO-013-file-backed-upgrade-test.md](2026-11-09-claude-RO-013-file-backed-upgrade-test.md) |
+| 2026-11-08 | Claude Code | RO-014 PR 1 (prep): WorkoutController design mapped to PR #35's APIs; integration tests defined (it.todo) | [2026-11-08-claude-RO-014-pr1-prep.md](2026-11-08-claude-RO-014-pr1-prep.md) |
+| 2026-11-07 | Codex | RO-013: recording-to-history integration regression through SQLite (PR #36, merged into PR #35) | [2026-11-07-codex-RO-013.md](2026-11-07-codex-RO-013.md) |
+| 2026-11-06 | Claude Code | RO-013 part 2: SQLite persistence, migration v2, history queries, recording outcome | [2026-11-06-claude-RO-013-sqlite-persistence.md](2026-11-06-claude-RO-013-sqlite-persistence.md) |
 | 2026-11-06 | Claude Code | RO-014 plan (Milestone 4 on PR #30's redesign) and hardware-dependent acceptance tests (docs) | [2026-11-06-claude-RO-014-plan.md](2026-11-06-claude-RO-014-plan.md) |
 | 2026-11-06 | Claude Code | RO-013 part 1: workout domain model, user-entered resistance, workout lifecycle; ADR 0010 (Proposed) | [2026-11-06-claude-RO-013-workout-domain.md](2026-11-06-claude-RO-013-workout-domain.md) |
 | 2026-10-31 | Claude Code | RO-030 mobile UI redesign: light/dark design system, tabs, dashboard, live set, history | [2026-10-31-claude-RO-030-ui-redesign.md](2026-10-31-claude-RO-030-ui-redesign.md) |

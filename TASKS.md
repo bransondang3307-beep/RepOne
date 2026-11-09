@@ -6,7 +6,7 @@
 > - After your work PR merges, set your row to `done` in your own status-update PR (`AGENTS.md` §3 step 9).
 > - `done` = PR **merged into `main`** and completion criteria verified. Record the merge commit.
 > - Status: `todo` · `in-progress` · `in-review` · `done` · `blocked`. Priority: **P1** (now) · **P2** (next) · **P3** (later).
-> - Next free ID: **RO-032** (RO-030 is recorded on its open branch `claude/RO-030-ui-redesign`).
+> - Next free ID: **RO-032**.
 
 ## Board
 
@@ -41,6 +41,7 @@
 | RO-027 | Dependency security: targeted Expo SDK 57 patch (`expo` 57.0.31, `expo-router` 57.0.29, `node-forge` 1.4.2) | Claude Code | P1 | done | — | [PR #21](https://github.com/bransondang3307-beep/RepOne/pull/21) — merged `4d6ce0c` |
 | RO-028 | iOS: home and History content starts under the translucent navigation header | Claude Code | P2 | todo | — | — |
 | RO-029 | Real-sensor pipeline over BLE: wire protocol, codec, firmware, iPhone BLE adapter (owner-directed) | Claude Code | P1 | in-progress | RO-012 (done); RO-025 before the BLE adapter lands | Part 1: [PR #26](https://github.com/bransondang3307-beep/RepOne/pull/26) — merged `75322ea` (ADR 0008 Proposed); part 2: [PR #27](https://github.com/bransondang3307-beep/RepOne/pull/27) — merged `3dbc051`; firmware → decoder stream regression (synthetic): [PR #41](https://github.com/bransondang3307-beep/RepOne/pull/41) — merged `9664fc5`; part 3: [PR #28](https://github.com/bransondang3307-beep/RepOne/pull/28) open, parked at its fix-round limit |
+| RO-030 | Mobile UI redesign: light/dark design system, tab navigation, dashboard, live set and history (owner-directed) | Claude Code | P2 | in-review | RO-012 (done) | `claude/RO-030-ui-redesign`; PR to be opened by the owner |
 | RO-031 | Upgrade the app to Expo SDK 58 (the current Expo Go needs it) (owner-directed) | Claude Code | P1 | in-review | — | `claude/RO-031-expo-sdk-58`; PR to be opened by the owner |
 
 ## Task details
@@ -393,6 +394,9 @@
     scrolled back to the top;
   - Android is unchanged;
   - `npm run verify`; Codex review; the owner's device check.
+- **Status (2026-10-31):** RO-030 removes the translucent header: every screen now draws its own title below the
+  safe-area inset. RO-028 stays `todo` until RO-030 merges and the owner's iPhone check confirms the fix. Its
+  "Android is unchanged" criterion no longer applies as written, because RO-030 restyles Android too.
 
 ### RO-029 — Real-sensor pipeline over BLE (owner-directed, 2026-10-31)
 - **Goal:** MPU-6050 readings → firmware → versioned BLE packets → iPhone BLE adapter → the existing
@@ -422,6 +426,32 @@
     compiled;
   - Codex has reviewed each PR's final head;
   - hardware and iPhone validation are reported as outstanding until the owner performs them.
+
+### RO-030 — Mobile UI redesign (owner-directed, 2026-10-30)
+- **Assigned:** by the owner on 2026-10-30 ("go for it"), as an implementation task, ahead of the remaining RO-029
+  parts. A fitness-app marketing image served as visual inspiration only. Its branding, illustrations, layouts and
+  unsupported metrics (calories, distance, steps, social features, points) are not used.
+- **Files:**
+  - `apps/mobile/app/`: the routes, with `record.tsx` new;
+  - `apps/mobile/src/shared/`: theme, motion and components;
+  - `apps/mobile/src/features/{rep-tracking,workouts,device-connection}/`: the UI, plus the live store's rep timeline;
+  - `apps/mobile/app.json`: `userInterfaceStyle`;
+  - `apps/mobile/package.json` and `package-lock.json`: `react-native-svg` and a Jest `moduleNameMapper`;
+  - this row and the handoff.
+- **Scope:** a visual and interaction redesign of the existing features in light and dark themes. Those features
+  are simulated rep counting, the device connection and its test control, saving sets, History and persistence.
+  - Unchanged: the rep-counting algorithm, sensor units, data contracts, persistence and provenance labels.
+  - Not in scope: RO-013's workout model, RO-014's exercise selection and pause/reset, RO-024's brand
+    configuration, and any new metric.
+- **Completion criteria:**
+  - `npm ci` and `npm run verify` pass;
+  - `npx expo install --check` and `npx expo export --platform ios --platform android` succeed;
+  - Codex reviews the final head, with no unresolved P0–P2 findings;
+  - the owner's Expo Go checklist (in the handoff) passes in light and dark mode;
+  - the owner merges.
+- **Handoff:** [`docs/handoffs/2026-10-31-claude-RO-030-ui-redesign.md`](docs/handoffs/2026-10-31-claude-RO-030-ui-redesign.md).
+- **Built on RO-031:** the branch has RO-031 (Expo SDK 58) merged in, so it runs in the current Expo Go;
+  `react-native-svg` is 15.16.0, SDK 58's bundled version.
 
 ### RO-031 — Upgrade the app to Expo SDK 58 (owner-directed, 2026-10-31)
 - **Why:** the owner: "we have to be on SDK 58.0.0". Expo SDK 58 is the npm `latest` (58.0.21, 2026-10-28), and the

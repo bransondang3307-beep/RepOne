@@ -1,7 +1,11 @@
 # RO-014 PR 1 — `WorkoutController`: design and integration-test definitions
 
-- **Status:** **prepared, not implemented.** This PR holds the design and the named integration tests (`it.todo`).
-  The code is written on this branch once the prerequisites below merge.
+- **Status:** **implemented as a draft, not merged** (2026-11-09).
+  - The design and test definitions are on PR #37.
+  - The code and tests are on the stacked draft implementation PR; see the implementation notes in §6.
+  - The owner told Claude Code to "continue on for the milestones", answering its offer to write PR 1's
+    controller before the prerequisites merge.
+  - Nothing merges until the prerequisites below have merged.
 - **Plan:** [`RO-014-milestone-4-plan.md`](RO-014-milestone-4-plan.md) §3 (PR 4.1). §5's decisions were approved by the
   owner on 2026-11-08.
 - **Prerequisites:**
@@ -330,9 +334,60 @@ saved the set and released its lock, so it is not used for that.
 
 ## 5. Done when
 
-- The `it.todo` entries are implemented and pass.
+- The `it.todo` entries are implemented and pass. (Done 2026-11-09, on the implementation PR.)
 - `npm run verify` and both platforms' `expo export` pass.
 - CI is green on Linux and Windows.
 - A Codex review of the final head has no unresolved P0–P2 findings (at most two fix rounds).
 - The PR is retargeted to `main` after #35 merges, and merged by the owner's standing authorization.
 - Quick-set behaviour is unchanged: the existing `liveSessionStore` tests still pass.
+
+## 6. Implementation notes (2026-11-09)
+
+The code follows §1–§3b. Where the implementation had to choose, it chose as follows.
+
+**Interfaces:**
+- **`SetRecorder`** is the narrow part of the recording controller that `WorkoutController` uses: `start`, `stop`,
+  `isBusy`, `getSnapshot` and `subscribe`. Tests can then script the recording controller's event order (stale
+  events).
+- **`WorkoutSessionController.isBusy()`** is now public. It was private, with the same body. §3 step 1 needs it to
+  refuse a set while a quick set runs.
+
+**Recording a set:**
+- **The session id is taken only during this attempt's own `start()` call.** The `starting` snapshot is published
+  synchronously inside it. The user may start a quick set while the set's sensor is being prepared. Without this
+  window, the quick set's `starting` snapshot could be taken for the set's recording. A unit test covers that race.
+- **When `recordSet` resolves:** once the recording has started and the link step has run, with `{ sessionId,
+  settled }`.
+  - It also resolves when start fails after the recording row was created. The set then completes with
+    `start_failed`.
+  - It rejects when the set may not be recorded, or when no recording was created. The set then stays planned.
+- **`stopSet()` before the recording exists** is remembered and applied as soon as `start()` returns.
+
+**Refusals and errors:**
+- **`create()` and `load()` are refused while a set records** (`set_recording`), like `pause` and `finish`.
+- **Controller errors** that are not domain rules are `WorkoutControllerError`, with these codes:
+  - `no_workout`: nothing created or loaded;
+  - `recorder_busy`: "Finish the quick set first.";
+  - `unknown_set`: the set was not found after it was saved.
+
+**Crash recovery** (the §3b open point) is implemented minimally in `load()`:
+- a set left `recording` is completed and keeps what its recording saved;
+- the snapshot says "interrupted" when that recording has no end time;
+- the recording row itself is not changed.
+
+The owner may still prefer a different rule.
+
+**Tests:**
+- **SQLite integration:** T1, T2, T3 (a) and (b), and T4. `WorkoutController.sqlite.test.ts` has 5 tests.
+- **Unit tests** on in-memory repositories (`WorkoutController.test.ts`, 16 tests). They cover every item in the
+  §4a list, plus:
+  - the quick-set race;
+  - the next change saving a pending set;
+  - load-time recovery.
+- **Mutation checks**, run by hand. Each of six defects fails at least one test:
+  - `start()` holding the queue;
+  - no buffering of the terminal snapshot;
+  - taking any `starting` snapshot;
+  - changing memory before the save;
+  - releasing the lock after a failed completion save;
+  - not filtering stale snapshots.

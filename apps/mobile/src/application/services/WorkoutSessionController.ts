@@ -216,7 +216,8 @@ export class WorkoutSessionController {
     this.update(INITIAL);
   }
 
-  private isBusy(): boolean {
+  /** A recording is starting, running or being finalised: another cannot start yet. */
+  isBusy(): boolean {
     return this.active !== null || this.releasing !== null || this.snapshot.status === 'starting';
   }
 

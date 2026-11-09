@@ -13,12 +13,18 @@ import {
 } from '@repone/sensor-contracts';
 import type { Repositories } from '@repone/workout-domain';
 import { createSqliteRepositories, migrate, openExpoSqliteDatabase } from '../infrastructure/database';
+import { WorkoutController } from './services/WorkoutController';
 import { WorkoutSessionController } from './services/WorkoutSessionController';
 
 /** Application services exposed to features. Features never see infrastructure. */
 export interface AppContainer {
   readonly repositories: Repositories;
   readonly controller: WorkoutSessionController;
+  /**
+   * Workouts (RO-014, ADR 0010): exercises, sets, user-entered resistance and the workout lifecycle. Its sets are
+   * recorded through `controller`; quick sets keep using `controller` directly and stay standalone.
+   */
+  readonly workouts: WorkoutController;
   /**
    * The sensor device (ADR 0007 §4). Milestone 2: a simulated single-IMU device. Real USB-serial or BLE
    * adapters plug in here later; nothing downstream depends on which one is used.
@@ -75,17 +81,28 @@ export function assembleContainer(
       },
     ],
   });
+  const getSessionSensor = async (): Promise<SensorSource> => {
+    await device.connect();
+    const [channel] = combineChannels(device.getChannels()).channels;
+    return channel!.source;
+  };
+  const getCalibration = (): RepCalibration => createSyntheticCalibration(clock.now());
+  const workouts = new WorkoutController({
+    repositories,
+    recorder: controller,
+    clock,
+    createId: createLocalId,
+    getSessionSensor,
+    getCalibration,
+  });
   return {
     repositories,
     controller,
+    workouts,
     device,
-    getSessionSensor: async () => {
-      await device.connect();
-      const [channel] = combineChannels(device.getChannels()).channels;
-      return channel!.source;
-    },
+    getSessionSensor,
     simulateConnectionLoss: () => device.simulateConnectionLoss('connection loss simulated from the app'),
-    getCalibration: () => createSyntheticCalibration(clock.now()),
+    getCalibration,
   };
 }
 

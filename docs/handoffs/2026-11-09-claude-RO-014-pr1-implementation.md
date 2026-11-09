@@ -37,7 +37,7 @@ the prerequisites merge. Nothing merges early.
 - **`application/index.ts`:** exports the controller's types for PR 2's UI.
 - **Tests:**
   - `WorkoutController.sqlite.test.ts`: T1, T2, T3 (a) and (b), and T4, replacing the `it.todo` entries;
-  - `WorkoutController.test.ts`: 16 unit tests on in-memory repositories.
+  - `WorkoutController.test.ts`: 17 unit tests on in-memory repositories.
 - **Docs:**
   - the plan's status and a new §6 of implementation notes, with the choices made;
   - the `TASKS.md` RO-014 row set to `in-progress`;
@@ -46,7 +46,7 @@ the prerequisites merge. Nothing merges early.
 ## Tests and checks (exact results)
 | Command | Result |
 |---|---|
-| `npm run verify` | exit 0. Boundaries OK (96 files); workflow policy OK; typecheck OK; script tests 67/67. Jest: mobile **85/85** (was 64), rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 38 |
+| `npm run verify` | exit 0. Boundaries OK (96 files); workflow policy OK; typecheck OK; script tests 67/67. Jest: mobile **86/86** (was 64), rep-engine 27, sensor-contracts 103, sensor-protocol 76, workout-domain 38 |
 | `npx expo export --platform android` / `--platform ios` | exit 0 / exit 0 (1330 and 1184 modules) |
 | Mutation checks (six defects, one at a time) | Each fails at least one test (see below); the file was restored after each |
 
@@ -61,6 +61,13 @@ the prerequisites merge. Nothing merges early.
 
 Environment: Node 22.22.0, a clean `npm ci`. No phone or hardware was used. Every recording in the tests is
 simulated or replayed.
+
+## Review status
+- **Codex could not review `f00e016`:** the bot answered "You have reached your Codex usage limits for code
+  reviews", and its state is `failed`, with no findings posted. CI at `f00e016` is green (run 42685731825).
+- **Self-review before any Codex finding** (not a fix round): this commit adds three defensive paths and a test for
+  the first. The paths are listed in plan §6.
+- **Next:** re-request `@codex review` once the subscription's review limit resets. That costs $0 extra.
 
 ## Decisions / ADRs
 None new. The plan's §6 records the implementation's choices:

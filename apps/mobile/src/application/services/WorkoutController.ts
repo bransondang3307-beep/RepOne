@@ -28,7 +28,9 @@ import type { SessionSnapshot, StartSessionParams } from './WorkoutSessionContro
 
 /**
  * What the workout controller needs from the recording controller (`WorkoutSessionController`). Narrow on purpose:
- * tests can drive the event order directly.
+ * tests can drive the event order directly. Like `WorkoutSessionController`, an implementation publishes `starting`
+ * with the new session id synchronously inside `start()`, and publishes a terminal snapshot (`finished` / `error`)
+ * for that session before `start()` rejects or after the recording ends.
  */
 export interface SetRecorder {
   start(params: StartSessionParams): Promise<string>;
@@ -377,14 +379,15 @@ export class WorkoutController {
       attempt.capturing = true;
       const started = recorder.start({ sensor, calibration: this.deps.getCalibration(), machineLabel });
       attempt.capturing = false;
-      await started;
+      const startedId = await started;
+      attempt.sessionId ??= startedId;
       if (attempt.stopRequested) await recorder.stop();
     } catch (error) {
       startError = error;
     }
     attempt.startSettled = true;
 
-    const rowExists = attempt.sessionId !== null && (startError === null || (await repositories.sessions.getById(attempt.sessionId)) !== null);
+    const rowExists = attempt.sessionId !== null && (startError === null || (await this.recordingExists(attempt.sessionId)));
     if (!rowExists) {
       // No recording exists: the set stays planned and the lock is released (§3 step 6).
       attempt.unsubscribe?.();
@@ -393,9 +396,20 @@ export class WorkoutController {
       attempt.settled.reject(startError);
       throw startError;
     }
+    // A failed start always ends the recording; if no terminal snapshot was seen, the failure itself is the outcome.
+    if (startError !== null) attempt.terminal ??= { ...recorder.getSnapshot(), status: 'error', sessionId: attempt.sessionId, error: messageOf(startError) };
     await this.run(() => this.link(attempt));
     this.maybeComplete(attempt);
     return { sessionId: attempt.sessionId!, settled: attempt.settled.promise };
+  }
+
+  /** Whether a failed start left a recording row. If that cannot be read, none is assumed: the set stays planned. */
+  private async recordingExists(sessionId: string): Promise<boolean> {
+    try {
+      return (await this.deps.repositories.sessions.getById(sessionId)) !== null;
+    } catch {
+      return false;
+    }
   }
 
   private async machineLabelFor(setId: string): Promise<string | null> {
@@ -445,12 +459,13 @@ export class WorkoutController {
 
   private async complete(attempt: Attempt): Promise<SettledSet> {
     const { workouts, sessions } = this.deps.repositories;
-    let next = this.requireRecord();
-    if (next.sets.find((s) => s.id === attempt.setId)?.status === 'planned') {
-      next = beginSetRecording(next, attempt.setId, attempt.sessionId!);
-    }
-    next = endSetRecording(next, attempt.setId);
+    let next: WorkoutRecord;
     try {
+      next = this.requireRecord();
+      if (next.sets.find((s) => s.id === attempt.setId)?.status === 'planned') {
+        next = beginSetRecording(next, attempt.setId, attempt.sessionId!);
+      }
+      next = endSetRecording(next, attempt.setId);
       await workouts.save(next);
     } catch (error) {
       // The lock is kept: the workout cannot pause or finish around an unsaved set (§3b).

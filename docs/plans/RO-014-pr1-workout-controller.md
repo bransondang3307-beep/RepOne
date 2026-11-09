@@ -370,6 +370,12 @@ The code follows §1–§3b. Where the implementation had to choose, it chose as
   - `recorder_busy`: "Finish the quick set first.";
   - `unknown_set`: the set was not found after it was saved.
 
+**Defensive paths for a recorder that misbehaves:**
+- If storage cannot say whether a failed start left a recording row, none is assumed: the set stays planned and the
+  lock is released.
+- A failed start with no terminal snapshot seen uses the failure itself as the outcome.
+- A domain refusal during completion is handled like a failed save: the lock is kept and the error is shown.
+
 **Crash recovery** (the §3b open point) is implemented minimally in `load()`:
 - a set left `recording` is completed and keeps what its recording saved;
 - the snapshot says "interrupted" when that recording has no end time;
@@ -379,7 +385,7 @@ The owner may still prefer a different rule.
 
 **Tests:**
 - **SQLite integration:** T1, T2, T3 (a) and (b), and T4. `WorkoutController.sqlite.test.ts` has 5 tests.
-- **Unit tests** on in-memory repositories (`WorkoutController.test.ts`, 16 tests). They cover every item in the
+- **Unit tests** on in-memory repositories (`WorkoutController.test.ts`, 17 tests). They cover every item in the
   §4a list, plus:
   - the quick-set race;
   - the next change saving a pending set;

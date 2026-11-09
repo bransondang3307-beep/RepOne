@@ -86,8 +86,10 @@ function savingSpy(base: Repositories) {
   return { repositories, saves, failWhen: (predicate: ((record: WorkoutRecord) => boolean) | null) => (failWhen = predicate) };
 }
 
-async function setup(options: { recorder?: (repositories: Repositories) => SetRecorder } = {}) {
-  const spy = savingSpy(createInMemoryRepositories());
+async function setup(
+  options: { recorder?: (repositories: Repositories) => SetRecorder; wrap?: (repositories: Repositories) => Repositories } = {},
+) {
+  const spy = savingSpy((options.wrap ?? ((r) => r))(createInMemoryRepositories()));
   const { repositories } = spy;
   let now = 1_700_000_000_000;
   const clock = { now: () => (now += 1000) };
@@ -187,6 +189,34 @@ describe('WorkoutController', () => {
       expect(settled.result).toMatchObject({ full_rep_count: 0, partial_rep_count: 0 });
       expect(settled.error).toMatch(/could not start/);
       expect(t.workouts.getSnapshot().recordingSetId).toBeNull();
+      await t.workouts.pause();
+      expect((await t.stored()).workout.status).toBe('paused');
+    });
+
+    it('if storage cannot say whether the failed start left a recording, the set stays planned and the lock is released', async () => {
+      let failLookups = false;
+      const t = await setup({
+        wrap: (r) => ({
+          ...r,
+          sessions: {
+            ...r.sessions,
+            getById: async (id) => {
+              if (failLookups) throw new Error('database is locked');
+              return r.sessions.getById(id);
+            },
+          },
+        }),
+      });
+      const sensor = new DeferredStartSensor();
+      t.useSensor(() => sensor);
+      const recording = t.workouts.recordSet(t.set1);
+      await waitFor(() => sensor.startCalled, 'the sensor start');
+      failLookups = true;
+      sensor.rejectStart({ code: 'start_failed', message: 'no response from the device' });
+
+      await expect(recording).rejects.toThrow('no response from the device');
+      expect(t.workouts.getSnapshot().recordingSetId).toBeNull();
+      expect(statusOf(await t.stored(), t.set1)).toBe('planned');
       await t.workouts.pause();
       expect((await t.stored()).workout.status).toBe('paused');
     });

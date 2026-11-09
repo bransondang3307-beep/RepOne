@@ -23,6 +23,7 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 
 | Date | Agent | Task | File |
 |---|---|---|---|
+| 2026-11-09 | Claude Code | RO-034: development-host controller, read-only prototype (owner-action report; no AI API, no GitHub writes) | [2026-11-09-claude-RO-034-dev-host-controller.md](2026-11-09-claude-RO-034-dev-host-controller.md) |
 | 2026-11-09 | Claude Code | RO-008: ownership table aligned with `AGENTS.md` §2; routes live in `apps/mobile/app/` (docs only) | [2026-11-09-claude-RO-008-ownership-table.md](2026-11-09-claude-RO-008-ownership-table.md) |
 | 2026-11-09 | Claude Code | RO-029: firmware → decoder cross-boundary regression on whole streams (synthetic, test only) | [2026-11-09-claude-RO-029-firmware-decoder-boundary.md](2026-11-09-claude-RO-029-firmware-decoder-boundary.md) |
 | 2026-11-09 | Claude Code | Status closeout of the 2026-11-08 merges (PRs #33, #34, #25, #26, #27); RO-025 done | [2026-11-09-claude-status-closeout.md](2026-11-09-claude-status-closeout.md) |

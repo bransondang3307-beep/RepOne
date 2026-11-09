@@ -19,5 +19,8 @@
   },
   "devDependencies": {
     "yaml": "2.9.1"
+  },
+  "overrides": {
+    "react": "19.3.0"
   }
 }

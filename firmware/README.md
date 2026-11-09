@@ -134,7 +134,9 @@ line format with **synthetic** samples. The app's decoder and `StreamTracker` mu
 - one sample per packet (Uno) and five per packet (BLE-style);
 - a refused packet;
 - a refused first packet;
-- an IMU failure and a new stream;
+- an IMU failure: `E 2`, the status 2 and status 0 device-info packets, and a new stream after the sketch's 2 s retry;
 - the 32-bit `millis()` wrap.
+
+Every decoded sample's device time and six axes are compared with the synthetic sequence.
 
 CI runs them on Linux.

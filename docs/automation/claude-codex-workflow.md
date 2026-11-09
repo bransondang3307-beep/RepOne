@@ -1,5 +1,8 @@
 # Claude Code ↔ Codex workflow — zero additional AI API cost (RO-019)
 
+See the [Level 3 pilot](level-3.md) for PR tracking, the current public-repository spend controls,
+and the owner checklist for protecting `main`.
+
 > **Status:** adopted with [ADR 0005](../decisions/0005-zero-cost-claude-codex-collaboration.md) when the RO-019
 > replacement PR merges. It replaces the API-powered review loop of PR #4, which was archived and never enabled
 > ([`future-api-loop.md`](future-api-loop.md)).
@@ -27,7 +30,7 @@
 | Review PRs | **Codex code review on GitHub** (ChatGPT Plus, Codex cloud) | Plus Codex limits | Only if Codex credits are bought. Forbidden (§7) |
 | Optional local review | Codex CLI or IDE on the Lenovo, **signed in with ChatGPT** | Plus Codex limits | Only if logged in with an API key. Forbidden (§7) |
 | Research and architecture | Gemini / Antigravity (Google AI Pro) | Subscription | No API keys used |
-| Tests, typecheck, boundaries, policy, Windows checker | GitHub Actions, `GITHUB_TOKEN` only, no secrets | GitHub's free Actions minutes (private repo) | Only above the free minutes if the Actions budget is above $0 (§7) |
+| Tests, typecheck, boundaries, policy, Windows checker | GitHub Actions, `GITHUB_TOKEN` only, no secrets | Standard hosted runners on a public repo | See the [Level 3 spend controls](level-3.md#trust-and-spend-controls) and §7 |
 | Merge, device tests | Owner | — | — |
 
 When a subscription limit is reached, the work **waits for the limit to reset**. It is never paid for with API
@@ -86,8 +89,8 @@ Merge only when all of these hold **for the same head commit**:
 - [ ] The handoff records the review rounds and the exact test results.
 - [ ] Device or physical tests are done where the change needs them (UI, sensors).
 
-On GitHub Free private repositories, branch protection cannot enforce this. It is a process rule, made visible by
-the PR template's "Reviewed head SHA" line.
+GitHub branch protection can enforce PRs, required checks and human approvals on this public repository when configured.
+The owner verifies review coverage for the current head using the PR template's "Reviewed head SHA" line.
 
 ## 6. Copy-paste prompts
 

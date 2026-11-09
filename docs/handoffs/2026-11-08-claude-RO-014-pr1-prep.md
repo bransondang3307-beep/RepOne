@@ -47,6 +47,9 @@ It follows ADR 0010 (Accepted) and the plan's §5 decisions, which the owner app
   - PR #35, which needs the owner's device check;
   - PRs #29 and #30, which need the owner's phone check.
 - **Crash recovery** for a set left `recording` is an open point for PR 1's review (plan §3).
+- **Review budget:** Codex round 2 (2026-11-09; a pending `start()` must not hold the mutation queue, plan §3b) was
+  the last fix round on this PR. Further findings need the owner's approval for another round, or move to the
+  implementation PR.
 
 ## Next steps
 1. When #35 merges, retarget this PR to `main`.

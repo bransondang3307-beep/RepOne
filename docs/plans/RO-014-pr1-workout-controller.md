@@ -131,8 +131,27 @@ kept (step 7).
 
 These rules apply wherever persisted state can change.
 
-- **One mutation at a time.** Every controller operation that changes the workout runs on one internal queue, as #35's
-  SQLite adapter does. Each operation therefore starts from the latest saved record, and saves land in call order.
+- **One mutation at a time.** Every step that changes the workout runs on one internal queue, as #35's SQLite
+  adapter does. Each step therefore starts from the latest saved record, and saves land in call order.
+- **Recording startup never holds the queue** (Codex P2, round 2 on PR #37). The queue holds only short steps: a
+  domain function plus one save. `recordSet` is split into separate steps, and nothing waits on the sensor while
+  holding the queue:
+
+  | Phase | On the queue? | What it does |
+  |---|---|---|
+  | Check, then lock (§3 step 1) | Yes, one step | Checks the latest saved record and `isBusy()`, then sets `recordingSetId`. It does not save |
+  | Attempt and `recorder.start(...)` (§3 step 2) | **No** | The queue is released before `start()` is called, so a pending start blocks nothing |
+  | Link (§3 step 3) | Yes, one step | Enqueued after `start()` settles |
+  | `completeOnce()` (§3 step 4) | Yes, one step | Enqueued when both of its conditions hold |
+  | `stopSet()` | **No** | Calls `recorder.stop()` directly |
+
+- **Lock checks happen before enqueueing, and again at the head of the step.** `pause()`, `finish()` and `recordSet()`
+  check `recordingSetId` synchronously when called. If the lock is held, they reject at once with
+  `WorkoutRuleError('set_recording')` and enqueue nothing. Their queued step checks the lock again before computing
+  anything. That second check covers a call made after `recordSet()` but before its lock step ran: call order is kept,
+  and the later call is still refused. A pending `start()` therefore never delays a refusal, and a `pause()` already
+  on the queue ahead of `recordSet` saves before the lock is taken, so `recordSet` then sees a paused workout and is
+  refused by the domain.
 - **The in-memory record changes only after a save succeeds.** Each operation:
   1. computes `next = domainFunction(record, …)`;
   2. `await repositories.workouts.save(next)`, which is atomic (#35);
@@ -257,8 +276,9 @@ saved the set and released its lock, so it is not used for that.
 **T3 — A pause during a recording is refused, and the workout and recording stay consistent.**
 - **(a) Before the link,** with a deferred-start sensor (`WorkoutSessionController.outcome.test.ts`'s
   `DeferredStartSensor`):
-  1. `recordSet` (start pending);
-  2. `pause()` and `finish()` reject with `set_recording`;
+  1. `recordSet` (start pending; the lock step has run and the queue is free, §3b);
+  2. `pause()` and `finish()` reject with `set_recording` while `start()` is still pending. The test awaits these
+     rejections before it releases the start, so a queue held by `start()` would hang the test, not pass it;
   3. check stored state: workout `active`, `pauses: []`, `set1` still `planned`;
   4. release the start; the link is saved;
   5. `stopSet()`, then `settled`.
@@ -296,6 +316,11 @@ saved the set and released its lock, so it is not used for that.
 - a quick set (recording controller only) stays standalone, and `recordSet` refuses while one runs;
 - the two start-failure cases of §3 step 6;
 - every refusal leaves the stored record unchanged, including each repeated action in §3b's table;
+- **queue and lock order** (§3b):
+  - while a deferred `start()` is pending, `pause()`, `finish()` and a second `recordSet()` reject at once, and a
+    non-recording mutation such as `addSet` or `setResistance` on another set completes;
+  - `recordSet()` then `pause()` called without awaiting: `pause()` is refused with `set_recording`;
+  - `pause()` then `recordSet()` called without awaiting: the pause is saved, and `recordSet` is refused by the domain;
 - **save failures** (a `workouts.save` stub that fails once):
   - a failed link save completes the set with one combined save at the end;
   - a failed completion save rejects `settled` and keeps the lock; `retryPendingSave()` then completes the set exactly

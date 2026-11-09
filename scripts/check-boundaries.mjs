@@ -19,6 +19,8 @@ const SOURCE_DIRS = [
   'packages/rep-engine/test',
   'packages/workout-domain/src',
   'packages/workout-domain/test',
+  'packages/sensor-protocol/src',
+  'packages/sensor-protocol/test',
   'apps/mobile/app',
   'apps/mobile/src',
 ];
@@ -28,6 +30,7 @@ const PACKAGE_DEPS = {
   'sensor-contracts': [],
   'rep-engine': ['sensor-contracts'],
   'workout-domain': ['sensor-contracts'],
+  'sensor-protocol': ['sensor-contracts'],
 };
 /** Platform libraries that must never appear in packages/ or application services. */
 const PLATFORM_LIB = /^(react|react-native|react-dom|zustand|expo|expo-.*|@expo\/.*|.*sqlite.*|.*ble.*|.*bluetooth.*)(\/.*)?$/;
@@ -92,13 +95,18 @@ function layerOf(rel) {
   m = rel.match(/^apps\/mobile\/src\/features\/([^/]+)\//);
   if (m) return { kind: 'feature', name: m[1] };
   if (rel.startsWith('apps/mobile/src/shared/')) return { kind: 'shared' };
-  if (rel.startsWith('apps/mobile/src/infrastructure/')) return { kind: 'infrastructure' };
+  // Each adapter (database, bluetooth, …) is its own layer, so one adapter cannot reach into another (RO-025).
+  m = rel.match(/^apps\/mobile\/src\/infrastructure\/([^/]+)\//);
+  if (m) return { kind: 'infrastructure', name: m[1] };
+  if (rel.startsWith('apps/mobile/src/infrastructure/')) return { kind: 'infrastructure', name: '' };
   return { kind: 'other' };
 }
 
 /** Public entry of a layer: imports from outside must target its index file. */
 const isLayerIndex = (rel) =>
   /^apps\/mobile\/src\/(application|shared|features\/[^/]+|infrastructure\/[^/]+)\/index\.tsx?$/.test(rel);
+/** An adapter's public entry is exactly its root `index.ts` (adapters hold no UI, so never `index.tsx`; RO-025). */
+const isAdapterIndex = (rel) => /^apps\/mobile\/src\/infrastructure\/[^/]+\/index\.ts$/.test(rel);
 
 const errors = [];
 const graph = new Map();
@@ -172,6 +180,7 @@ for (const file of files) {
       case 'application':
         if (to.kind === 'feature' || to.kind === 'shared' || to.kind === 'route')
           fail(spec, 'application layer must not depend on UI');
+        else if (to.kind === 'infrastructure' && !isAdapterIndex(trel)) fail(spec, 'import infrastructure through its index.ts');
         break;
       case 'infrastructure':
         fail(spec, 'infrastructure adapters may only import packages and their own module');

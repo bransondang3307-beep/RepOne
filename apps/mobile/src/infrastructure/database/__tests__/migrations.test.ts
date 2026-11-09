@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { createSqliteRepositories } from '../createSqliteRepositories';
 import { MIGRATIONS, migrate } from '../migrations';
 import type { SqlDatabase } from '../SqlDatabase';
+import { seedV1History } from './fixtures/v1History';
 import { openNodeSqliteDatabase } from './nodeSqliteDatabase';
 
 const V1 = MIGRATIONS.slice(0, 1);
@@ -33,35 +34,7 @@ async function dump(db: SqlDatabase, table: string, cols?: readonly string[]) {
 async function v1WithData() {
   const db = openNodeSqliteDatabase();
   await migrate(db, V1);
-  await db.run(
-    `INSERT INTO calibrations VALUES ('cal-1', 0, 0.001, -0.002, 0.0005, 1.2217, 'synthetic', 1700000000000)`,
-  );
-  for (const [id, start, end] of [
-    ['rec-1', 1700000001000, 1700000060000],
-    ['rec-2', 1700000100000, null],
-  ] as const) {
-    await db.run(
-      `INSERT INTO workout_sessions VALUES (?, 'gym', 'simulated', 'simulated-imu-01', 'simulated', 'cal-1',
-         'rotational-rep-fsm-0.1.0', 'Seated row (test rig)', ?, ?)`,
-      [id, start, end],
-    );
-  }
-  for (let i = 0; i < 25; i++) {
-    await db.run(`INSERT INTO raw_samples VALUES ('rec-1', ?, 'simulated-imu-01', 0.01, 0.02, 9.81, ?, 0, 0, '["synthetic"]')`, [
-      i * 20,
-      0.1 * i,
-    ]);
-  }
-  for (const [t, cls] of [
-    [3000, 'full'],
-    [6000, 'partial'],
-    [9000, 'full'],
-  ] as const) {
-    await db.run(
-      `INSERT INTO rep_events VALUES ('rec-1', ?, ?, ?, 1.1, NULL, 'cal-1', 'rotational-rep-fsm-0.1.0', 'imu_algorithm', '["synthetic"]')`,
-      [t, t - 1500, cls],
-    );
-  }
+  await seedV1History(db); // shared with the file-backed upgrade test
   return db;
 }
 

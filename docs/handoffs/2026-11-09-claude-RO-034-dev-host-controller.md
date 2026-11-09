@@ -71,8 +71,8 @@ covers. Re-running live with the fix waits for the limit to reset or a read-only
 - Advisory only. It cannot see device or hardware gates, "parked" decisions, or superseded PRs. For example,
   #24, #29 and #30 show "merge decision", and the owner must still apply the gates in `PROJECT_STATUS.md`.
 - Thread resolution is not visible over REST. Findings count against the newest head and maintainer replies.
-- Without a token: 60 API calls per hour (about 4 per open PR). It reads only the first 100 comments or reviews
-  of a PR and warns when there are more.
+- Without a token: 60 API calls per hour (about 4 per open PR, more for long histories). A list longer than
+  1,000 items marks that PR `incomplete` rather than assessing partial data.
 - The Codex markers (`codex-review-receipt:v1`, `codex-review-state:v1`, badges) are not a documented API. If
   Codex changes them, PRs show "review-needed" rather than a false "clean".
 - The sanitiser changes backticks in worktree messages to `'`; that is cosmetic.
@@ -90,3 +90,17 @@ covers. Re-running live with the fix waits for the limit to reset or a read-only
 ## Questions for the owner
 - Register RO-034 in `TASKS.md` in the status-update PR after merge (as PR #38 deferred RO-033), or now?
 - Should owner-extended round budgets (as on PR #28) get a trusted signal, for example one only the owner can set?
+
+## Review round 1 (Codex at `5812fcd`)
+Codex reported 1× P1 and 2× P2 on head `5812fcd`. All three are accepted and fixed in one commit, with tests:
+
+| Finding | Fix |
+|---|---|
+| P1 `github-client.mjs`: a paginated response was assessed as if complete, which could hide a `Round 2/2` record (and allow another fix round), a finding or a failing check | Every list is read in full: up to 10 pages, with page URLs built by the client and never taken from the `Link` header. A longer list throws `IncompleteDataError`, and that PR is reported as `incomplete` (owner, check by hand), with no fix or merge recommendation. Tests: a round record on page 2 is counted; an endless list gives `incomplete` while other PRs are still assessed; a hostile `Link` target is ignored |
+| P2 `review-state.mjs`: an earlier receipt beat a running re-review of the same head | A running review of the head now gives `pending` before any receipt is considered. Test with both markers for the same SHA |
+| P2 `report.mjs`: Markdown images and links survived sanitising | The sanitiser escapes `\ [ ] ( ) ! * _ ~ #`, breaks bare-URL autolinks (`://`, `www.`), and truncates before escaping. Tests: an image payload renders escaped, no metacharacter is left unescaped, and no autolink survives |
+
+Mutation check: reverting the pagination fix fails 2 tests; reverting the review order fails 1.
+
+`npm run verify` after the fix: exit 0. Module boundaries OK (89 files); workflow policy OK; typecheck OK;
+script tests **116/116** (67 + 49); Jest 265/265.

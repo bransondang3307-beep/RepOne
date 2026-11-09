@@ -56,6 +56,7 @@ with a warning.
 | `fix-round` | agent | Codex findings at the head and rounds remain. The owner may start round *n*/2 by hand |
 | `review-needed` | agent | No Codex review of the current head. Comment `@codex review` |
 | `ci-failing`, `ci-missing` | agent | The PR's author fixes CI, or checks why it did not run |
+| `incomplete` | owner | The PR has more review history than the controller reads (over 1,000 items in a list). Check it by hand |
 | `draft`, `ci-pending`, `review-pending`, `waiting-on-base`, `unknown` | nobody | Wait, or a stacked PR waits for its base. `unknown` means GitHub could not be read |
 
 Task readiness: **ready** means every `RO-…` dependency is `done` and nothing else is written in "Depends on".
@@ -78,10 +79,17 @@ GitHub text is **untrusted**: PR titles, bodies, comments, branch names and chec
    the owner's GitHub account, so a comment cannot prove the owner approved it. Rounds past 2 always go to the
    owner.
 4. **Makes untrusted text inert.** Titles and check names become one line, without HTML, pipes, backticks or
-   control and bidirectional characters. `@` gets a word joiner, so a pasted report cannot ping anyone or trigger
-   `@codex`.
+   control and bidirectional characters. Markdown link, image and emphasis characters are escaped, and bare
+   URLs are broken so GitHub does not turn them into links. `@` gets a word joiner, so a pasted report cannot
+   ping anyone or trigger `@codex`.
 5. **Can only read.** The GitHub client has no method except `GET` and an allowlist of five read
-   endpoints. It refuses redirects. Git runs through `execFileSync` with no shell, and only five argument
+   endpoints. It refuses redirects.
+   - It reads every page of a list, up to 10 pages of 100 items. It builds each page URL itself and never
+     follows one from a response.
+   - A longer list is **not** assessed. The PR is reported as `incomplete`, for the owner to check by hand,
+     because a missing page could hide a round record, a finding or a failing check.
+   - A re-review of the head that is still running counts as `pending`, even if an earlier review of the same
+     head finished. Git runs through `execFileSync` with no shell, and only five argument
    shapes are allowed (`remote get-url origin`, `rev-parse <ref>`, `show <ref>:TASKS.md`, `worktree list
    --porcelain`, and the opt-in `fetch origin --prune`).
 6. **Costs $0 in AI spending** (ADR 0005). It calls no AI service and adds no dependency.

@@ -67,6 +67,9 @@ describe('codexReviewState', () => {
     assert.equal(codexReviewState({ headSha: HEAD, issueComments: [receipt(OLD), summary('in_progress')] }).status, 'pending');
     assert.equal(codexReviewState({ headSha: HEAD, issueComments: [receipt(OLD), summary('completed')] }).status, 'stale');
     assert.equal(codexReviewState({ headSha: HEAD, issueComments: [receipt(OLD), summary('in_progress', OLD)] }).status, 'stale');
+    // A re-review of the same head that is still running wins over that head's earlier receipt.
+    assert.equal(codexReviewState({ headSha: HEAD, issueComments: [receipt(HEAD), summary('in_progress')] }).status, 'pending');
+    assert.equal(codexReviewState({ headSha: HEAD, issueComments: [receipt(HEAD), summary('completed')] }).status, 'reviewed');
     const bad = { ...summary('x'), body: '<!-- codex-review-state:v1 {not json} -->' };
     assert.equal(codexReviewState({ headSha: HEAD, issueComments: [bad] }).status, 'not-reviewed');
   });
@@ -287,6 +290,17 @@ describe('report', () => {
     assert.doesNotMatch(text, /@codex/);
     assert.match(text, /@\u2060codex/);
     assert.equal(sanitizeText('x'.repeat(200), 20).length, 20);
+  });
+
+  it('leaves no live Markdown image, link, autolink or emphasis', () => {
+    const image = sanitizeText('![CI passed](https://attacker.invalid/pixel.png)');
+    assert.equal(image, '\\!\\[CI passed\\]\\(https:\u2060//attacker.invalid/pixel.png\\)');
+    const mixed = sanitizeText('[click](http://x.invalid) **bold** _i_ ~s~ # h www.evil.invalid \\');
+    assert.doesNotMatch(mixed, /(?<!\\)[[\]()*_~#]/, 'every Markdown metacharacter is escaped');
+    assert.doesNotMatch(mixed, /:\/\/|www\./, 'no autolink survives');
+    assert.match(mixed, /\\\\$/, 'a trailing backslash is escaped too');
+    // Truncation happens before escaping, so an escape is never split.
+    assert.equal(sanitizeText('ab[cdef', 4), 'ab\\[…');
   });
 
   it('renders sections, task readiness and warnings', () => {

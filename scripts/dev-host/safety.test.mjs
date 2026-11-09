@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { allowedGitArgs, main, parseArgs, repoFromRemote } from './dev-host.mjs';
-import { createGitHubClient, isAllowedPath } from './github-client.mjs';
+import { createGitHubClient, IncompleteDataError, isAllowedPath, MAX_PAGES } from './github-client.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const SOURCES = readdirSync(HERE).filter((name) => name.endsWith('.mjs') && !name.endsWith('.test.mjs'));
@@ -30,7 +30,7 @@ describe('GitHub client is read-only and allowlisted', () => {
     const calls = [];
     const fetchImpl = async (url, init) => {
       calls.push({ url, init });
-      return url.includes('/pulls?') ? response([], { link: '<x>; rel="next"' }) : response({ check_runs: [] });
+      return url.includes('/pulls?') ? response([]) : response({ check_runs: [] });
     };
     const client = createGitHubClient({ repo: 'o/r', token: 'secret-token', fetchImpl });
     await client.listOpenPulls();
@@ -43,8 +43,31 @@ describe('GitHub client is read-only and allowlisted', () => {
       assert.equal(init.headers.Authorization, 'Bearer secret-token');
       assert.equal(url.includes('secret-token'), false);
     }
-    assert.equal(client.warnings.length, 1);
-    assert.equal(client.warnings.join(' ').includes('secret-token'), false);
+  });
+
+  it('reads every page by building its own URLs, never following the Link header', async () => {
+    const urls = [];
+    const fetchImpl = async (url) => {
+      urls.push(url);
+      const page = Number(/&page=(\d+)/.exec(url)?.[1] ?? 1);
+      // The Link header points at another host; the client must ignore its target.
+      return response([{ id: page }], { link: page < 3 ? '<https://evil.invalid/x>; rel="next"' : null });
+    };
+    const client = createGitHubClient({ repo: 'o/r', fetchImpl });
+    assert.deepEqual(await client.listIssueComments(5), [{ id: 1 }, { id: 2 }, { id: 3 }]);
+    assert.deepEqual(urls.map((u) => u.replace('https://api.github.com/repos/o/r', '')), [
+      '/issues/5/comments?per_page=100',
+      '/issues/5/comments?per_page=100&page=2',
+      '/issues/5/comments?per_page=100&page=3',
+    ]);
+    assert.equal(isAllowedPath('/issues/5/comments?per_page=100&page=10'), true);
+    assert.equal(isAllowedPath('/issues/5/comments?per_page=100&page=0'), false);
+  });
+
+  it('refuses to return a partial list past the page limit', async () => {
+    const client = createGitHubClient({ repo: 'o/r', fetchImpl: async () => response([{}], { link: '<x>; rel="next"' }) });
+    await assert.rejects(client.listReviewComments(5), (error) => error.incomplete === true && error instanceof IncompleteDataError);
+    assert.equal(client.callCount, MAX_PAGES);
   });
 
   it('keeps the token out of errors and rejects bad input', async () => {
@@ -132,7 +155,7 @@ describe('end to end with fake GitHub and git', () => {
   };
   const green = { check_runs: [{ name: 'CI', status: 'completed', conclusion: 'success' }] };
 
-  function fakes({ failOn } = {}) {
+  function fakes({ failOn, override } = {}) {
     const gitCalls = [];
     const fetchCalls = [];
     const git = (args) => {
@@ -148,6 +171,8 @@ describe('end to end with fake GitHub and git', () => {
       fetchCalls.push(init.method);
       const path = url.replace('https://api.github.com/repos/o/r', '');
       if (failOn && path.includes(failOn)) return response({}, { status: 403 });
+      const special = override?.(path);
+      if (special) return special;
       if (path.includes('/check-runs')) return response(green);
       return response(data[path] ?? []);
     };
@@ -177,7 +202,28 @@ describe('end to end with fake GitHub and git', () => {
     const snapshot = await main(['report'], { env: {}, git, fetchImpl, stdout: { write: (s) => (printed += s) } });
     assert.deepEqual(snapshot.pulls.map((p) => p.assessment.verdict), ['merge-decision', 'unknown', 'unknown']);
     assert.equal(fetchCalls.length, 1 + 4 + 2); // list, PR #1 (4 calls), PR #2 check-runs + failed comments
-    assert.match(printed, /Stopped reading GitHub at PR #2: GitHub GET .* HTTP 403/);
+    assert.match(printed, /Stopped reading GitHub at PR \\#2: GitHub GET .* HTTP 403/); // warnings are escaped too
+  });
+
+  it('reads a round record on a later page, and never assesses a PR from partial data', async () => {
+    const filler = Array.from({ length: 100 }, () => ({ user: owner, body: 'note' }));
+    const override = (path) => {
+      if (path === '/issues/2/comments?per_page=100') return response(filler, { link: '<x>; rel="next"' });
+      if (path === '/issues/2/comments?per_page=100&page=2') return response([{ user: owner, body: 'Round 2/2 at 2222222' }]);
+      if (path === '/pulls/2/reviews?per_page=100') return response(data['/pulls/2/reviews?per_page=100']);
+      if (path.startsWith('/pulls/3/comments')) return response([], { link: '<x>; rel="next"' }); // endless
+      return null;
+    };
+    const { git, fetchImpl } = fakes({ override });
+    let printed = '';
+    const snapshot = await main(['report'], { env: {}, git, fetchImpl, stdout: { write: (s) => (printed += s) } });
+    const by = Object.fromEntries(snapshot.pulls.map((p) => [p.number, p]));
+    assert.equal(by[2].rounds.used, 2);
+    assert.equal(by[2].assessment.verdict, 'escalate'); // without page 2 this would offer another fix round
+    assert.deepEqual([by[3].assessment.verdict, by[3].assessment.actor], ['incomplete', 'owner']);
+    assert.equal(by[1].assessment.verdict, 'merge-decision'); // other PRs are still assessed
+    assert.doesNotMatch(printed, /PR #3\*\*[^\n]*(merge decision|Fix round)/);
+    assert.match(printed, /PR \\#3: \/pulls\/3\/comments\?per\\_page=100 has more than 1000 items/);
   });
 
   it('writes --out to the given file and sends the token only to GitHub', async () => {

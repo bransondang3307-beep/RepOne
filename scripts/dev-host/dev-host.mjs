@@ -128,6 +128,12 @@ export async function collectSnapshot({ options, git, github, now = new Date() }
         reviews = await github.listReviews(pr.number);
         reviewComments = await github.listReviewComments(pr.number);
       } catch (error) {
+        if (error?.incomplete === true) {
+          // Too long to read completely: no fix-round or merge recommendation on partial data.
+          warnings.push(`PR #${pr.number}: ${error.message}`);
+          pulls.push({ ...pr, assessment: { verdict: 'incomplete', actor: 'owner', action: 'Too much review history to read completely; not assessed. Check this PR by hand.' } });
+          continue;
+        }
         githubError = error;
         warnings.push(`Stopped reading GitHub at PR #${pr.number}: ${error.message}`);
       }
@@ -155,7 +161,6 @@ export async function collectSnapshot({ options, git, github, now = new Date() }
     worktrees = [{ level: 'error', message: 'Could not list git worktrees.' }];
   }
 
-  warnings.push(...github.warnings);
   return { generatedAt: now.toISOString(), repo, mainSha, maxFixRounds: MAX_FIX_ROUNDS, pulls, tasks, worktrees, warnings };
 }
 

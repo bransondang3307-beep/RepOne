@@ -98,9 +98,11 @@ export function codexReviewState({ headSha, issueComments = [], reviews = [], re
       reply: replies.get(comment.id) ?? null,
     }));
 
+  // A running review of the head wins over an earlier receipt for the same head: a re-review may still
+  // add findings, so nothing may be recommended on the older result.
   let status;
-  if (reviewedAtHead) status = 'reviewed';
-  else if (running) status = 'pending';
+  if (running) status = 'pending';
+  else if (reviewedAtHead) status = 'reviewed';
   else if (latest) status = 'stale';
   else status = 'not-reviewed';
   return { status, reviewedCommit: reviewedAtHead ? headSha : latest?.commit ?? null, findings };

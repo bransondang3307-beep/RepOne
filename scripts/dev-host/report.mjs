@@ -1,22 +1,32 @@
 // Renders the owner-action report (RO-034). Pure functions: no I/O.
 //
-// Untrusted text (PR titles, branch names, task text) is passed through sanitizeText(): one line, no
-// control characters, no HTML, no table-breaking pipes, no backticks, and no live @-mentions, so the
-// report can be pasted into a GitHub comment without pinging anyone or triggering `@codex`.
+// Untrusted text (PR titles, branch names, check names, task text) goes through sanitizeText(): one line,
+// no control, invisible or bidirectional characters, no HTML, no table-breaking pipes, no backticks, no
+// Markdown links, images or emphasis, no autolinked URLs and no live @-mentions. So the report can be pasted
+// into a GitHub comment without rendering attacker-chosen links or images, pinging anyone or triggering `@codex`.
 
 const MAX_TEXT = 90;
+const ch = (code) => String.fromCharCode(code);
+const WORD_JOINER = ch(0x2060); // invisible; breaks mentions and autolinks
+// C0/C1 controls, zero-width marks, line/paragraph separators, bidi overrides, word joiners, BOM.
+const INVISIBLE = new RegExp(
+  `[${[[0x00, 0x1f], [0x7f, 0x9f], [0x200b, 0x200f], [0x2028, 0x202e], [0x2060, 0x2064], [0xfeff, 0xfeff]]
+    .map(([from, to]) => `${ch(from)}-${ch(to)}`)
+    .join('')}]`,
+  'g',
+);
 
 export function sanitizeText(value, max = MAX_TEXT) {
-  let text = String(value ?? '')
-    .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u2064\ufeff]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/[<>]/g, (c) => (c === '<' ? '\u2039' : '\u203a'))
+  let text = String(value ?? '').replace(INVISIBLE, ' ').replace(/\s+/g, ' ').trim();
+  if (text.length > max) text = `${text.slice(0, max - 1)}${ch(0x2026)}`; // truncate first: no escape is cut in half
+  return text
+    .replace(/[<>]/g, (c) => (c === '<' ? ch(0x2039) : ch(0x203a)))
     .replace(/`/g, "'")
     .replace(/\|/g, '/')
-    .replace(/@/g, '@\u2060'); // word joiner after @ keeps it readable but breaks the mention
-  if (text.length > max) text = `${text.slice(0, max - 1)}…`;
-  return text;
+    .replace(/[\\[\]()!*_~#]/g, '\\$&') // Markdown link, image, emphasis and heading syntax
+    .replace(/:\/\//g, `:${WORD_JOINER}//`) // GitHub autolinks bare URLs
+    .replace(/\bwww\./gi, (match) => `${match.slice(0, 3)}${WORD_JOINER}.`)
+    .replace(/@/g, `@${WORD_JOINER}`);
 }
 
 const SECTIONS = [

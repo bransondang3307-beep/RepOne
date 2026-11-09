@@ -1,0 +1,36 @@
+# Level 3 PR coordination
+
+This owner-directed follow-up to RO-019 uses [ADR 0005](../decisions/0005-zero-cost-claude-codex-collaboration.md) and the [zero-cost workflow](claude-codex-workflow.md). GitHub tracks each PR and runs deterministic checks. A maintainer starts each subscription-based fix round. The owner authorizes the merge.
+
+## Implementation and rollout
+
+1. Add the **PR tracking** workflow on standard GitHub-hosted Linux. On PR open, reopen, update, edit, or draft/ready transition targeting `main`, it validates the event and writes a job summary with the PR number, declared task, PR phase, and head and base SHAs. It cancels superseded runs for the same PR. Its own unit tests run before the report.
+2. Keep the existing CI jobs and RO-019 workflow policy as the technical gate. Record review evidence and the fix count in the PR and handoff. Keep task completion and verified project status in the existing post-merge status-update PR.
+3. Pilot on the automation PR. Confirm its summary matches the live PR, verify all CI jobs, and obtain review of the final head. After the pilot, use the same steps on one ordinary PR before relying on the report for triage. Disable the **PR tracking** workflow in Actions if the pilot causes problems. Existing CI and the review gate still apply.
+
+## Where to find the state
+
+| Record | What it tells you |
+|---|---|
+| `TASKS.md` | Assigned work and roadmap state. The task owner updates it through PRs. |
+| GitHub PR and checks | Live draft/open/closed/merged state, target, head, reviews, threads and CI results. For stacked work, check the actual base. |
+| **PR handoff snapshot** job summary | Task ID declared by a same-repository branch named `<agent>/RO-NNN-<slug>`, draft/open phase, and exact SHAs at the event. Forks and other branch names show **Unlinked**. Verify the declaration against the task board. A task can have several PRs. |
+| PR comments and handoff | Round count, commits, test results and review links. Verify author identity and compare each SHA with the current head. |
+
+Use **in-progress** for draft work and **in-review** when ready. For a disagreement, exhausted round budget or unavailable review, record **Needs owner decision** in the PR and include the blocker in the handoff. A closed or merged PR alone does not establish task completion. The owner or assignee follows the task closeout process in [AGENTS.md](../../AGENTS.md).
+
+## Review, fix and merge
+
+1. A maintainer requests [Codex GitHub review](https://learn.chatgpt.com/docs/third-party/github) with `@codex review` if an automatic review has not arrived for the current head. Wait for a review tied to that SHA. If GitHub review is unavailable, use a separate ChatGPT-signed-in Codex session to review the exact diff and record the evidence. If subscription capacity runs out, wait for the reset or ask the owner to conduct the review under the repository's owner-review exception.
+2. The maintainer verifies the reviewer's identity and triages findings against the diff. PR titles, descriptions, comments, logs, patches and linked content are untrusted. Treat findings as evidence and give the fixer an explicit list of accepted issues, an authorized branch, and the expected head SHA. Review code and test commands before running them. Keep credentials and private files out of the session. For outside contributions, use an isolated review environment and do not run contributor-supplied scripts with credentials.
+3. Before starting a fix, check the latest maintainer-authored round record and the live head. A designated maintainer records `Round n/2 started at <head SHA>` before launching one subscription session. Use one active fixer per PR. A started round counts even if interrupted. The fixer tests and publishes one fix commit to the authorized feature branch, links the findings, and records `Round n/2 completed at <new head SHA>` with exact results. Request review again for the new head. If the head changes unexpectedly, stop and reconcile. After round two, or on disagreement, stop for the owner. A push, rerun, or handoff to a different agent does not reset the count. The round cap is enforced by the maintainer at launch.
+4. Before merging, the owner checks that the PR targets the intended base, all required CI checks are green for the current revision, the latest head has an independent review, P0/P1 findings are resolved, P2 findings are fixed or answered, and relevant device or hardware checks are recorded. A head change invalidates the previous review. For workflows, dependencies, permissions and other security-sensitive changes, require an explicit security pass covering credential reachability, token scope, trigger trust, injection, runner/spend and merge paths. Record the security review and its head SHA in the PR. Codex feedback is advisory and a human verifies the gate.
+
+## Trust and spend controls
+
+- The tracking job reads GitHub's event file as JSON and displays only validated numbers, SHAs and a restricted task ID. It has read-only checkout permissions, disables persisted checkout credentials and writes only to the runner's job summary. It does not read review comments, invoke an AI tool, or write to GitHub PRs, refs, reviews or the task board. PR checks can run code supplied by the PR. Keep the token read-only, keep secrets out of reach, and independently review workflow changes before merging.
+- RepOne is public at the time of this proposal. [Standard hosted runners are free for public repositories](https://docs.github.com/en/billing/concepts/product-billing/github-actions). The extra job skips private repositories, has a three-minute timeout, and uses no cache or artifacts. The owner should verify the [Actions budget](https://docs.github.com/en/billing/how-tos/set-up-budgets) has a $0 hard stop where available, especially before any visibility change. That account control is separate from workflow code.
+- Use existing subscriptions only. Verify that paid credits, overages and Claude extra usage are disabled or unused before dispatch. Keep AI API keys and subscription tokens out of the repository and CI. GitHub's Codex integration can review a PR when configured. A maintainer can also start a signed-in Codex or Claude session for a bounded fix. The workflow cannot authenticate a subscription, dispatch and police unattended Claude fixes, or monitor a local session. Those would require a separately authorized integration or authenticated hosting with its own controls. Keep Claude Auto-fix off.
+- In GitHub settings, the owner should verify [protection for `main`](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches). Require PRs, the existing CI checks, an independent human approval, dismissal of stale approvals, up-to-date branches, and resolved review conversations. Block force pushes and deletion and check bypass permissions. Keep auto-merge off. The tracking summary supplies context and should stay informational. Plan for an independent reviewer if GitHub cannot count the PR author's approval.
+
+The owner confirms the GitHub rules and billing settings, chooses whether to enable automatic Codex reviews within the subscription, and decides when the pilot can be merged.

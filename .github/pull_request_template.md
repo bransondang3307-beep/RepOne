@@ -22,6 +22,9 @@
 ## Review
 - [ ] Code PR: Codex review requested (or owner review) — automatic on open; comment `@codex review` after each
       fix push. Reviewed head SHA: `_______` · fix rounds used: _/2
+- [ ] Security-sensitive change: security reviewer, evidence and reviewed head SHA recorded (or mark N/A).
+- [ ] Required CI is green for the current revision. Review and round evidence follows the
+      [Level 3 workflow](https://github.com/bransondang3307-beep/RepOne/blob/main/docs/automation/level-3.md).
 - [ ] `TASKS.md`: only this task's row changed (→ `in-review` + PR link)
 - [ ] `PROJECT_STATUS.md` **not** marked done here — a status-update PR does that after merge (`AGENTS.md` §3 step 9)
 

@@ -92,14 +92,21 @@ container is created once at boot and passed through React context.
 - `npm run verify` = boundaries + workflow policy (`npm run check:workflows`: no AI API integrations,
   least-privilege Actions — ADR 0005) + typecheck + all tests.
 
-## 6. Multi-agent ownership (suggested in the Sprint 1 brief)
+## 6. Multi-agent ownership
 
-| Area | Paths | Suggested owner |
+Roles are defined in [`AGENTS.md` §2](../AGENTS.md#2-roles); this section maps them onto the codebase. Paths are
+**not** owned per directory. Each task in [`TASKS.md`](../TASKS.md) assigns its agent and lists its files ("Files"),
+and one agent works on a file at a time. (The Sprint 1 brief's suggestion, with Codex owning `packages/rep-engine/`
+and Gemini owning `docs/`, was replaced by these roles.)
+
+| Area | Paths | Role (`AGENTS.md` §2) |
 |---|---|---|
-| Contracts (change only via ADR + all owners' review) | `packages/sensor-contracts/src/{common,sensor,derived}.ts` | Shared |
-| Rep engine, automated tests, review | `packages/rep-engine/` | OpenAI Codex |
-| Application architecture, integration, UI | `apps/mobile/`, `packages/workout-domain/` | Claude Code |
-| Architecture evaluation, UX critique, hardware research | `docs/`, `docs/hardware-protocol.md` | Gemini |
+| Sensor contracts | `packages/sensor-contracts/src/{common,sensor,derived}.ts` | Shared: changed only through an ADR in `docs/decisions/` and with a Codex review (the rule ADR 0007 cites); implemented by the task's assigned agent |
+| Implementation: app, packages, firmware and their integration, with tests for each change | `apps/mobile/`, `packages/`, `firmware/` | Claude Code (main software developer), per task |
+| Testing, debugging and code review | every code PR; added tests and reproduced fixes on its own branch | OpenAI Codex |
+| Research, architecture and UX critique; proposed ADRs and design docs | `docs/research/`, `docs/decisions/` (status *Proposed*), design docs | Gemini (`packages/` and `apps/` code only when a task assigns it) |
+| Priorities, sequencing, task proposals and agent prompts | roadmap proposals for `TASKS.md`, committed by the owner or an agent at the owner's direction | ChatGPT |
+| Scope and architecture approval, merges, hardware and device testing | — | Owner |
 
-Work on separate branches/worktrees; one owner per path at a time; tests + review before merge;
-breaking interface changes require an ADR in `docs/decisions/`.
+Work on separate branches or worktrees; tests and review before merge; breaking interface changes require an ADR in
+`docs/decisions/`.

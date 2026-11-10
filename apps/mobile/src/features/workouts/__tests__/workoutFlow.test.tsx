@@ -141,6 +141,33 @@ describe.each(['light', 'dark'] as const)('workout flow components (%s theme)', 
     expect(onAdd).toHaveBeenCalledWith('e-1', 'm-1');
   });
 
+  it('ExercisePicker ignores a machine lookup that resolves after another exercise was chosen (Codex P2 on PR #46)', async () => {
+    const pending = new Map<string, (machines: Machine[]) => void>();
+    const machinesFor = (exerciseId: string) => new Promise<Machine[]>((resolve) => pending.set(exerciseId, resolve));
+    const machine = (id: string, name: string): Machine => ({ id, name, motion_type: 'rotational', notes: null, created_at_epoch_ms: 0 });
+    const onAdd = jest.fn();
+    const tree = render(
+      <ExercisePicker
+        exercises={[
+          { id: 'a', name: 'Row', created_at_epoch_ms: 0 },
+          { id: 'b', name: 'Curl', created_at_epoch_ms: 0 },
+        ]}
+        machinesFor={machinesFor}
+        onAdd={onAdd}
+        onCreate={() => undefined}
+        onCancel={() => undefined}
+      />,
+    );
+    act(() => button(tree, 'Row').props.onPress());
+    act(() => button(tree, 'Curl').props.onPress());
+    await act(async () => pending.get('b')!([machine('m-b', 'Curl bench')]));
+    await act(async () => pending.get('a')!([machine('m-a', 'Seated row')])); // late, for the earlier choice
+    expect(labelled(tree, 'Seated row')).toHaveLength(0);
+    act(() => button(tree, 'Curl bench').props.onPress());
+    act(() => button(tree, 'Add Curl').props.onPress());
+    expect(onAdd).toHaveBeenCalledWith('b', 'm-b');
+  });
+
   it('SetRow shows a completed set with its reps, provenance and why it ended early', () => {
     const tree = render(
       <SetRow
@@ -208,6 +235,11 @@ describe.each(['light', 'dark'] as const)('workout flow components (%s theme)', 
     expect(button(tree, 'Finish workout').props.disabled).toBe(true);
     expect(texts(tree)).toContain('Pause and finish are available between sets.');
     expect(texts(tree).some((t) => t.endsWith('partial so far'))).toBe(true);
+    // The live counts are labelled as simulated while recording, not only once saved (Codex P1 on PR #46).
+    expect(texts(tree)).toContain('Simulated data — not a real measurement');
+    expect(
+      tree.root.findAll((n) => typeof n.props.accessibilityLabel === 'string' && n.props.accessibilityLabel.startsWith('Recording: ')).map((n) => n.props.accessibilityLabel),
+    ).toEqual(expect.arrayContaining([expect.stringMatching(/so far\. Simulated data — not a real measurement$/)]));
 
     await act(async () => button(tree, 'Stop set').props.onPress());
     await settle();

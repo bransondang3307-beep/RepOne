@@ -82,6 +82,19 @@ and iOS `expo export` exit 0.
 
 No phone or hardware was used; every recording is simulated.
 
+## Review round 1 (Codex at `6daad8e`, 2026-11-10)
+- **P1:** the live rep counts of a recording set had no provenance. Simulated counts appeared unlabelled until the
+  set was saved.
+  - **Fix:** `SetRow` shows the live snapshot's provenance badge beside the counts, and includes it in the spoken
+    label.
+  - **Test:** the end-to-end screen test asserts both while recording.
+- **P2:** an exercise's machine lookup that resolved after another exercise was chosen could replace the machine
+  list. The wrong machine could then be saved.
+  - **Fix:** `ExercisePicker` ignores any lookup but the latest.
+  - **Test:** two deferred lookups resolve out of order.
+- **Proof the tests catch it:** reverting either fix fails its tests, in light and dark.
+- **Results:** verify exit 0 (mobile Jest 158/158); Android and iOS exports exit 0.
+
 ## Decisions / ADRs
 None new. Choices within the plan:
 - the workout route is a hidden tab rather than a stack, so PR #30's tab bar is unchanged;

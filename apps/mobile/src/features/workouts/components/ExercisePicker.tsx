@@ -1,5 +1,5 @@
 import type { Exercise, Machine, MotionType } from '@repone/workout-domain';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { Card, Icon, PressableScale, PrimaryButton, useTheme, useThemedStyles, type Theme } from '../../../shared';
 import type { NewExerciseInput } from '../workoutStore';
@@ -31,12 +31,18 @@ export function ExercisePicker({ exercises, machinesFor, onAdd, onCreate, onCanc
   const [name, setName] = useState('');
   const [machineName, setMachineName] = useState('');
   const [motion, setMotion] = useState<MotionType>('rotational');
+  /** The latest machine lookup: an earlier one that resolves late is ignored (Codex P2 on PR #46). */
+  const lookup = useRef(0);
 
   const choose = (exercise: Exercise) => {
+    const request = ++lookup.current;
     setChosen(exercise);
     setMachineId(null);
     setMachines([]);
-    machinesFor(exercise.id).then(setMachines, () => setMachines([]));
+    machinesFor(exercise.id).then(
+      (found) => request === lookup.current && setMachines(found),
+      () => request === lookup.current && setMachines([]),
+    );
   };
 
   const chosenMachine = machines.find((m) => m.id === machineId) ?? null;

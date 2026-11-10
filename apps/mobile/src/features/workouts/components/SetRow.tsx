@@ -78,10 +78,16 @@ export function SetRow({ number, set, result, outcome, defaultUnit, lastTime, ed
       />
 
       {recording && live && (
-        <View style={styles.result} accessible accessibilityLabel={`Recording: ${live.fullReps} full reps, ${live.partialReps} partial so far`}>
+        // Live counts carry their provenance too (Codex P1 on PR #46): simulated reps are never shown unlabelled.
+        <View
+          style={styles.result}
+          accessible
+          accessibilityLabel={`Recording: ${live.fullReps} full reps, ${live.partialReps} partial so far.${live.provenance ? ` ${provenanceLabel(live.provenance)}` : ''}`}
+        >
           <Text style={styles.counts}>
             {live.fullReps} full · {live.partialReps} partial so far
           </Text>
+          {live.provenance && <ProvenanceBadge provenance={live.provenance} />}
         </View>
       )}
 

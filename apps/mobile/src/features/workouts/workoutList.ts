@@ -14,7 +14,10 @@ export interface WorkoutSetItem {
 
 export interface WorkoutListItem {
   readonly summary: WorkoutSummary;
-  /** The least real provenance among its recorded sets (as for every rep total); null when nothing was recorded. */
+  /**
+   * The least real provenance among the recordings its totals include (as for every rep total): completed sets and
+   * a set still recording, whose saved rep events already count (Codex P1 on PR #47). Null when nothing is recorded.
+   */
   readonly provenance: DataProvenance | null;
   /** Exercise names in workout order. */
   readonly exerciseNames: readonly string[];
@@ -65,7 +68,7 @@ export async function loadWorkoutList(repositories: Repositories, limit: number)
       );
       return {
         summary,
-        provenance: leastRealProvenance(results.filter((r) => r.set.status === 'completed').map((r) => r.provenance)),
+        provenance: leastRealProvenance(results.filter((r) => r.set.recording_session_id !== null).map((r) => r.provenance)),
         exerciseNames: entries.map((e) => exerciseName.get(e.exercise_id) ?? 'Exercise'),
         sets,
       };

@@ -94,6 +94,42 @@ describe('loadWorkoutList', () => {
     expect(recordings.map((r) => r.machine_label)).toContain('Quick set');
   });
 
+  it('labels the totals of a workout whose set is still recording with that recording\'s provenance (Codex P1 on PR #47)', async () => {
+    const repositories = createInMemoryRepositories();
+    let now = 1_700_000_000_000;
+    const clock = { now: () => (now += 1000) };
+    const recorder = new WorkoutSessionController({ repositories, clock, createId: () => 'rec-live', createDetector: (id, cal) => new RotationalRepDetector(id, cal) });
+    const scheduler = new ManualScheduler();
+    let ids = 0;
+    const workouts = new WorkoutController({
+      repositories,
+      recorder,
+      clock,
+      createId: () => `id-${++ids}`,
+      getSessionSensor: async () => new SimulatedSensorSource({ script: LABELLED_SET_SCRIPT, simulation: SIMULATION, scheduler }),
+      getCalibration: () => calibration,
+    });
+    const { exercise } = await workouts.createExercise('Row');
+    await workouts.create();
+    const set = await workouts.addSet(await workouts.addExercise(exercise.id));
+    await workouts.start();
+    const handle = await workouts.recordSet(set);
+    // Advance until the first rep events are saved, while the set is still recording.
+    for (let s = 0; s < 60 && (await repositories.repEvents.listBySession('rec-live')).length === 0; s++) {
+      scheduler.advance(1000);
+      for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(recorder.getSnapshot().status).toBe('recording');
+
+    const [item] = await loadWorkoutList(repositories, 5);
+    expect(item!.sets[0]!.result.set.status).toBe('recording');
+    expect(item!.summary.full_rep_count + item!.summary.partial_rep_count).toBeGreaterThan(0);
+    expect(item!.provenance).toBe('simulated');
+
+    await workouts.stopSet();
+    await handle.settled;
+  });
+
   it('labels a total with the least real provenance in it', () => {
     expect(leastRealProvenance(['sensor', 'simulated'])).toBe('simulated');
     expect(leastRealProvenance(['sensor', 'replay'])).toBe('replay');

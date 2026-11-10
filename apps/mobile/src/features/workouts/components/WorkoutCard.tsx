@@ -73,7 +73,12 @@ export function WorkoutCard({ item, nowMs, expanded = false, onPress }: Props) {
           {item.sets.length === 0 && <Text style={styles.meta}>No sets.</Text>}
           {item.sets.map(({ result, exerciseTitle, number, outcome }) => {
             const resistance = result.set.resistance ? `${formatResistance(result.set.resistance)} entered` : 'no resistance entered';
-            const reps = result.set.status === 'completed' ? `${result.full_rep_count} full · ${result.partial_rep_count} partial` : 'not recorded';
+            const reps =
+              result.set.status === 'completed'
+                ? `${result.full_rep_count} full · ${result.partial_rep_count} partial`
+                : result.set.status === 'recording'
+                  ? `recording: ${result.full_rep_count} full · ${result.partial_rep_count} partial so far`
+                  : 'not recorded';
             const early = result.set.status === 'completed' ? endedEarlyText(outcome) : null;
             return (
               <View

@@ -55,6 +55,21 @@ open workout.
   - `WorkoutCard` collapsed, expanded and open, with provenance in the spoken label;
   - `SegmentedControl`.
 
+## Review round 1 (Codex at `a244d37`, 2026-11-10)
+- **P1:** a set still recording adds its saved rep events to the workout's totals, but the totals' provenance came
+  from completed sets only. Totals seen while recording could show without the simulated-data label.
+  - **Fix:** provenance now comes from every set with a recording, so a set still recording counts.
+  - **Display:** the expanded card shows that set as "recording: … so far".
+  - **Test:** a workout whose set is still recording has non-zero totals labelled `simulated`.
+- **P2:** no test went through the History screen.
+  - **Test:** `historyScreen.test.tsx` mounts `app/history.tsx`, with `expo-router`'s focus effect mocked. It is built
+    from a workout, a standalone quick set and a recording saved without an outcome (as before Milestone 3).
+  - **Checks:** Workouts is the default and shows the workout card with its provenance. Switching to All sets lists
+    all three recordings, each with its provenance. Run in light and dark.
+- **Proof the tests catch it:** the completed-only provenance filter fails the new P1 test; a view switch that does
+  nothing fails the History test.
+- **Results:** verify exit 0; Android and iOS exports exit 0.
+
 ## Decisions / ADRs
 None new. The History switch keeps the old list intact as "All sets", rather than mixing two kinds of rows.
 

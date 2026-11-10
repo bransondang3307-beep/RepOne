@@ -23,6 +23,7 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 
 | Date | Agent | Task | File |
 |---|---|---|---|
+| 2026-11-10 | Claude Code | RO-015 PR 5.1: docs sync and the Sprint 1 summary (draft, on the Milestone 4 stack) | [2026-11-10-claude-RO-015-pr1-docs-sprint-1.md](2026-11-10-claude-RO-015-pr1-docs-sprint-1.md) |
 | 2026-11-09 | Claude Code | RO-014 PR 4.3: Today's workout cards and History's workouts — list, detail, standalone recordings kept (draft) | [2026-11-09-claude-RO-014-pr3-today-history.md](2026-11-09-claude-RO-014-pr3-today-history.md) |
 | 2026-11-09 | Claude Code | RO-014 PR 4.2: workout flow UI — picker, resistance entry, recording flow (draft, on the M4 integration branch) | [2026-11-09-claude-RO-014-pr2-workout-flow.md](2026-11-09-claude-RO-014-pr2-workout-flow.md) |
 | 2026-11-09 | Claude Code | RO-034: development-host controller, read-only prototype (owner-action report; no AI API, no GitHub writes) | [2026-11-09-claude-RO-034-dev-host-controller.md](2026-11-09-claude-RO-034-dev-host-controller.md) |

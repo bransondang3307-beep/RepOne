@@ -1,6 +1,6 @@
 # RepOne architecture
 
-> Status: describes what is **implemented** on `main` (Milestone 1, plus Milestone 2 / RO-012 parts as they merge).
+> Status: describes what is **implemented** on `main` at the end of Sprint 1 (alignment Milestones 1–5).
 > Items marked *planned* do not exist yet. Decisions: [`docs/decisions/`](decisions/).
 
 ## 1. Layers and dependency direction
@@ -28,16 +28,16 @@ Infrastructure implements contract/domain interfaces; only the composition root
 | B — Sensor simulation | `packages/sensor-contracts/src/simulation/` | same package | Implemented, with deterministic scripted faults (ADR 0007 §1) and a multi-channel `SimulatedDevice` (§4) |
 | C — Rep engine | `packages/rep-engine/src/` | `@repone/rep-engine` | Implemented: the rotational detector, plus `MultiChannelRepDetector`, one independent detector per channel (ADR 0007 §3) |
 | A2 — Sensor wire protocol (RO-029) | `packages/sensor-protocol/src/` | `@repone/sensor-protocol` | Implemented, **Proposed** ([ADR 0008](decisions/0008-imu-stream-wire-protocol.md)): packet codec, unit conversion at the transport boundary, stream tracking; golden fixtures shared with firmware. No transport uses it on `main` yet |
-| D — Workout domain | `packages/workout-domain/src/` | `@repone/workout-domain` | Session + repository ports only; exercises/sets/resistance/lifecycle *planned (M3)* |
-| E — Persistence | `apps/mobile/src/infrastructure/database/` | `infrastructure/database/index.ts` | SQLite adapter + migrations implemented; new tables *planned (M3)* |
-| F — Mobile UI | `apps/mobile/app/`, `src/features/`, `src/shared/` | feature `index.ts` files | Active set + history; dashboard, exercise selection, pause *planned (M4)* |
+| D — Workout domain | `packages/workout-domain/src/` | `@repone/workout-domain` | Implemented ([ADR 0010](decisions/0010-workout-domain-model.md)): workout → exercise → set, machines with a motion type, user-entered resistance (kg / lb, always `user_entered`), and the lifecycle (start, pause between sets, resume, finish). A set's reps are its recording's rep events, counted on read. Repository ports and an in-memory implementation with a shared contract suite |
+| E — Persistence | `apps/mobile/src/infrastructure/database/` | `infrastructure/database/index.ts` | SQLite adapter (expo-sqlite in the app, `node:sqlite` in tests). Migrations implemented: v2 adds the workout tables, the recording outcome and each rep event's `source_id`, and refuses a database newer than the app |
+| F — Mobile UI | `apps/mobile/app/`, `src/features/`, `src/shared/` | feature `index.ts` files | Today, Record and History tabs (light and dark). The workout flow (`app/workout.tsx`, opened from Today): exercise and machine picker, resistance entry, recording sets, pause and resume between sets, finish. History lists workouts with their sets, and every recorded set ("All sets"). Every rep count shows its provenance |
 | G — Device connectivity | contract `packages/sensor-contracts/src/device.ts`; app `src/features/device-connection/`, `src/infrastructure/<transport>/` | `@repone/sensor-contracts`; feature `index.ts` | `DeviceConnection` contract, `SimulatedDevice`, and the app's connection panel implemented (ADR 0007 §4). Real transports (`infrastructure/<transport>/`) *planned*; no native BLE/serial deps in Sprint 1 |
-| Application services | `apps/mobile/src/application/` | `application/index.ts` | `WorkoutSessionController`, composition root |
+| Application services | `apps/mobile/src/application/` | `application/index.ts` | `WorkoutSessionController` (one recording at a time), `WorkoutController` (a workout's lifecycle; records its sets through `WorkoutSessionController`), composition root |
 
-Folders from the spec tree that have no code yet (`features/exercises`, `features/machines`,
-`features/device-connection`, `shared/hooks`, `shared/utils`, `infrastructure/sensors`,
-`infrastructure/bluetooth`) are created when their milestone adds content — git does not
-track empty folders.
+Folders from the spec tree that have no code yet (`shared/hooks`, `shared/utils`, `infrastructure/sensors`,
+`infrastructure/bluetooth`) are created when their milestone adds content: git does not track empty folders.
+Exercises and machines live in `features/workouts` rather than separate feature folders. The BLE adapter that would
+add `infrastructure/bluetooth` is parked (PR #28).
 
 ## 3. Boundary rules (enforced by `npm run check:boundaries`)
 
@@ -73,6 +73,15 @@ container is created once at boot and passed through React context.
 5. All writes go through one ordered queue. A stop, or a finite stream ending, finishes the set. A sensor failure
    (`SensorError`, ADR 0007), a failed start or a failed write ends the recording in `status: 'error'`: the sensor is
    released, what was received is flushed and the session is marked ended.
+6. **A workout's set** (RO-014) is recorded the same way, through `WorkoutController.recordSet(setId)`. That call:
+   - checks the domain rules;
+   - holds the workout's lock, so pause, finish and other sets are refused;
+   - starts the recording through `WorkoutSessionController`;
+   - links the set to it once the recording exists;
+   - completes the set exactly once when the recording ends, after a sensor error too.
+
+   A quick set started from Record stays a standalone recording. See
+   [`docs/plans/RO-014-pr1-workout-controller.md`](plans/RO-014-pr1-workout-controller.md) §3.
 
 ## 5. Contracts and testing
 

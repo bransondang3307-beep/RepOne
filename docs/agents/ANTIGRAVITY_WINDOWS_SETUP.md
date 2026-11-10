@@ -179,5 +179,5 @@ or real-world accuracy. The owner performs this check; an agent must not invent 
 3. Continue RO-018 hardware bring-up with the owner. Research the unresolved
    H0-to-phone transport only under an assigned task; neither Expo Go nor Antigravity
    supplies a USB/BLE bridge automatically.
-4. Milestone 2 (RO-012) is paused by the owner. Its PRs #14–#17 stay unmerged until
-   the owner resumes it.
+4. Milestones 2–5 follow the gates in `TASKS.md`: each starts after the previous one
+   merges and the owner approves. `PROJECT_STATUS.md` gives the current state.

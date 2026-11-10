@@ -95,6 +95,21 @@ No phone or hardware was used; every recording is simulated.
 - **Proof the tests catch it:** reverting either fix fails its tests, in light and dark.
 - **Results:** verify exit 0 (mobile Jest 158/158); Android and iOS exports exit 0.
 
+## Review round 2 (Codex at `45113ec`, 2026-11-10; the last fix round on this PR)
+- **P1:** after a failed completion save, the set stays `recording` while the shared recorder is free. A quick set
+  started then had its live counts and provenance shown on that set.
+- **Fix:**
+  - the store keeps `recordingLive`, the last snapshot of the recording set's own recording, matched by session id;
+  - it keeps that snapshot while the set's save is pending, and clears it once no set records;
+  - `SetRow` gets live data only when the session ids match.
+- **Test:** a screen regression in light and dark:
+  1. the completion save fails and a quick set records;
+  2. the set's spoken label is unchanged (the test first checks the two recordings' counts differ);
+  3. "Try saving again" completes the set.
+
+  Using the raw recorder snapshot instead fails it.
+- **Results:** verify exit 0 (mobile Jest 160/160); Android and iOS exports exit 0.
+
 ## Decisions / ADRs
 None new. Choices within the plan:
 - the workout route is a hidden tab rather than a stack, so PR #30's tab bar is unchanged;

@@ -112,7 +112,7 @@ export function WorkoutScreen() {
 function ExerciseCard({ record, entryId, editable, canRecord }: { record: WorkoutRecord; entryId: string; editable: boolean; canRecord: boolean }) {
   const styles = useThemedStyles(makeStyles);
   const workout = useWorkout((s) => s.workout);
-  const live = useWorkout((s) => s.live);
+  const recordingLive = useWorkout((s) => s.recordingLive);
   const exercises = useWorkout((s) => s.exercises);
   const machines = useWorkout((s) => s.machines);
   const lastTime = useWorkout((s) => s.lastTime);
@@ -147,7 +147,7 @@ function ExerciseCard({ record, entryId, editable, canRecord }: { record: Workou
           lastTime={lastText}
           editable={editable}
           canRecord={canRecord}
-          live={workout.recordingSetId === set.id ? live : null}
+          live={workout.recordingSetId === set.id && recordingLive?.sessionId === set.recording_session_id ? recordingLive : null}
           onRecord={() => void recordSet(set.id)}
           onStop={() => void stopSet()}
           onResistance={(value, unit) => void setResistance(set.id, value, unit)}

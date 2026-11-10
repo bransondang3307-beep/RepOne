@@ -1,6 +1,8 @@
 # RO-015 — Milestone 5 plan (integration and Sprint 1 close-out)
 
-- **Status:** **proposed** (2026-11-10). Not started.
+- **Status:** **approved** (2026-11-10). The owner approved all five §5 recommendations: "approve all five, keep
+  going on the milestones". PR 5.1 is prepared as a draft on the Milestone 4 stack. Nothing merges before Milestone 4
+  merges and is accepted.
 - **Author:** Claude Code, at the owner's direction ("keep going on the milestones").
 - **Starts when** both are true:
   - Milestone 4 is merged and accepted: PRs #29 → #30 → #35 → #37 → #45 → #46 → #47, after the owner's iPhone checks;
@@ -90,15 +92,17 @@ Every test result above is from **synthetic or replayed** data. No phone, sensor
 
 PR 5.1 also checks `docs/hardware-protocol.md` and the agent guides (`docs/agents/*`) against the code.
 
-## 5. Owner decisions (recommendations first)
+## 5. Owner decisions (approved 2026-11-10)
 
-| # | Question | Options | Recommendation |
+The owner approved every recommendation below: "approve all five, keep going on the milestones".
+
+| # | Question | Options | Decision |
 |---|---|---|---|
-| 1 | Where does RO-029 (the real-sensor BLE pipeline) stand in Sprint 1? | (a) report it as in progress, carried to Sprint 2; (b) hold the Sprint 1 close until part 3 lands | **(a).** Parts 1 and 2 are merged; part 3 needs hardware and a development build |
-| 2 | The parked PRs #28 (BLE adapter) and #31 (pause-aware detection, ADR 0009 Proposed) | (a) carry both to Sprint 2, findings visible; (b) resolve them before the close | **(a).** Both are at their fix-round limits, and #31 changes rep counting, which needs real-data evidence |
-| 3 | ADR 0008 (wire protocol) at the close | (a) stays Proposed until hardware evidence (RO-018); (b) accept now | **(a).** Nothing has been flashed or physically verified |
-| 4 | The 8 moderate npm advisories in Expo's build tooling | (a) record them as a known limitation and recheck at each Expo patch; (b) block the close | **(a).** They are build-time tooling, and no non-downgrade fix exists for SDK 58 |
-| 5 | Milestone 5's Expo Go check | (a) reuse the Milestone 4 acceptance when `main` equals the accepted candidate; (b) always a fresh pass | **(a)**, with a diff to prove the equality, as done for Milestone 2 |
+| 1 | Where does RO-029 (the real-sensor BLE pipeline) stand in Sprint 1? | (a) report it as in progress, carried to Sprint 2; (b) hold the Sprint 1 close until part 3 lands | **(a), approved.** Parts 1 and 2 are merged; part 3 needs hardware and a development build |
+| 2 | The parked PRs #28 (BLE adapter) and #31 (pause-aware detection, ADR 0009 Proposed) | (a) carry both to Sprint 2, findings visible; (b) resolve them before the close | **(a), approved.** Both are at their fix-round limits, and #31 changes rep counting, which needs real-data evidence |
+| 3 | ADR 0008 (wire protocol) at the close | (a) stays Proposed until hardware evidence (RO-018); (b) accept now | **(a), approved.** Nothing has been flashed or physically verified |
+| 4 | The 8 moderate npm advisories in Expo's build tooling | (a) record them as a known limitation and recheck at each Expo patch; (b) block the close | **(a), approved.** They are build-time tooling, and no non-downgrade fix exists for SDK 58 |
+| 5 | Milestone 5's Expo Go check | (a) reuse the Milestone 4 acceptance when `main` equals the accepted candidate; (b) always a fresh pass | **(a), approved**, with a diff to prove the equality, as done for Milestone 2 |
 
 ## 6. Prompt for Codex's independent review (PR 5.2)
 

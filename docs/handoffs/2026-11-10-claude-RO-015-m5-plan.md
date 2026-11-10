@@ -50,4 +50,4 @@ None taken. Five are proposed for the owner (plan §5).
 3. **Owner:** start Codex's review (PR 5.2) with plan §6's prompt.
 
 ## Questions for the owner
-The five decisions in plan §5. None of them blocks work before the Milestone 4 merges.
+None. The owner approved all five §5 decisions on 2026-11-10 ("approve all five, keep going on the milestones").

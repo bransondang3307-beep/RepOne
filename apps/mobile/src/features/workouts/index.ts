@@ -6,4 +6,7 @@ export { WeeklyRepsCard } from './components/WeeklyRepsCard';
 export { groupByDay, totalsOf, provenanceOf, type DaySection, type Totals } from './historyStats';
 export { useWorkoutHistory, type WorkoutHistoryState } from './useWorkoutHistory';
 export { WorkoutScreen } from './screens/WorkoutScreen';
+export { WorkoutCard } from './components/WorkoutCard';
+export { loadWorkoutList, type WorkoutListItem, type WorkoutSetItem } from './workoutList';
+export { useWorkoutList, type WorkoutListState } from './useWorkoutList';
 export { useWorkout } from './useWorkout';

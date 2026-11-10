@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { DeviceConnectionPanel } from '../src/features/device-connection';
 import { useLiveSession } from '../src/features/rep-tracking';
-import { SetCard, TodaySummaryCard, WeeklyRepsCard, useWorkout, useWorkoutHistory } from '../src/features/workouts';
+import { SetCard, TodaySummaryCard, WeeklyRepsCard, WorkoutCard, useWorkout, useWorkoutHistory, useWorkoutList } from '../src/features/workouts';
 import { FadeIn, PrimaryButton, PressableScale, Screen, useThemedStyles, type Theme } from '../src/shared';
 
 /** Enough sets for a week of summaries; the dashboard only aggregates what is stored on this device. */
@@ -16,6 +16,9 @@ export default function TodayScreen() {
   const live = status === 'starting' || status === 'recording' || status === 'stopping';
   const workoutStatus = useWorkout((s) => s.workout.record?.workout.status ?? null);
   const workoutOpen = workoutStatus !== null && workoutStatus !== 'finished';
+  const { workouts } = useWorkoutList(4);
+  const current = workoutOpen ? workouts.find((w) => w.summary.workout.status !== 'finished') : undefined;
+  const recent = workouts.filter((w) => w.summary.workout.status === 'finished').slice(0, 2);
   const nowMs = Date.now();
   const latest = sessions[0];
   const date = new Date(nowMs).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
@@ -34,7 +37,15 @@ export default function TodayScreen() {
         />
       </FadeIn>
 
-      <FadeIn index={1}>
+      <FadeIn index={1} style={styles.section}>
+        {current && (
+          <>
+            <Text style={styles.sectionTitle} accessibilityRole="header">
+              Current workout
+            </Text>
+            <WorkoutCard item={current} nowMs={nowMs} />
+          </>
+        )}
         <PrimaryButton
           label={workoutOpen ? 'Continue workout' : 'Start a workout'}
           icon={workoutOpen ? 'chevron' : 'plus'}
@@ -42,6 +53,22 @@ export default function TodayScreen() {
           onPress={() => router.navigate('/workout')}
         />
       </FadeIn>
+
+      {recent.length > 0 && (
+        <FadeIn index={2} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle} accessibilityRole="header">
+              Recent workouts
+            </Text>
+            <PressableScale accessibilityRole="link" onPress={() => router.navigate('/history')} hitSlop={8}>
+              <Text style={styles.link}>See all</Text>
+            </PressableScale>
+          </View>
+          {recent.map((item) => (
+            <WorkoutCard key={item.summary.workout.id} item={item} nowMs={nowMs} />
+          ))}
+        </FadeIn>
+      )}
 
       <FadeIn index={2}>
         <WeeklyRepsCard sessions={sessions} nowMs={nowMs} />

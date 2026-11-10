@@ -5,7 +5,7 @@
   - PR 4.1: the design is in #37; the code and tests are in #45.
   - PR 4.2: the workout flow, in a draft PR stacked on `claude/RO-014-m4-integration`. That branch is `main` + #29 +
     #30 + #45, built so the UI can use both the redesign and the controller.
-  - PR 4.3 has not started.
+  - PR 4.3: Today's workout cards and History's workouts, in a draft PR stacked on PR 4.2.
 - **Author:** Claude Code, 2026-11-06, at the owner's direction ("continue Milestone 4 planning based on the existing
   UI redesign in PR #30").
 - **Starts when** all of these are true:

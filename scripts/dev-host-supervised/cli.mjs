@@ -25,10 +25,9 @@ export async function main(argv) {
   c.stateDirectory = realpathSync(c.stateDirectory);
   if (command === 'recover') {
     await confirm('Inspect and stop ALL surviving agent processes first. Recovery preserves every consumed round and blocks the interrupted task.', 'RECOVER');
-    removeDeadLock(common);
   }
   // All configs/worktrees of a repository share this lock, not merely a caller-selected state path.
-  const release = lock(common);
+  const release = command === 'recover' ? removeDeadLock(common) : lock(common);
   try {
     let journal = readJournal(c.stateDirectory);
     if (command === 'init') {

@@ -3,8 +3,9 @@ import { test } from 'node:test';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { validateConfig, initialState, enroll, decide, reserve, finish, completeCI, failedCI, digest } from './core.mjs';
-import { append, readJournal, lock, bindRepository } from './store.mjs';
+import { append, readJournal, lock, removeDeadLock, bindRepository } from './store.mjs';
 import { childEnvironment, launchArgs, validatePaths, pull, subscriptionCheck, providerArgs } from './adapters.mjs';
 import { runApproved } from './orchestration.mjs';
 
@@ -97,6 +98,61 @@ test('journal persists reservations and rejects tampering/truncation',()=>{
   } finally {rmSync(dir,{recursive:true,force:true});}
 });
 test('exclusive project lock prevents a second controller',()=>{const dir=mkdtempSync(join(tmpdir(),'controller-lock-')); try {const release=lock(dir); assert.throws(()=>lock(dir)); release(); lock(dir)();} finally {rmSync(dir,{recursive:true,force:true});}});
+test('overlapping stale-lock recovery cannot delete a replacement controller lock',t=>{
+  const dir=mkdtempSync(join(tmpdir(),'controller-recovery-')), path=join(dir,'controller.lock');
+  const stalePid=123456789;
+  let overlapping=false, secondBlocked=false, normalBlocked=false;
+  writeFileSync(path,String(stalePid));
+  t.mock.method(process,'kill',(pid,signal)=>{
+    assert.equal(pid,stalePid); assert.equal(signal,0);
+    if (!overlapping) {
+      overlapping=true;
+      // Pause A after reading the dead PID. B recovers and a normal controller
+      // takes the replacement lock before A resumes its stale-owner check.
+      try { removeDeadLock(dir); } catch (error) { assert.equal(error.code,'EEXIST'); secondBlocked=true; }
+      try { lock(dir); } catch (error) { assert.equal(error.code,'EEXIST'); normalBlocked=true; }
+    }
+    throw Object.assign(new Error('dead fixture owner'),{code:'ESRCH'});
+  });
+  try {
+    const release=removeDeadLock(dir);
+    assert.equal(secondBlocked,true,'overlapping recovery must be excluded');
+    assert.equal(normalBlocked,true,'normal acquisition must use the same guard');
+    assert.equal(readFileSync(path,'utf8'),String(process.pid));
+    assert.throws(()=>lock(dir),{code:'EEXIST'});
+    release(); lock(dir)();
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});
+test('crashed recovery leaves a guard that blocks normal and recovery acquisition',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'controller-crashed-recovery-')), path=join(dir,'controller.lock');
+  try {
+    writeFileSync(path,'123456789');
+    const child=spawnSync(process.execPath,['--input-type=module','-e',`
+      import { removeDeadLock } from ${JSON.stringify(new URL('./store.mjs',import.meta.url).href)};
+      process.kill=()=>process.exit(23);
+      removeDeadLock(process.argv[1]);
+    `,dir],{encoding:'utf8',timeout:10000});
+    assert.equal(child.status,23,child.stderr);
+    for (const acquire of [lock,removeDeadLock]) assert.throws(()=>acquire(dir),{code:'EEXIST'});
+    assert.equal(readFileSync(path,'utf8'),'123456789');
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});
+test('recovery refuses live, unknown and corrupt lock owners and releases its guard',t=>{
+  const dir=mkdtempSync(join(tmpdir(),'controller-owner-check-')), path=join(dir,'controller.lock');
+  try {
+    for (const code of [null,'EPERM']) {
+      writeFileSync(path,String(process.pid));
+      t.mock.method(process,'kill',()=>{if (code) throw Object.assign(new Error('unknown'),{code});});
+      assert.throws(()=>removeDeadLock(dir),/LOCK_OWNER_LIVE_OR_UNKNOWN/);
+      assert.equal(readFileSync(path,'utf8'),String(process.pid));
+      t.mock.restoreAll();
+    }
+    writeFileSync(path,'invalid');
+    assert.throws(()=>removeDeadLock(dir),/LOCK_CORRUPT/);
+    rmSync(path);
+    removeDeadLock(dir)(); lock(dir)();
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});
 test('control files cannot reside in an agent worktree or aliased root',()=>{
   const dir=realpathSync(mkdtempSync(join(tmpdir(),'controller-path-')));
   try { for (const x of ['owner','claude','codex','state']) mkdirSync(join(dir,x)); const cfg=join(dir,'config.json'); writeFileSync(cfg,'{}');

@@ -28,11 +28,20 @@ export function append(directory, previous, event, state) {
   return readJournal(directory);
 }
 
-export function lock(directory) {
+export function lock(directory, recover = false) {
+  // Every acquisition uses this guard: no controller can replace a stale lock
+  // between its owner check and unlink. Never automatically recover the guard;
+  // a crash here must block acquisition until the owner stops all contenders.
+  const guard = join(directory, 'controller-acquire.lock');
+  const guardFd = openSync(guard, 'wx', 0o600);
+  closeSync(guardFd);
   const path = join(directory, 'controller.lock');
-  const fd = openSync(path, 'wx', 0o600);
-  try { writeSync(fd, String(process.pid)); fsyncSync(fd); } finally { closeSync(fd); }
-  return () => unlinkSync(path);
+  try {
+    if (recover) clearDeadLock(directory);
+    const fd = openSync(path, 'wx', 0o600);
+    try { writeSync(fd, String(process.pid)); fsyncSync(fd); } finally { closeSync(fd); }
+    return () => unlinkSync(path);
+  } finally { unlinkSync(guard); }
 }
 
 export function bindRepository(directory, c, initialize = false) {
@@ -49,6 +58,12 @@ export function bindRepository(directory, c, initialize = false) {
 
 // Recovery does not guess whether a child survived. The owner must inspect/stop it first.
 export function removeDeadLock(directory) {
+  // Return the newly acquired repository lock's release function, never an
+  // unprotected gap between recovery and acquisition.
+  return lock(directory, true);
+}
+
+function clearDeadLock(directory) {
   const path = join(directory, 'controller.lock');
   if (!existsSync(path)) return;
   const pid = Number(readFileSync(path, 'utf8'));

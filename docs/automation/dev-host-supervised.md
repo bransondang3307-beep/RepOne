@@ -121,6 +121,12 @@ Inspect and stop survivors, then run `recover` interactively. It refuses to clea
 unverifiable process and **blocks** interrupted work without refunding its round. A blocked task requires a new,
 separately reviewed owner decision; this phase has no unblock/budget-reset command.
 
+Recovery and normal lock acquisition share an exclusive `controller-acquire.lock` guard in the Git common
+directory, held until `controller.lock` is acquired. An interrupted acquisition can leave this guard behind;
+neither normal commands nor `recover` remove it automatically. Before manually removing an abandoned guard,
+stop all controller processes (including paused recovery attempts) and surviving agents, and prevent new starts
+until the guard is removed. Then use interactive `recover`. Preserve the binding and journal throughout.
+
 Do not delete/recreate the binding or journal to recover: that loses the local budget. Partial/corrupt journals
 fail closed. Preserve the file, reconcile with backups and PR round records, and ask for a reviewed repair.
 If initialization fails between binding and first journal write, preserve both and use the same repair procedure.

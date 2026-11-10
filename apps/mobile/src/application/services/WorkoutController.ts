@@ -348,12 +348,15 @@ export class WorkoutController {
     return this.startAttempt(attempt);
   }
 
-  /** Stop the set that is recording. Idempotent; a no-op when nothing records. */
+  /**
+   * Stop the set that is recording. Idempotent; a no-op when nothing records. It only ever stops this set's own
+   * recording: once that has ended (for example while its save is retried), a quick set started since is left alone.
+   */
   async stopSet(): Promise<void> {
     const attempt = this.attempt;
     if (!attempt) return;
     attempt.stopRequested = true;
-    if (attempt.sessionId !== null) await this.deps.recorder.stop();
+    await this.stopOwnRecording(attempt);
   }
 
   /** Save a completed set whose save failed (plan §3b). Resolves with the set once it is saved. */
@@ -381,7 +384,7 @@ export class WorkoutController {
       attempt.capturing = false;
       const startedId = await started;
       attempt.sessionId ??= startedId;
-      if (attempt.stopRequested) await recorder.stop();
+      if (attempt.stopRequested) await this.stopOwnRecording(attempt);
     } catch (error) {
       startError = error;
     }
@@ -401,6 +404,17 @@ export class WorkoutController {
     await this.run(() => this.link(attempt));
     this.maybeComplete(attempt);
     return { sessionId: attempt.sessionId!, settled: attempt.settled.promise };
+  }
+
+  /**
+   * The recording controller is shared with quick sets, and its `stop()` stops whatever records now. Stop it only
+   * while the recording running is this attempt's own (Codex P1 on PR #45).
+   */
+  private async stopOwnRecording(attempt: Attempt): Promise<void> {
+    const current = this.deps.recorder.getSnapshot();
+    if (attempt.sessionId === null || current.sessionId !== attempt.sessionId) return;
+    if (current.status === 'finished' || current.status === 'error' || current.status === 'idle') return;
+    await this.deps.recorder.stop();
   }
 
   /** Whether a failed start left a recording row. If that cannot be read, none is assumed: the set stays planned. */

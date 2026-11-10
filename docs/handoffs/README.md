@@ -23,6 +23,7 @@ re-reading the whole conversation. Process: `AGENTS.md` §3 step 6.
 
 | Date | Agent | Task | File |
 |---|---|---|---|
+| 2026-11-09 | Claude Code | RO-014 PR 1: `WorkoutController`, wiring, unit and SQLite integration tests (draft; waits for PRs #29, #30, #35) | [2026-11-09-claude-RO-014-pr1-implementation.md](2026-11-09-claude-RO-014-pr1-implementation.md) |
 | 2026-11-09 | Claude Code | RO-029: firmware → decoder cross-boundary regression on whole streams (synthetic, test only) | [2026-11-09-claude-RO-029-firmware-decoder-boundary.md](2026-11-09-claude-RO-029-firmware-decoder-boundary.md) |
 | 2026-11-09 | Claude Code | Status closeout of the 2026-11-08 merges (PRs #33, #34, #25, #26, #27); RO-025 done | [2026-11-09-claude-status-closeout.md](2026-11-09-claude-status-closeout.md) |
 | 2026-11-09 | Claude Code | RO-013: file-backed v1 → v2 upgrade test across app launches (test only, stacked on PR #35) | [2026-11-09-claude-RO-013-file-backed-upgrade-test.md](2026-11-09-claude-RO-013-file-backed-upgrade-test.md) |

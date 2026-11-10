@@ -1,6 +1,7 @@
 # RepOne architecture
 
-> Status: describes what is **implemented** on `main` at the end of Sprint 1 (alignment Milestones 1–5).
+> Status: describes the **Milestone 4 stack candidate**: `main` plus PRs #29, #30, #35, #37 and #45–#47, which have
+> **not merged yet**. When they merge, the refresh of RO-015 PR 5.1 switches this line to `main` (end of Sprint 1).
 > Items marked *planned* do not exist yet. Decisions: [`docs/decisions/`](decisions/).
 
 ## 1. Layers and dependency direction

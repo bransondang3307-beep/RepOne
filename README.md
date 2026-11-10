@@ -5,6 +5,9 @@ Portable gym-machine rep-tracking device + companion mobile app. Read
 
 ## Actual state (end of Sprint 1, alignment Milestones 1–5)
 
+> Until PRs #29, #30, #35, #37 and #45–#47 merge, this section describes that Milestone 4 stack candidate, not `main`.
+> RO-015 PR 5.1 is refreshed when they merge.
+
 The device checks the owner ran on an iPhone, and their dates, are recorded in
 [`PROJECT_STATUS.md`](PROJECT_STATUS.md). The Sprint 1 summary is in
 [`docs/sprint-1-summary.md`](docs/sprint-1-summary.md).

@@ -42,6 +42,12 @@ Docs only — no code tests required.
 | `npm run check:boundaries`, `npm run check:workflows` | OK |
 | `npm run verify` | exit 0 (unchanged code) |
 
+## Review round 1 (Codex at `d213a02`, 2026-11-10)
+- **P2:** `docs/architecture.md`'s status line said "implemented on `main`" while the content describes the unmerged
+  Milestone 4 stack.
+- **Fix:** the line now says it describes the stack candidate and names the PRs not merged yet. `README.md`'s
+  "Actual state" gets the same note. Both switch to `main` at this PR's refresh after those merges.
+
 ## Decisions / ADRs
 None new. The text follows the owner's plan §5 decisions (2026-11-10).
 

@@ -374,6 +374,26 @@ describe('WorkoutController', () => {
       expect((await t.stored()).workout.status).toBe('paused');
     });
 
+    it('stopSet never stops a quick set started while the finished set awaits its save (Codex P1 on PR #45)', async () => {
+      const t = await setup();
+      t.failWhen((record) => statusOf(record, t.set1) === 'completed');
+      const handle = await t.workouts.recordSet(t.set1);
+      await expect(handle.settled).rejects.toThrow('disk full');
+      expect(t.workouts.getSnapshot()).toMatchObject({ recordingSetId: t.set1, pendingSave: true });
+
+      // The recorder is free again: the user starts a quick set, then taps Stop on the workout's set.
+      const recorder = t.recorder as WorkoutSessionController;
+      const scheduler = new ManualScheduler();
+      const quickSet = await recorder.start({ sensor: new SimulatedSensorSource({ script: DEMO_LOOP_SCRIPT, simulation: SIMULATION, scheduler }), calibration });
+      scheduler.advance(1000);
+      await t.workouts.stopSet();
+      expect(recorder.getSnapshot()).toMatchObject({ status: 'recording', sessionId: quickSet });
+
+      await recorder.stop();
+      t.failWhen(null);
+      expect(await t.workouts.retryPendingSave()).toMatchObject({ set: { id: t.set1, status: 'completed' } });
+    });
+
     it('the next change saves a pending completed set first', async () => {
       const t = await setup();
       t.failWhen((record) => statusOf(record, t.set1) === 'completed');
@@ -444,6 +464,28 @@ describe('WorkoutController', () => {
         return this.finishStart !== null;
       }
     }
+
+    it('a stop requested during start() is not applied to another recording that runs by the time start() returns', async () => {
+      let recorder!: ScriptedRecorder;
+      const t = await setup({ recorder: (r) => (recorder = new ScriptedRecorder(r)) });
+      const stops = jest.spyOn(ScriptedRecorder.prototype, 'stop');
+      const recording = t.workouts.recordSet(t.set1);
+      await waitFor(() => recorder.started, 'the recording to start');
+      await t.workouts.stopSet(); // requested while start() is pending: this stops the set's own recording
+      expect(stops).toHaveBeenCalledTimes(1);
+      stops.mockClear();
+
+      // This set's recording ends, and a quick set is recording by the time start() returns.
+      recorder.publish({ status: 'finished', sessionId: 'rec-1', error: null });
+      recorder.publish({ status: 'recording', sessionId: 'quick-2' });
+      recorder.resolveStart();
+      const handle = await recording;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(stops).not.toHaveBeenCalled(); // the quick set keeps recording
+      // This set's own `finished` snapshot was buffered; the quick set's snapshot is ignored. The set completes.
+      expect((await handle.settled).set).toMatchObject({ status: 'completed', recording_session_id: 'rec-1' });
+      expect(recorder.getSnapshot()).toMatchObject({ status: 'recording', sessionId: 'quick-2' });
+    });
 
     it('a terminal snapshot of another recording is ignored', async () => {
       let recorder!: ScriptedRecorder;

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "project": "repone",
+  "repo": "bransondang3307-beep/RepOne",
+  "baseBranch": "main",
+  "executionEnabled": false,
+  "autoMerge": false,
+  "maxFixRounds": 2,
+  "maintainers": ["bransondang3307-beep"],
+  "stateDirectory": "C:/Users/dkhie/AppData/Local/dev-host/repone/state",
+  "worktrees": {
+    "owner": "C:/Users/dkhie/Desktop/RepOne",
+    "claude": "C:/Users/dkhie/Desktop/RepOne-Claude",
+    "codex": "C:/Users/dkhie/Desktop/RepOne-Codex"
+  },
+  "executables": {
+    "claude": {"path": "C:/OWNER-MUST-SET/claude.exe", "sha256": "OWNER-MUST-SET"},
+    "codex": {"path": "C:/OWNER-MUST-SET/codex.exe", "sha256": "OWNER-MUST-SET"}
+  },
+  "workflows": [{
+    "path": ".github/workflows/ci.yml",
+    "jobs": ["Boundaries, typecheck and tests", "Windows — boundary checker and its tests", "Handoff file present"]
+  }],
+  "tasks": []
+}

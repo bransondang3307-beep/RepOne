@@ -29,9 +29,8 @@ owner/ChatGPT assignment. Never claim an independent review of your own implemen
    `docs/handoffs/` files, accepted ADRs, and `README.md`, in the shared reading order.
    Inspect open PRs and their handoffs too: status documents may lag GitHub.
 3. Read this guide explicitly. Read `apps/mobile/AGENTS.md` before mobile work.
-   Inspect actual paths and scripts: the current routes are `apps/mobile/app/`;
-   the mobile instruction's generic `src/app/` statement conflicts with the tree.
-   Report that discrepancy; do not move routes as an onboarding step.
+   Inspect actual paths and scripts. Routes live in `apps/mobile/app/`, as
+   `apps/mobile/AGENTS.md` states since RO-008; do not move them.
 4. State implemented vs planned behavior, your task ID, assigned agent, allowed files,
    base SHA, and dependencies. Stop unassigned implementation and ask the owner/
    ChatGPT to assign it. Read-only orientation is allowed without taking a task.
@@ -41,20 +40,20 @@ Code and executed tests establish implementation, not a handoff's aspirations.
 
 ## Architecture and milestone guardrails
 
-As of `main` @ `2959751` (2026-10-28), Milestone 1 is merged (PR #3, `cd884fc`;
-ADR 0003). The pure-TypeScript packages are `@repone/sensor-contracts`,
-`@repone/rep-engine` and `@repone/workout-domain`. `apps/mobile` uses Expo Router
+Sprint 1's alignment milestones build on Milestone 1 (PR #3, `cd884fc`; ADR 0003).
+`PROJECT_STATUS.md` and `TASKS.md` give their current state; this guide does not
+snapshot it. The pure-TypeScript packages are `@repone/sensor-contracts`,
+`@repone/rep-engine`, `@repone/workout-domain` and `@repone/sensor-protocol`. `apps/mobile` uses Expo Router
 routes in `apps/mobile/app/` and the `src/application`, `src/features`, `src/shared`
 and `src/infrastructure` layers, with Zustand and expo-sqlite. `npm run
 check:boundaries` enforces the module boundaries. Keep units and provenance
 explicit. No new framework, dependency migration, detector tuning, sensor contract
 change, or native project generation is part of onboarding.
 
-RO-008 addresses the ownership table in `docs/architecture.md` §6 separately.
-Milestones 2–5 are Sprint 1 alignment work, gated by previous merges and owner
-approval. **Milestone 2 (RO-012) is paused by the owner:** its stacked PRs #14–#17
-are open and unmerged. Do not treat them as merged, build on them, or merge them.
-Sprint 2 has not started.
+`docs/architecture.md` §6 maps the `AGENTS.md` roles onto the code (RO-008).
+Milestones 2–5 are Sprint 1 alignment work. Each starts only after the previous one
+merges and the owner approves. Treat only what `main` and `PROJECT_STATUS.md` show
+as merged; open PRs are not. Sprint 2 has not started.
 
 Rep data remains simulated. No verified real sensor-to-app path, hardware accuracy,
 or owner Expo Go success is established by these documents. Keep those gates open.
@@ -114,7 +113,7 @@ reading order and relevant open PRs. Start with a read-only setup audit: report 
 actual repository path, dirty files, branch/SHA, Node/npm/Git versions, package
 scripts, merged vs unmerged architecture, and the next assigned task. Preserve
 Claude/Codex/Gemini/ChatGPT roles, owner-only device testing, the $0 AI API rule,
-and the Milestone 2 (RO-012) pause. Do not install, edit code, switch a dirty
+and the milestone gates in TASKS.md. Do not install, edit code, switch a dirty
 checkout, add automation, or merge.
 Give me the next setup command justified by what you actually observed.
 ```

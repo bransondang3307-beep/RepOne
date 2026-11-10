@@ -192,6 +192,67 @@ describe.each(['light', 'dark'] as const)('workout flow components (%s theme)', 
     expect(labelled(tree, 'Record set 1')).toHaveLength(0);
   });
 
+  it('a quick set started while a set\'s save is pending never shows as that set\'s counts (Codex P1 on PR #46)', async () => {
+    const scheduler = new ManualScheduler();
+    let now = 1_700_000_000_000;
+    const base = createInMemoryRepositories();
+    let failCompletion = true;
+    const repositories = {
+      ...base,
+      workouts: {
+        ...base.workouts,
+        save: async (record: Parameters<typeof base.workouts.save>[0]) => {
+          if (failCompletion && record.sets.some((s) => s.status === 'completed')) throw new Error('disk full (simulated)');
+          return base.workouts.save(record);
+        },
+      },
+    };
+    const container = assembleContainer(repositories, { now: () => (now += 1000) }, { scheduler, seed: 1 });
+    const store = workoutStoreFor(container);
+    await store.getState().load();
+    await store.getState().newWorkout();
+    await store.getState().createAndAddExercise({ name: 'Row', machine: null });
+    await store.getState().addSet(store.getState().workout.record!.exercises[0]!.id);
+    await store.getState().start();
+    await store.getState().recordSet(store.getState().workout.record!.sets[0]!.id);
+    scheduler.advance(20_000);
+    await store.getState().stopSet();
+    for (let i = 0; i < 50 && !store.getState().workout.pendingSave; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(store.getState().workout.pendingSave).toBe(true);
+    const setReps = store.getState().recordingLive!.fullReps + store.getState().recordingLive!.partialReps;
+
+    const tree = render(
+      <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } }}>
+        <AppServicesProvider container={container}>
+          <WorkoutScreen />
+        </AppServicesProvider>
+      </SafeAreaProvider>,
+    );
+    await settle();
+    const recordingLabels = () =>
+      tree.root.findAll((n) => typeof n.props.accessibilityLabel === 'string' && n.props.accessibilityLabel.startsWith('Recording: ')).map((n) => n.props.accessibilityLabel as string);
+    const before = recordingLabels();
+    expect(before[0]).toMatch(/so far\. Simulated data — not a real measurement$/);
+    expect(texts(tree)).toContain('A recorded set has not been saved yet.');
+
+    // The recorder is free: a quick set starts and records a few seconds, with counts unlike the set's.
+    await act(async () => {
+      await container.controller.start({ sensor: await container.getSessionSensor(), calibration: container.getCalibration() });
+      scheduler.advance(4000);
+    });
+    await settle();
+    const quick = container.controller.getSnapshot();
+    expect(quick.status).toBe('recording');
+    expect(quick.fullReps + quick.partialReps).not.toBe(setReps); // so the check below can tell them apart
+    expect(recordingLabels()).toEqual(before);
+
+    await act(async () => container.controller.stop());
+    failCompletion = false;
+    await act(async () => button(tree, 'Try saving again').props.onPress());
+    await settle();
+    expect(texts(tree)).toContain('Completed');
+  });
+
   it('WorkoutScreen runs a workout end to end with the simulated sensor', async () => {
     const scheduler = new ManualScheduler();
     let now = 1_700_000_000_000;

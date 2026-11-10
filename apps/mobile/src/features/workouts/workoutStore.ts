@@ -18,8 +18,13 @@ export interface NewExerciseInput {
 export interface WorkoutState {
   /** The workout controller's snapshot: the current workout, the recording lock, set results. */
   readonly workout: WorkoutSnapshot;
-  /** The recording controller's live snapshot: the running set's rep counts (algorithm-derived). */
+  /** The recording controller's live snapshot, whatever it records (a workout set or a quick set). */
   readonly live: SessionSnapshot;
+  /**
+   * The last snapshot of the recording set's own recording (Codex P1 on PR #46). It is matched by session id, so a
+   * quick set started while the set's save is pending never shows as the set's counts. Null when no set records.
+   */
+  readonly recordingLive: SessionSnapshot | null;
   /** Exercise catalog, alphabetical. */
   readonly exercises: readonly Exercise[];
   /** Every machine, by id: for names and motion types. */
@@ -109,6 +114,7 @@ export function createWorkoutStore(container: Pick<AppContainer, 'workouts' | 'r
   const store = createStore<WorkoutState>()(() => ({
     workout: workouts.getSnapshot(),
     live: controller.getSnapshot(),
+    recordingLive: null,
     exercises: [],
     machines: {},
     lastTime: {},
@@ -168,9 +174,21 @@ export function createWorkoutStore(container: Pick<AppContainer, 'workouts' | 'r
     dismissError: () => store.setState({ actionError: null }),
   }));
 
-  controller.subscribe((live) => store.setState({ live }));
+  /** Whether a recorder snapshot belongs to the workout's recording set (its linked recording). */
+  const ownedBySet = (live: SessionSnapshot, workout: WorkoutSnapshot): boolean => {
+    const set = workout.record?.sets.find((s) => s.id === workout.recordingSetId);
+    return set?.recording_session_id != null && live.sessionId === set.recording_session_id;
+  };
+
+  controller.subscribe((live) =>
+    store.setState(ownedBySet(live, store.getState().workout) ? { live, recordingLive: live } : { live }),
+  );
   workouts.subscribe((workout) => {
-    store.setState({ workout });
+    const current = controller.getSnapshot();
+    // Keep the set's last own snapshot while its save is pending; clear it once no set records.
+    const recordingLive =
+      workout.recordingSetId === null ? null : ownedBySet(current, workout) ? current : store.getState().recordingLive;
+    store.setState({ workout, recordingLive });
     void loadLastTime().catch(() => undefined);
     void loadOutcomes().catch(() => undefined);
   });

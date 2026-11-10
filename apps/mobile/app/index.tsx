@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { DeviceConnectionPanel } from '../src/features/device-connection';
 import { useLiveSession } from '../src/features/rep-tracking';
-import { SetCard, TodaySummaryCard, WeeklyRepsCard, useWorkoutHistory } from '../src/features/workouts';
+import { SetCard, TodaySummaryCard, WeeklyRepsCard, useWorkout, useWorkoutHistory } from '../src/features/workouts';
 import { FadeIn, PrimaryButton, PressableScale, Screen, useThemedStyles, type Theme } from '../src/shared';
 
 /** Enough sets for a week of summaries; the dashboard only aggregates what is stored on this device. */
@@ -14,6 +14,8 @@ export default function TodayScreen() {
   const { sessions, error } = useWorkoutHistory(DASHBOARD_HISTORY_LIMIT);
   const status = useLiveSession((s) => s.session.status);
   const live = status === 'starting' || status === 'recording' || status === 'stopping';
+  const workoutStatus = useWorkout((s) => s.workout.record?.workout.status ?? null);
+  const workoutOpen = workoutStatus !== null && workoutStatus !== 'finished';
   const nowMs = Date.now();
   const latest = sessions[0];
   const date = new Date(nowMs).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
@@ -29,6 +31,15 @@ export default function TodayScreen() {
           label={live ? 'Back to the live set' : 'Start a set'}
           icon={live ? 'record' : 'play'}
           onPress={() => router.navigate('/record')}
+        />
+      </FadeIn>
+
+      <FadeIn index={1}>
+        <PrimaryButton
+          label={workoutOpen ? 'Continue workout' : 'Start a workout'}
+          icon={workoutOpen ? 'chevron' : 'plus'}
+          tone="secondary"
+          onPress={() => router.navigate('/workout')}
         />
       </FadeIn>
 

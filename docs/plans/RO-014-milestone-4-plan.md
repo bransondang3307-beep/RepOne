@@ -1,6 +1,11 @@
 # RO-014 — Milestone 4 plan (mobile UI for workouts)
 
-- **Status:** planned. Not started; no RO-014 code exists.
+- **Status:** in progress as **drafts** (2026-11-09). Nothing is merged until PRs #29, #30 and #35 merge and the
+  owner checks each UI PR in Expo Go.
+  - PR 4.1: the design is in #37; the code and tests are in #45.
+  - PR 4.2: the workout flow, in a draft PR stacked on `claude/RO-014-m4-integration`. That branch is `main` + #29 +
+    #30 + #45, built so the UI can use both the redesign and the controller.
+  - PR 4.3 has not started.
 - **Author:** Claude Code, 2026-11-06, at the owner's direction ("continue Milestone 4 planning based on the existing
   UI redesign in PR #30").
 - **Starts when** all of these are true:

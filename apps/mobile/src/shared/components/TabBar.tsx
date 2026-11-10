@@ -11,24 +11,30 @@ interface Props extends BottomTabBarProps {
   icons: Record<string, IconName>;
   /** Route whose tab shows a pulsing "live" dot (e.g. while a set is recording on it). */
   liveRoute?: string | null;
+  /** Routes without a tab, each mapped to the tab shown as selected while it is open. */
+  hiddenRoutes?: Readonly<Record<string, string>>;
 }
 
 /** A floating, rounded bottom navigation bar with a sliding highlight behind the active tab. */
-export function TabBar({ state, descriptors, emitter, navigateToTab, insets, icons, liveRoute = null }: Props) {
+export function TabBar({ state, descriptors, emitter, navigateToTab, insets, icons, liveRoute = null, hiddenRoutes = {} }: Props) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const reduced = useReducedMotion();
   const [barWidth, setBarWidth] = useState(0);
-  const slide = useRef(new Animated.Value(state.index)).current;
-  const tabWidth = state.routes.length > 0 ? (barWidth - BAR_PADDING * 2) / state.routes.length : 0;
+  const routes = state.routes.filter((route) => !(route.name in hiddenRoutes));
+  const current = state.routes[state.index]?.name;
+  const selectedName = current !== undefined && current in hiddenRoutes ? hiddenRoutes[current] : current;
+  const selected = Math.max(0, routes.findIndex((route) => route.name === selectedName));
+  const slide = useRef(new Animated.Value(selected)).current;
+  const tabWidth = routes.length > 0 ? (barWidth - BAR_PADDING * 2) / routes.length : 0;
 
   useEffect(() => {
     if (reduced) {
-      slide.setValue(state.index);
+      slide.setValue(selected);
       return;
     }
-    Animated.spring(slide, { toValue: state.index, speed: 18, bounciness: 7, useNativeDriver: true }).start();
-  }, [reduced, slide, state.index]);
+    Animated.spring(slide, { toValue: selected, speed: 18, bounciness: 7, useNativeDriver: true }).start();
+  }, [reduced, slide, selected]);
 
   return (
     <View style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
@@ -44,14 +50,14 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, insets, ico
             ]}
           />
         )}
-        {state.routes.map((route, index) => {
-          const focused = state.index === index;
+        {routes.map((route, index) => {
+          const focused = selected === index;
           const title = descriptors[route.key]?.options.title ?? route.name;
           const color = focused ? colors.primaryText : colors.textMuted;
           const live = liveRoute === route.name;
           const onPress = () => {
             const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!focused && !event.defaultPrevented) navigateToTab(route.key);
+            if (state.routes[state.index]?.key !== route.key && !event.defaultPrevented) navigateToTab(route.key);
           };
           return (
             <Pressable

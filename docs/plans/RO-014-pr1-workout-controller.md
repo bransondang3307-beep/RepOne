@@ -370,6 +370,12 @@ The code follows §1–§3b. Where the implementation had to choose, it chose as
   - `recorder_busy`: "Finish the quick set first.";
   - `unknown_set`: the set was not found after it was saved.
 
+**Stopping only this set's recording** (Codex P1 on PR #45, round 1):
+- The recording controller is shared with quick sets, and its `stop()` stops whatever records now.
+- `stopSet()` and the stop deferred until `start()` returns therefore call it only while the recording running is
+  this attempt's own: same session id, and not yet finished.
+- Without that check, a set whose completion save failed could stop a quick set started since.
+
 **Defensive paths for a recorder that misbehaves:**
 - If storage cannot say whether a failed start left a recording row, none is assumed: the set stays planned and the
   lock is released.

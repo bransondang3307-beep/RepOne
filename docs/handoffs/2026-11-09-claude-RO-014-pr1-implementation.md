@@ -69,6 +69,20 @@ simulated or replayed.
   the first. The paths are listed in plan §6.
 - **Next:** re-request `@codex review` once the subscription's review limit resets. That costs $0 extra.
 
+## Review round 1 (Codex at `fda0d2f`, 2026-11-10)
+- **Finding (P1):** `stopSet()` (and the stop deferred until `start()` returns) called the shared recorder's
+  `stop()` whenever the attempt had a session id. After a failed completion save, the attempt stays attached while
+  the recorder is free, so a quick set started meanwhile was stopped. Codex reproduced it with the real recording
+  controller.
+- **Fix** (in `5887adf`): both stops go through `stopOwnRecording()`. It calls `stop()` only while the recorder's
+  current session is this attempt's and still running.
+- **Tests, 2 new:**
+  - a quick set started while the finished set awaits its save keeps recording after `stopSet()`;
+  - a stop requested during `start()` is not applied to another recording running by the time `start()` returns.
+
+  Both fail without the fix.
+- **Results:** `npm run verify` exit 0 (mobile Jest 88/88); Android and iOS exports exit 0.
+
 ## Decisions / ADRs
 None new. The plan's §6 records the implementation's choices:
 - the narrow `SetRecorder` interface;
